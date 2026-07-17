@@ -57,16 +57,16 @@ import {
 
 // Period filter options
 const PERIOD_OPTIONS = [
-  { value: "30", label: "30 Hari" },
-  { value: "60", label: "60 Hari" },
-  { value: "90", label: "90 Hari" },
+  { value: "1", label: "Harian" },
+  { value: "7", label: "Mingguan" },
+  { value: "30", label: "Bulanan" },
 ];
 
 // Items per page for riwayat transaksi
 const ITEMS_PER_PAGE = 10;
 
 export default function DashboardPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState("30");
+  const [selectedPeriod, setSelectedPeriod] = useState("1");
   const [ringkasan, setRingkasan] = useState<RingkasanHarian | null>(null);
   const [perbandingan, setPerbandingan] = useState<{
     today: RingkasanHarian;
@@ -410,16 +410,16 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Grafik Omzet Bulanan */}
+      {/* Grafik Omzet */}
       <Card>
         <CardHeader>
-          <CardTitle>Grafik Omzet Bulanan</CardTitle>
+          <CardTitle>Grafik Omzet</CardTitle>
           <p className="text-xs text-gray-400 mt-0.5">
-            {selectedPeriod === "30"
-              ? "30 Hari Terakhir"
-              : selectedPeriod === "60"
-                ? "60 Hari Terakhir"
-                : "90 Hari Terakhir"}
+            {selectedPeriod === "1"
+              ? "Hari Ini"
+              : selectedPeriod === "7"
+                ? "7 Hari Terakhir"
+                : "30 Hari Terakhir"}
           </p>
         </CardHeader>
         <CardContent>
