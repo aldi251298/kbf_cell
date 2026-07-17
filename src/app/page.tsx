@@ -44,6 +44,8 @@ import {
   Package,
   ArrowUpRight,
   ArrowDownRight,
+  Eye,
+  X,
 } from "lucide-react";
 import {
   XAxis,
@@ -85,6 +87,7 @@ export default function DashboardPage() {
   const [riwayatTransactions, setRiwayatTransactions] = useState<
     Transaksi[]
   >([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaksi | null>(null);
 
   // Fetch data with proper dependencies
   useEffect(() => {
@@ -210,6 +213,147 @@ export default function DashboardPage() {
       default:
         return "bg-gray-50 text-gray-700";
     }
+  };
+
+  // Transaction Detail Modal Component
+  const TransactionDetailModal = ({
+    transaction,
+    onClose,
+  }: {
+    transaction: Transaksi;
+    onClose: () => void;
+  }) => {
+    const getStatusBadgeVariant = (status: string) => {
+      switch (status) {
+        case "sukses":
+          return "success";
+        case "pending":
+          return "warning";
+        case "gagal":
+          return "error";
+        default:
+          return "default";
+      }
+    };
+
+    const getCategoryBadgeColor = (kategori: string) => {
+      switch (kategori) {
+        case "pulsa":
+          return "bg-blue-50 text-blue-700";
+        case "data":
+          return "bg-purple-50 text-purple-700";
+        case "voucher":
+          return "bg-amber-50 text-amber-700";
+        case "p2p":
+          return "bg-green-50 text-green-700";
+        case "ewallet":
+          return "bg-cyan-50 text-cyan-700";
+        case "ppob":
+          return "bg-orange-50 text-orange-700";
+        case "gametopup":
+          return "bg-pink-50 text-pink-700";
+        case "keuangan":
+          return "bg-teal-50 text-teal-700";
+        default:
+          return "bg-gray-50 text-gray-700";
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900">Detail Transaksi</h3>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Status */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+              <span className="text-sm text-gray-500">Status</span>
+              <Badge
+                variant={getStatusBadgeVariant(transaction.status) as "success" | "warning" | "error" | "default"}
+                size="sm"
+              >
+                {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+              </Badge>
+            </div>
+
+            {/* Waktu */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Waktu Transaksi</span>
+              <span className="text-sm font-medium text-gray-900">
+                {new Date(transaction.waktu).toLocaleString("id-ID", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+
+            {/* Konter */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Konter</span>
+              <span className="text-sm font-medium text-gray-900">{transaction.konterNama}</span>
+            </div>
+
+            {/* Produk */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Produk</span>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="default"
+                  size="sm"
+                  className={getCategoryBadgeColor(transaction.produk.kategori)}
+                >
+                  {transaction.produk.kategori}
+                </Badge>
+                <span className="text-sm font-medium text-gray-900">{transaction.produk.nama}</span>
+              </div>
+            </div>
+
+            {/* Nominal */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Nominal</span>
+              <span className="text-sm font-bold text-gray-900">{formatRupiah(transaction.nominal)}</span>
+            </div>
+
+            {/* Nomor Tujuan - Only show if exists and not empty */}
+            {transaction.nomorTujuan && transaction.nomorTujuan !== "-" && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Nomor Tujuan</span>
+                <span className="text-sm font-mono font-medium text-gray-900">{transaction.nomorTujuan}</span>
+              </div>
+            )}
+
+            {/* Serial Number */}
+            {transaction.sn && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Serial Number</span>
+                <span className="text-sm font-mono text-gray-900">{transaction.sn}</span>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {transaction.errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
+                <p className="text-xs font-medium text-red-600 mb-1">Pesan Error</p>
+                <p className="text-sm text-red-700">{transaction.errorMessage}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -536,7 +680,11 @@ export default function DashboardPage() {
                   </TableHeader>
                   <TableBody>
                     {riwayatTransactions.map((trx) => (
-                      <TableRow key={trx.id}>
+                      <TableRow
+                        key={trx.id}
+                        onClick={() => setSelectedTransaction(trx)}
+                        className="cursor-pointer hover:bg-gray-50 transition-colors"
+                      >
                         <TableCell className="whitespace-nowrap">
                           <div>
                             <p className="text-sm font-medium text-gray-900">
@@ -593,9 +741,35 @@ export default function DashboardPage() {
                               trx.status.slice(1)}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedTransaction(trx);
+                            }}
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                            title="Lihat Detail"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
+                  {/* Total Row */}
+                  <TableRow className="bg-gray-50 font-semibold">
+                    <TableCell colSpan={3} className="text-right">
+                      <span className="text-sm font-semibold text-gray-900">Total {ITEMS_PER_PAGE} Transaksi</span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <p className="text-sm font-bold text-blue-600">
+                        {formatRupiah(riwayatTransactions.reduce((sum, trx) => sum + trx.nominal, 0))}
+                      </p>
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
                 </Table>
               </div>
 
@@ -619,6 +793,14 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Transaction Detail Modal */}
+      {selectedTransaction && (
+        <TransactionDetailModal
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
     </div>
   );
 }

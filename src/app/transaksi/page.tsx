@@ -550,6 +550,19 @@ export default function TransaksiPage() {
                     </TableRow>
                   ))}
                 </TableBody>
+                {/* Total Row */}
+                <TableRow className="bg-gray-50 font-semibold">
+                  <TableCell colSpan={3} className="text-right">
+                    <span className="text-sm font-semibold text-gray-900">Total {transactions.length} Transaksi</span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <p className="text-sm font-bold text-blue-600">
+                      {formatRupiah(transactions.reduce((sum, trx) => sum + trx.nominal, 0))}
+                    </p>
+                  </TableCell>
+                  <TableCell></TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
               </Table>
             </div>
 
