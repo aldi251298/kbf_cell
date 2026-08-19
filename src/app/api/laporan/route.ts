@@ -26,7 +26,24 @@ export async function GET(req: NextRequest) {
     .order("id");
   const konters = (konterRows ?? []) as unknown as KonterRow[];
 
-  // Determine date range based on mode
+  // WIB = UTC+7 — use UTC consistently for date range queries
+  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+  function toWIBStart(date: Date): Date {
+    const utcMs = date.getTime() + date.getTimezoneOffset() * 60000;
+    const wibMs = utcMs + WIB_OFFSET_MS;
+    const wibDate = new Date(wibMs);
+    const result = new Date(
+      Date.UTC(
+        wibDate.getUTCFullYear(),
+        wibDate.getUTCMonth(),
+        wibDate.getUTCDate(),
+      ),
+    );
+    return new Date(result.getTime() - WIB_OFFSET_MS);
+  }
+
+  // Determine date range based on mode (using UTC)
   let rangeStart: Date;
   let rangeEnd: Date;
 
@@ -34,17 +51,17 @@ export async function GET(req: NextRequest) {
     const [yearStr, monthStr] = periode.split("-");
     const year = parseInt(yearStr, 10);
     const month = parseInt(monthStr, 10) - 1;
-    rangeStart = new Date(year, month, 1);
-    rangeEnd = new Date(year, month + 1, 1);
+    rangeStart = toWIBStart(new Date(year, month, 1));
+    rangeEnd = toWIBStart(new Date(year, month + 1, 1));
   } else if (mode === "bulanan") {
     const year = parseInt(periode, 10);
-    rangeStart = new Date(year, 0, 1);
-    rangeEnd = new Date(year + 1, 0, 1);
+    rangeStart = toWIBStart(new Date(year, 0, 1));
+    rangeEnd = toWIBStart(new Date(year + 1, 0, 1));
   } else {
     // tahunan: last 5 years
     const now = new Date();
-    rangeStart = new Date(now.getFullYear() - 4, 0, 1);
-    rangeEnd = new Date(now.getFullYear() + 1, 0, 1);
+    rangeStart = toWIBStart(new Date(now.getFullYear() - 4, 0, 1));
+    rangeEnd = toWIBStart(new Date(now.getFullYear() + 1, 0, 1));
   }
 
   const { data } = await supabase
@@ -118,12 +135,12 @@ function buildLaporan(
     const month = parseInt(monthStr, 10) - 1;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    // group rows by day
+    // group rows by day (using UTC to match stored timestamps)
     const byDay = new Map<number, TransaksiRow[]>();
     rows.forEach((r) => {
       const d = new Date(r.waktu);
-      if (d.getFullYear() === year && d.getMonth() === month) {
-        const day = d.getDate();
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === month) {
+        const day = d.getUTCDate();
         const arr = byDay.get(day) ?? [];
         arr.push(r);
         byDay.set(day, arr);
@@ -138,7 +155,7 @@ function buildLaporan(
         jumlahTransaksi > 0 ? Math.round(omzet / jumlahTransaksi) : 0;
 
       data.push({
-        tanggal: new Date(year, month, day),
+        tanggal: new Date(Date.UTC(year, month, day)),
         omzet,
         jumlahTransaksi,
         rataRataNilai,
@@ -155,8 +172,8 @@ function buildLaporan(
     const byMonth = new Map<number, TransaksiRow[]>();
     rows.forEach((r) => {
       const d = new Date(r.waktu);
-      if (d.getFullYear() === year) {
-        const m = d.getMonth();
+      if (d.getUTCFullYear() === year) {
+        const m = d.getUTCMonth();
         const arr = byMonth.get(m) ?? [];
         arr.push(r);
         byMonth.set(m, arr);
@@ -168,7 +185,7 @@ function buildLaporan(
       const omzet = monthRows.reduce((s, r) => s + Number(r.nominal), 0);
       const jumlahTransaksi = monthRows.length;
       const hariAktif = new Set(
-        monthRows.map((r) => new Date(r.waktu).getDate()),
+        monthRows.map((r) => new Date(r.waktu).getUTCDate()),
       ).size;
       const rataRataNilai = hariAktif > 0 ? Math.round(omzet / hariAktif) : 0;
 
@@ -182,7 +199,7 @@ function buildLaporan(
     // tahunan
     const byYear = new Map<number, TransaksiRow[]>();
     rows.forEach((r) => {
-      const y = new Date(r.waktu).getFullYear();
+      const y = new Date(r.waktu).getUTCFullYear();
       const arr = byYear.get(y) ?? [];
       arr.push(r);
       byYear.set(y, arr);
