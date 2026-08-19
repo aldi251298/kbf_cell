@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   getRingkasanHariIni,
-  getRingkasanPeriodeService,
   getPerbandinganRingkasan,
   getTransaksiPaginated,
 } from "@/services";
@@ -13,14 +12,13 @@ import {
   formatRupiah,
   formatAngka,
   hitungPerubahanPersen,
-  formatAngkaSingkat,
+  getTampilanTransaksi,
 } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Skeleton,
   CardSkeleton,
-  ChartSkeleton,
 } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -39,88 +37,48 @@ import {
   ShoppingCart,
   Clock,
   ExternalLink,
-  Activity,
-  Users,
-  Package,
   ArrowUpRight,
   ArrowDownRight,
   Eye,
   X,
 } from "lucide-react";
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-} from "recharts";
-
-// Period filter options
-const PERIOD_OPTIONS = [
-  { value: "1", label: "Harian" },
-  { value: "7", label: "Mingguan" },
-  { value: "30", label: "Bulanan" },
-];
 
 // Items per page for riwayat transaksi
 const ITEMS_PER_PAGE = 10;
 
 export default function DashboardPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState("1");
   const [ringkasan, setRingkasan] = useState<RingkasanHarian | null>(null);
   const [perbandingan, setPerbandingan] = useState<{
     today: RingkasanHarian;
     yesterday: RingkasanHarian;
     perubahan: { omzet: number; transaksi: number };
   } | null>(null);
-  const [omzetBulananData, setOmzetBulananData] = useState<
-    Array<{ tanggal: string; omzet: number; transaksi: number }>
-  >([]);
   const [loading, setLoading] = useState(true);
 
   // Pagination state for riwayat transaksi
   const [riwayatPage, setRiwayatPage] = useState(1);
   const [totalRiwayatPages, setTotalRiwayatPages] = useState(1);
   const [totalRiwayatItems, setTotalRiwayatItems] = useState(0);
-  const [riwayatTransactions, setRiwayatTransactions] = useState<
-    Transaksi[]
-  >([]);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaksi | null>(null);
+  const [riwayatTransactions, setRiwayatTransactions] = useState<Transaksi[]>(
+    [],
+  );
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaksi | null>(null);
 
-  // Fetch data with proper dependencies
+  // Fetch dashboard summary data
   useEffect(() => {
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Initial loading state before fetch is a valid pattern
     setLoading(true);
     const fetchData = async () => {
       try {
-        // Fetch all data in parallel
-        const [
-          ringkasanData,
-          perbandinganData,
-          periodeData,
-        ] = await Promise.all([
+        const [ringkasanData, perbandinganData] = await Promise.all([
           getRingkasanHariIni(),
           getPerbandinganRingkasan(),
-          getRingkasanPeriodeService(parseInt(selectedPeriod)),
         ]);
 
         if (!cancelled) {
           setRingkasan(ringkasanData);
           setPerbandingan(perbandinganData);
-
-          // Format omzet bulanan data for chart (daily data)
-          const omzetBulanan = periodeData.map((item) => ({
-            tanggal: new Intl.DateTimeFormat("id-ID", {
-              day: "2-digit",
-              month: "short",
-            }).format(item.tanggal),
-            omzet: item.totalOmzet,
-            transaksi: item.totalTransaksi,
-          }));
-          setOmzetBulananData(omzetBulanan);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -134,7 +92,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedPeriod]);
+  }, []);
 
   // Fetch riwayat transaksi when page changes
   useEffect(() => {
@@ -190,13 +148,21 @@ export default function DashboardPage() {
       case "pulsa":
         return <Receipt className="h-4 w-4" />;
       case "data":
-        return <Activity className="h-4 w-4" />;
+        return <DollarSign className="h-4 w-4" />;
       case "voucher":
         return <ShoppingCart className="h-4 w-4" />;
       case "p2p":
-        return <Users className="h-4 w-4" />;
+        return <Receipt className="h-4 w-4" />;
+      case "ewallet":
+        return <DollarSign className="h-4 w-4" />;
+      case "ppob":
+        return <DollarSign className="h-4 w-4" />;
+      case "gametopup":
+        return <ShoppingCart className="h-4 w-4" />;
+      case "keuangan":
+        return <DollarSign className="h-4 w-4" />;
       default:
-        return <Package className="h-4 w-4" />;
+        return <Receipt className="h-4 w-4" />;
     }
   };
 
@@ -210,6 +176,14 @@ export default function DashboardPage() {
         return "bg-amber-50 text-amber-700";
       case "p2p":
         return "bg-green-50 text-green-700";
+      case "ewallet":
+        return "bg-cyan-50 text-cyan-700";
+      case "ppob":
+        return "bg-orange-50 text-orange-700";
+      case "gametopup":
+        return "bg-pink-50 text-pink-700";
+      case "keuangan":
+        return "bg-teal-50 text-teal-700";
       default:
         return "bg-gray-50 text-gray-700";
     }
@@ -264,7 +238,9 @@ export default function DashboardPage() {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900">Detail Transaksi</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Detail Transaksi
+            </h3>
             <button
               onClick={onClose}
               className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
@@ -279,10 +255,14 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
               <span className="text-sm text-gray-500">Status</span>
               <Badge
-                variant={getStatusBadgeVariant(transaction.status) as "success" | "warning" | "error" | "default"}
+                variant={
+                  getStatusBadgeVariant(transaction.status) as
+                    "success" | "warning" | "error" | "default"
+                }
                 size="sm"
               >
-                {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                {transaction.status.charAt(0).toUpperCase() +
+                  transaction.status.slice(1)}
               </Badge>
             </div>
 
@@ -303,7 +283,9 @@ export default function DashboardPage() {
             {/* Konter */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">Konter</span>
-              <span className="text-sm font-medium text-gray-900">{transaction.konterNama}</span>
+              <span className="text-sm font-medium text-gray-900">
+                {transaction.konterNama}
+              </span>
             </div>
 
             {/* Produk */}
@@ -317,21 +299,27 @@ export default function DashboardPage() {
                 >
                   {transaction.produk.kategori}
                 </Badge>
-                <span className="text-sm font-medium text-gray-900">{transaction.produk.nama}</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {transaction.produk.nama}
+                </span>
               </div>
             </div>
 
             {/* Nominal */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">Nominal</span>
-              <span className="text-sm font-bold text-gray-900">{formatRupiah(transaction.nominal)}</span>
+              <span className="text-sm font-bold text-gray-900">
+                {formatRupiah(transaction.nominal)}
+              </span>
             </div>
 
             {/* Nomor Tujuan - Only show if exists and not empty */}
             {transaction.nomorTujuan && transaction.nomorTujuan !== "-" && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Nomor Tujuan</span>
-                <span className="text-sm font-mono font-medium text-gray-900">{transaction.nomorTujuan}</span>
+                <span className="text-sm font-mono font-medium text-gray-900">
+                  {transaction.nomorTujuan}
+                </span>
               </div>
             )}
 
@@ -339,15 +327,21 @@ export default function DashboardPage() {
             {transaction.sn && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Serial Number</span>
-                <span className="text-sm font-mono text-gray-900">{transaction.sn}</span>
+                <span className="text-sm font-mono text-gray-900">
+                  {transaction.sn}
+                </span>
               </div>
             )}
 
             {/* Error Message */}
             {transaction.errorMessage && (
               <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
-                <p className="text-xs font-medium text-red-600 mb-1">Pesan Error</p>
-                <p className="text-sm text-red-700">{transaction.errorMessage}</p>
+                <p className="text-xs font-medium text-red-600 mb-1">
+                  Pesan Error
+                </p>
+                <p className="text-sm text-red-700">
+                  {transaction.errorMessage}
+                </p>
               </div>
             )}
           </div>
@@ -368,28 +362,9 @@ export default function DashboardPage() {
             Ringkasan aktivitas konter pulsa Anda
           </p>
         </div>
-
-        {/* Period Filter */}
-        <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1">
-          {PERIOD_OPTIONS.map((option) => (
-            <Button
-              key={option.value}
-              variant={selectedPeriod === option.value ? "default" : "ghost"}
-              size="sm"
-              className={`rounded-md text-xs font-medium ${
-                selectedPeriod === option.value
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
-              onClick={() => setSelectedPeriod(option.value)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
-      {/* Summary Cards - Only Omzet, Transaksi, Status */}
+      {/* Summary Cards - Omzet, Transaksi, Status */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {loading ? (
           <>
@@ -434,7 +409,8 @@ export default function DashboardPage() {
                         {hitungPerubahanPersen(
                           perbandingan?.today.totalOmzet ?? 0,
                           perbandingan?.yesterday.totalOmzet ?? 0,
-                        ).toFixed(1)}%
+                        ).toFixed(1)}
+                        %
                       </span>
                       <span className="text-xs text-gray-400 ml-1">
                         dari kemarin
@@ -483,7 +459,8 @@ export default function DashboardPage() {
                         {hitungPerubahanPersen(
                           perbandingan?.today.totalTransaksi ?? 0,
                           perbandingan?.yesterday.totalTransaksi ?? 0,
-                        ).toFixed(1)}%
+                        ).toFixed(1)}
+                        %
                       </span>
                       <span className="text-xs text-gray-400 ml-1">
                         dari kemarin
@@ -554,81 +531,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Grafik Omzet */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Grafik Omzet</CardTitle>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {selectedPeriod === "1"
-              ? "Hari Ini"
-              : selectedPeriod === "7"
-                ? "7 Hari Terakhir"
-                : "30 Hari Terakhir"}
-          </p>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <ChartSkeleton />
-          ) : omzetBulananData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={omzetBulananData}>
-                <defs>
-                  <linearGradient id="colorOmzet" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="tanggal"
-                  stroke="#9ca3af"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                />
-                <YAxis
-                  stroke="#9ca3af"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `Rp ${formatAngkaSingkat(value)}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #f3f4f6",
-                    borderRadius: "0.75rem",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                    padding: "0.75rem",
-                  }}
-                  labelStyle={{
-                    color: "#111827",
-                    fontWeight: 600,
-                    fontSize: "0.75rem",
-                  }}
-                  formatter={(value) => [formatRupiah(Number(value)), "Omzet"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="omzet"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  fill="url(#colorOmzet)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyState
-              title="Tidak ada data"
-              description="Belum cukup data untuk menampilkan grafik"
-            />
-          )}
-        </CardContent>
-      </Card>
-
       {/* Riwayat Transaksi with Pagination */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -676,100 +578,127 @@ export default function DashboardPage() {
                       <TableHead>Produk</TableHead>
                       <TableHead>Nominal</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Tujuan</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {riwayatTransactions.map((trx) => (
-                      <TableRow
-                        key={trx.id}
-                        onClick={() => setSelectedTransaction(trx)}
-                        className="cursor-pointer hover:bg-gray-50 transition-colors"
-                      >
-                        <TableCell className="whitespace-nowrap">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {new Date(trx.waktu).toLocaleTimeString("id-ID", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                            <p className="text-[11px] text-gray-400">
-                              {new Date(trx.waktu).toLocaleDateString("id-ID", {
-                                day: "2-digit",
-                                month: "short",
-                              })}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-gray-900">
-                            {trx.konterNama}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
-                              {getCategoryIcon(trx.produk.kategori)}
-                            </div>
+                    {riwayatTransactions.map((trx) => {
+                      const tampilan = getTampilanTransaksi(
+                        trx.produk.kategori,
+                        trx.nomorTujuan,
+                        trx.produk.nama,
+                      );
+                      return (
+                        <TableRow
+                          key={trx.id}
+                          onClick={() => setSelectedTransaction(trx)}
+                          className="cursor-pointer hover:bg-gray-50 transition-colors"
+                        >
+                          <TableCell className="whitespace-nowrap">
                             <div>
                               <p className="text-sm font-medium text-gray-900">
-                                {trx.produk.nama}
+                                {new Date(trx.waktu).toLocaleTimeString("id-ID", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </p>
-                              <Badge
-                                variant="default"
-                                size="sm"
-                                className={getCategoryBadgeColor(
-                                  trx.produk.kategori,
-                                )}
-                              >
-                                {trx.produk.kategori}
-                              </Badge>
+                              <p className="text-[11px] text-gray-400">
+                                {new Date(trx.waktu).toLocaleDateString("id-ID", {
+                                  day: "2-digit",
+                                  month: "short",
+                                })}
+                              </p>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <p className="text-sm font-medium text-gray-900">
-                            {formatRupiah(trx.nominal)}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={getStatusBadgeVariant(trx.status) as "success" | "warning" | "error" | "default"}
-                            size="sm"
-                          >
-                            {trx.status.charAt(0).toUpperCase() +
-                              trx.status.slice(1)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedTransaction(trx);
-                            }}
-                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                            title="Lihat Detail"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                  {/* Total Row */}
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-sm text-gray-900">
+                              {trx.konterNama}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-7 w-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
+                                {getCategoryIcon(trx.produk.kategori)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {trx.produk.nama}
+                                </p>
+                                <Badge
+                                  variant="default"
+                                  size="sm"
+                                  className={getCategoryBadgeColor(
+                                    trx.produk.kategori,
+                                  )}
+                                >
+                                  {tampilan.labelJenisTransaksi}
+                                </Badge>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <p className="text-sm font-medium text-gray-900">
+                              {formatRupiah(trx.nominal)}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                getStatusBadgeVariant(trx.status) as
+                                  "success" | "warning" | "error" | "default"
+                              }
+                              size="sm"
+                            >
+                              {trx.status.charAt(0).toUpperCase() +
+                                trx.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {tampilan.tampilkanNomorTujuan && trx.nomorTujuan ? (
+                              <span className="text-sm text-gray-600">
+                                {trx.nomorTujuan}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTransaction(trx);
+                              }}
+                              className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                              title="Lihat Detail"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   <TableRow className="bg-gray-50 font-semibold">
-                    <TableCell colSpan={3} className="text-right">
-                      <span className="text-sm font-semibold text-gray-900">Total {ITEMS_PER_PAGE} Transaksi</span>
+                    <TableCell colSpan={4} className="text-right">
+                      <span className="text-sm font-semibold text-gray-900">
+                        Total {ITEMS_PER_PAGE} Transaksi
+                      </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <p className="text-sm font-bold text-blue-600">
-                        {formatRupiah(riwayatTransactions.reduce((sum, trx) => sum + trx.nominal, 0))}
+                        {formatRupiah(
+                          riwayatTransactions.reduce(
+                            (sum, trx) => sum + trx.nominal,
+                            0,
+                          ),
+                        )}
                       </p>
                     </TableCell>
                     <TableCell></TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
+                </TableBody>
                 </Table>
               </div>
 

@@ -1,19 +1,28 @@
 "use client";
 
 import { formatTanggal, formatJam } from "@/lib/utils";
-import { Bell, Search, User, Calendar } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Bell, Search, Calendar } from "lucide-react";
+import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function Header() {
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [searchQuery, setSearchQuery] = useState("");
+  const tanggalRef = useRef<HTMLParagraphElement>(null);
+  const jamRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
+    const updateTime = () => {
+      const now = new Date();
+      if (tanggalRef.current) {
+        tanggalRef.current.textContent = formatTanggal(now);
+      }
+      if (jamRef.current) {
+        jamRef.current.textContent = formatJam(now);
+      }
+    };
+
+    updateTime();
+    const timer = setInterval(updateTime, 60000);
 
     return () => clearInterval(timer);
   }, []);
@@ -39,7 +48,7 @@ export function Header() {
             Selamat datang, Pemilik
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            {formatTanggal(currentTime)} — Ringkasan aktivitas konter Anda
+            Ringkasan aktivitas konter Anda
           </p>
         </div>
       </div>
@@ -50,8 +59,6 @@ export function Header() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Cari transaksi, produk, atau konter..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 pr-12 h-9 rounded-xl border-gray-200 bg-gray-50 text-sm placeholder:text-gray-400 focus:bg-white transition-colors duration-150"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden lg:inline-flex items-center gap-0.5 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
@@ -83,9 +90,11 @@ export function Header() {
 
         {/* Current Time */}
         <div className="hidden xl:block text-right px-2 border-l border-gray-100">
-          <p className="text-xs text-gray-500">{formatTanggal(currentTime)}</p>
-          <p className="text-xs font-semibold text-gray-900">
-            {formatJam(currentTime)}
+          <p className="text-xs text-gray-500" ref={tanggalRef}>
+            {formatTanggal(new Date())}
+          </p>
+          <p className="text-xs font-semibold text-gray-900" ref={jamRef}>
+            {formatJam(new Date())}
           </p>
         </div>
 
@@ -93,19 +102,6 @@ export function Header() {
         <button className="relative rounded-lg p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors duration-150">
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        </button>
-
-        {/* User Profile */}
-        <button className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-gray-50 transition-colors duration-150">
-          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-            <User className="h-4 w-4 text-blue-600" />
-          </div>
-          <div className="hidden md:block text-left">
-            <p className="text-sm font-medium text-gray-900 leading-none">
-              Pemilik
-            </p>
-            <p className="text-[11px] text-gray-500 mt-0.5">Admin</p>
-          </div>
         </button>
       </div>
     </header>

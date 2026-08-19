@@ -1,13 +1,8 @@
-export {
-  KONTER_LIST,
-  getKonterById,
-  getKonterByPerangkatId,
-} from "./konterData";
-export { PERANGKAT_LIST, getRiwayatStatusPerangkat } from "./perangkatData";
-export {
-  generateTransaksiData,
-  filterTransaksiData,
-  getTransaksiHariIni,
-} from "./transaksiData";
-export { getRingkasanHarian, getRingkasanPeriode } from "./ringkasanData";
-export { getLaporanPeriode } from "./laporanData";
+/**
+ * Data barrel — re-exports fixtures for backward compatibility.
+ *
+ * NOTE: Production code should use the service layer (src/services/*) which now
+ * reads real data from Supabase. This barrel only re-exports the fixtures
+ * (dummy data) kept for testing/seed purposes.
+ */
+export * from "@/fixtures";

@@ -2,10 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import {
-  addTransaksiManual,
-  getKonterList,
-} from "@/services";
+import { addTransaksiManual, getKonterList } from "@/services";
 import type { Konter } from "@/types";
 import { formatRupiah } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +38,10 @@ const KATEGORI_PRODUK = [
 ];
 
 // Product list by category
-const PRODUK_BY_KATEGORI: Record<string, { kode: string; nama: string; harga: number }[]> = {
+const PRODUK_BY_KATEGORI: Record<
+  string,
+  { kode: string; nama: string; harga: number }[]
+> = {
   pulsa: [
     { kode: "P5", nama: "Pulsa 5.000", harga: 5500 },
     { kode: "P10", nama: "Pulsa 10.000", harga: 10500 },
@@ -156,7 +156,9 @@ export default function TransaksiBaruPage() {
   const [idGame, setIdGame] = useState("");
   const [namaPenerima, setNamaPenerima] = useState("");
   const [rekeningTujuan, setRekeningTujuan] = useState("");
-  const [status, setStatus] = useState<"sukses" | "gagal" | "pending">("sukses");
+  const [status, setStatus] = useState<"sukses" | "gagal" | "pending">(
+    "sukses",
+  );
   const [errorMessage, setErrorMessage] = useState("");
 
   // Fetch konter list
@@ -238,7 +240,8 @@ export default function TransaksiBaruPage() {
           rekeningTujuan: rekeningTujuan || undefined,
           namaProduk: selectedProduct?.nama || undefined,
         },
-        errorMessage: status === "gagal" ? errorMessage || "Transaksi gagal" : undefined,
+        errorMessage:
+          status === "gagal" ? errorMessage || "Transaksi gagal" : undefined,
       });
 
       setSuccess(true);
@@ -315,18 +318,10 @@ export default function TransaksiBaruPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            disabled={loading}
-          >
+          <Button variant="outline" onClick={handleReset} disabled={loading}>
             Reset Form
           </Button>
-          <Button
-            onClick={handleSubmit}
-            isLoading={loading}
-            disabled={loading}
-          >
+          <Button onClick={handleSubmit} isLoading={loading} disabled={loading}>
             Simpan Transaksi
           </Button>
         </div>
@@ -338,8 +333,12 @@ export default function TransaksiBaruPage() {
           <CardContent className="pt-6 flex items-center gap-3">
             <CheckCircle className="h-6 w-6 text-green-600" />
             <div>
-              <p className="font-medium text-green-800">Transaksi berhasil ditambahkan!</p>
-              <p className="text-sm text-green-600">Mengalihkan ke halaman transaksi...</p>
+              <p className="font-medium text-green-800">
+                Transaksi berhasil ditambahkan!
+              </p>
+              <p className="text-sm text-green-600">
+                Mengalihkan ke halaman transaksi...
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -397,7 +396,10 @@ export default function TransaksiBaruPage() {
                   Produk <span className="text-red-500">*</span>
                 </label>
                 <Select
-                  options={[{ value: "", label: "Pilih Produk" }, ...productOptions]}
+                  options={[
+                    { value: "", label: "Pilih Produk" },
+                    ...productOptions,
+                  ]}
                   value={produk}
                   onChange={setProduk}
                   placeholder="Pilih Produk"
@@ -410,8 +412,12 @@ export default function TransaksiBaruPage() {
               <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-blue-900">{selectedProduct.nama}</p>
-                    <p className="text-sm text-blue-600">Harga: {formatRupiah(selectedProduct.harga)}</p>
+                    <p className="font-medium text-blue-900">
+                      {selectedProduct.nama}
+                    </p>
+                    <p className="text-sm text-blue-600">
+                      Harga: {formatRupiah(selectedProduct.harga)}
+                    </p>
                   </div>
                   <Badge variant="default" size="sm">
                     {KATEGORI_PRODUK.find((k) => k.value === kategori)?.label}
@@ -442,7 +448,10 @@ export default function TransaksiBaruPage() {
                     Platform E-Wallet <span className="text-red-500">*</span>
                   </label>
                   <Select
-                    options={[{ value: "", label: "Pilih Platform" }, ...E_WALLET_PLATFORMS]}
+                    options={[
+                      { value: "", label: "Pilih Platform" },
+                      ...E_WALLET_PLATFORMS,
+                    ]}
                     value={platform}
                     onChange={setPlatform}
                     placeholder="Pilih Platform"
@@ -469,7 +478,10 @@ export default function TransaksiBaruPage() {
                     Jenis Pembayaran <span className="text-red-500">*</span>
                   </label>
                   <Select
-                    options={[{ value: "", label: "Pilih Jenis Pembayaran" }, ...PPOB_PAYMENT_TYPES]}
+                    options={[
+                      { value: "", label: "Pilih Jenis Pembayaran" },
+                      ...PPOB_PAYMENT_TYPES,
+                    ]}
                     value={jenisPembayaran}
                     onChange={setJenisPembayaran}
                     placeholder="Pilih Jenis Pembayaran"
@@ -487,7 +499,8 @@ export default function TransaksiBaruPage() {
                     />
                   </div>
                 )}
-                {(jenisPembayaran === "pdam" || jenisPembayaran === "internet") && (
+                {(jenisPembayaran === "pdam" ||
+                  jenisPembayaran === "internet") && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">
                       Nomor Pelanggan

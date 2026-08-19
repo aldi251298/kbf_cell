@@ -55,9 +55,12 @@ export function Pagination({
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
       {totalItems && (
         <p className="text-sm text-text-tertiary">
-          Menampilkan <span className="font-medium text-text-secondary">{startItem}</span> -{" "}
-          <span className="font-medium text-text-secondary">{endItem}</span> dari{" "}
-          <span className="font-medium text-text-secondary">{totalItems}</span> hasil
+          Menampilkan{" "}
+          <span className="font-medium text-text-secondary">{startItem}</span> -{" "}
+          <span className="font-medium text-text-secondary">{endItem}</span>{" "}
+          dari{" "}
+          <span className="font-medium text-text-secondary">{totalItems}</span>{" "}
+          hasil
         </p>
       )}
 

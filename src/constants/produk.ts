@@ -1,7 +1,15 @@
 export interface ProdukInfo {
   kode: string;
   nama: string;
-  kategori: "pulsa" | "data" | "voucher" | "p2p" | "ewallet" | "ppob" | "gametopup" | "keuangan";
+  kategori:
+    | "pulsa"
+    | "data"
+    | "voucher"
+    | "p2p"
+    | "ewallet"
+    | "ppob"
+    | "gametopup"
+    | "keuangan";
   nominal: number;
   hargaNormal: number; // harga normal untuk fake data generation
 }

@@ -423,7 +423,8 @@ export default function LaporanPage() {
                           <div
                             className="h-3 w-3 rounded-full"
                             style={{
-                              backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                              backgroundColor:
+                                CHART_COLORS[index % CHART_COLORS.length],
                             }}
                           />
                           <span className="text-sm font-medium text-text-primary">
@@ -444,7 +445,8 @@ export default function LaporanPage() {
                           className="h-full rounded-full transition-all duration-500"
                           style={{
                             width: `${item.persentase}%`,
-                            backgroundColor: CHART_COLORS[index % CHART_COLORS.length],
+                            backgroundColor:
+                              CHART_COLORS[index % CHART_COLORS.length],
                           }}
                         />
                       </div>

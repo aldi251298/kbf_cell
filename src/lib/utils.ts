@@ -132,3 +132,97 @@ export function waktuLalu(date: Date | string): string {
   if (diffMenit > 0) return `${diffMenit} menit lalu`;
   return "Baru saja";
 }
+
+// ---------------------------------------------------------------------------
+// getTampilanTransaksi — util terpusat untuk menentukan field yang ditampilkan
+// per jenis transaksi (SRS Bagian 4).
+//
+// Mengembalikan:
+//   - labelNomorTujuan: string label untuk kolom nomor tujuan
+//   - tampilkanNomorTujuan: boolean — apakah kolom nomor tujuan perlu ditampilkan
+//   - tampilkanNamaProduk: boolean — apakah nama produk perlu ditampilkan
+//   - labelJenisTransaksi: string label human-readable untuk badge jenis transaksi
+// ---------------------------------------------------------------------------
+export interface TampilanTransaksi {
+  labelNomorTujuan: string;
+  tampilkanNomorTujuan: boolean;
+  tampilkanNamaProduk: boolean;
+  labelJenisTransaksi: string;
+  tampilkanProviderSeluler?: boolean;
+  tampilkanNamaPemilik?: boolean;
+}
+
+export function getTampilanTransaksi(
+  jenisTransaksi: string,
+  nomorTujuan?: string | null,
+  namaProduk?: string | null,
+): TampilanTransaksi {
+  const jt = jenisTransaksi.toLowerCase();
+
+  // Default values
+  let labelNomorTujuan = "Nomor Tujuan";
+  let tampilkanNomorTujuan = true;
+  let tampilkanNamaProduk = false;
+  let labelJenisTransaksi = "Transaksi";
+  let tampilkanProviderSeluler = false;
+  let tampilkanNamaPemilik = false;
+
+  switch (jt) {
+    case "pulsa":
+      labelNomorTujuan = "Nomor HP";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = false;
+      labelJenisTransaksi = "Isi Ulang Pulsa";
+      tampilkanProviderSeluler = true;
+      break;
+    case "paket_data":
+      labelNomorTujuan = "Nomor HP";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Paket Data";
+      break;
+    case "pln":
+      labelNomorTujuan = "Nomor Meter / Token";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = false;
+      labelJenisTransaksi = "Token/Tagihan PLN";
+      break;
+    case "ewallet":
+    case "ewallet_dana":
+      labelNomorTujuan = "Nomor Tujuan";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Top Up E-Wallet";
+      tampilkanNamaPemilik = true;
+      break;
+    case "voucher":
+      labelNomorTujuan = "Nomor Tujuan";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Voucher";
+      break;
+    case "pulsa_op":
+      labelNomorTujuan = "Nomor HP";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = false;
+      labelJenisTransaksi = "Pulsa Operator";
+      tampilkanProviderSeluler = true;
+      break;
+    default:
+      // Jenis belum dikenali / fallback
+      labelNomorTujuan = "Nomor Tujuan";
+      tampilkanNomorTujuan = !!nomorTujuan;
+      tampilkanNamaProduk = !!namaProduk;
+      labelJenisTransaksi = jenisTransaksi || "Transaksi";
+      break;
+  }
+
+  return {
+    labelNomorTujuan,
+    tampilkanNomorTujuan,
+    tampilkanNamaProduk,
+    labelJenisTransaksi,
+    tampilkanProviderSeluler,
+    tampilkanNamaPemilik,
+  };
+}

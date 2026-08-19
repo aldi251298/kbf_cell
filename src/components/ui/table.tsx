@@ -13,36 +13,45 @@ export function Table({
       <table
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
-      />
+      >
+        {props.children}
+      </table>
     </div>
   );
 }
 
 export function TableHeader({
   className,
+  children,
   ...props
-}: ComponentPropsWithoutRef<"thead">) {
+}: ComponentPropsWithoutRef<"thead"> & { children?: ReactNode }) {
   return (
     <thead
       className={cn("[&_tr]:border-b [&_tr]:border-border", className)}
       {...props}
-    />
+    >
+      {children}
+    </thead>
   );
 }
 
 export function TableBody({
   className,
+  children,
   ...props
-}: ComponentPropsWithoutRef<"tbody">) {
+}: ComponentPropsWithoutRef<"tbody"> & { children?: ReactNode }) {
   return (
-    <tbody className={cn("[&_tr:last-child]:border-0", className)} {...props} />
+    <tbody className={cn("[&_tr:last-child]:border-0", className)} {...props}>
+      {children}
+    </tbody>
   );
 }
 
 export function TableFooter({
   className,
+  children,
   ...props
-}: ComponentPropsWithoutRef<"tfoot">) {
+}: ComponentPropsWithoutRef<"tfoot"> & { children?: ReactNode }) {
   return (
     <tfoot
       className={cn(
@@ -50,7 +59,9 @@ export function TableFooter({
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </tfoot>
   );
 }
 
@@ -117,20 +128,18 @@ export function SortableTableHead({
       onClick={sortable ? onSort : undefined}
       {...props}
     >
-      <div className="flex items-center gap-1">
-        {children}
-        {sortable && (
-          <span className="ml-1 opacity-50">
-            {sorted === "asc" ? (
-              <ChevronUp className="h-3.5 w-3.5 text-accent" />
-            ) : sorted === "desc" ? (
-              <ChevronDown className="h-3.5 w-3.5 text-accent" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
-            )}
-          </span>
-        )}
-      </div>
+      {children}
+      {sortable && (
+        <span className="ml-1 inline-flex flex-col">
+          {sorted === "asc" ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : sorted === "desc" ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <ChevronUp className="h-3 w-3 opacity-30" />
+          )}
+        </span>
+      )}
     </th>
   );
 }

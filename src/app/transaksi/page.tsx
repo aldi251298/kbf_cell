@@ -6,7 +6,7 @@ import {
   exportTransaksiCSV,
 } from "@/services/transaksiService";
 import type { Transaksi, StatusTransaksi } from "@/types";
-import { formatRupiah, formatWaktu, potongTeks } from "@/lib/utils";
+import { formatRupiah, formatWaktu, potongTeks, getTampilanTransaksi } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,39 @@ const ITEMS_PER_PAGE = 20;
 type SortField = "waktu" | "nominal";
 type SortDirection = "asc" | "desc";
 
+// Helper functions (shared between modal and table)
+function getStatusBadgeVariant(status: string): "success" | "warning" | "error" | "default" {
+  switch (status) {
+    case "sukses":
+      return "success";
+    case "pending":
+      return "warning";
+    case "gagal":
+      return "error";
+    default:
+      return "default";
+  }
+}
+
+function getCategoryBadgeColor(kategori: string): string {
+  switch (kategori) {
+    case "pulsa":
+      return "bg-blue-50 text-blue-700";
+    case "data":
+      return "bg-purple-50 text-purple-700";
+    case "voucher":
+      return "bg-amber-50 text-amber-700";
+    case "p2p":
+      return "bg-green-50 text-green-700";
+    case "ewallet":
+      return "bg-cyan-50 text-cyan-700";
+    case "ppob":
+      return "bg-orange-50 text-orange-700";
+    default:
+      return "bg-gray-50 text-gray-700";
+  }
+}
+
 // Transaction Detail Modal Component
 function TransactionDetailModal({
   transaction,
@@ -43,40 +76,15 @@ function TransactionDetailModal({
   transaction: Transaksi;
   onClose: () => void;
 }) {
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "sukses":
-        return "success";
-      case "pending":
-        return "warning";
-      case "gagal":
-        return "error";
-      default:
-        return "default";
-    }
-  };
-
-  const getCategoryBadgeColor = (kategori: string) => {
-    switch (kategori) {
-      case "pulsa":
-        return "bg-blue-50 text-blue-700";
-      case "data":
-        return "bg-purple-50 text-purple-700";
-      case "voucher":
-        return "bg-amber-50 text-amber-700";
-      case "p2p":
-        return "bg-green-50 text-green-700";
-      default:
-        return "bg-gray-50 text-gray-700";
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Detail Transaksi</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Detail Transaksi
+          </h3>
           <button
             onClick={onClose}
             className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
@@ -91,7 +99,10 @@ function TransactionDetailModal({
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
             <span className="text-sm text-gray-500">Status</span>
             <Badge
-              variant={getStatusBadgeVariant(transaction.status) as "success" | "warning" | "error" | "default"}
+              variant={
+                getStatusBadgeVariant(transaction.status) as
+                  "success" | "warning" | "error" | "default"
+              }
               size="sm"
             >
               {STATUS_LABELS[transaction.status]}
@@ -101,41 +112,88 @@ function TransactionDetailModal({
           {/* Waktu */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Waktu Transaksi</span>
-            <span className="text-sm font-medium text-gray-900">{formatWaktu(transaction.waktu)}</span>
+            <span className="text-sm font-medium text-gray-900">
+              {formatWaktu(transaction.waktu)}
+            </span>
           </div>
 
           {/* Konter */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Konter</span>
-            <span className="text-sm font-medium text-gray-900">{transaction.konterNama}</span>
+            <span className="text-sm font-medium text-gray-900">
+              {transaction.konterNama}
+            </span>
           </div>
 
           {/* Produk */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Produk</span>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="default"
-                size="sm"
-                className={getCategoryBadgeColor(transaction.produk.kategori)}
-              >
-                {transaction.produk.kategori}
-              </Badge>
-              <span className="text-sm font-medium text-gray-900">{transaction.produk.nama}</span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="default"
+                  size="sm"
+                  className={getCategoryBadgeColor(transaction.produk.kategori)}
+                >
+                  {getTampilanTransaksi(
+                    transaction.produk.kategori,
+                    transaction.nomorTujuan,
+                    transaction.produk.nama,
+                  ).labelJenisTransaksi}
+                </Badge>
+                {transaction.perluReview && (
+                  <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
+                    PERLU REVIEW
+                  </span>
+                )}
+              </div>
+              <span className="text-sm font-medium text-gray-900">
+                {transaction.produk.nama}
+              </span>
             </div>
           </div>
+
+          {/* Provider Seluler (khusus pulsa) */}
+          {transaction.providerSeluler && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Provider</span>
+              <span className="text-sm font-medium text-gray-900">
+                {transaction.providerSeluler}
+              </span>
+            </div>
+          )}
+
+          {/* Nama Pemilik (khusus e-wallet) */}
+          {transaction.namaPemilik && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Nama Pemilik</span>
+              <span className="text-sm font-medium text-gray-900">
+                {transaction.namaPemilik}
+              </span>
+            </div>
+          )}
 
           {/* Nominal */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Nominal</span>
-            <span className="text-sm font-bold text-gray-900">{formatRupiah(transaction.nominal)}</span>
+            <span className="text-sm font-bold text-gray-900">
+              {formatRupiah(transaction.nominal)}
+            </span>
           </div>
 
-          {/* Nomor Tujuan - Only show if exists and not empty */}
+          {/* Nomor Tujuan - label changes based on jenis_transaksi */}
           {transaction.nomorTujuan && transaction.nomorTujuan !== "-" && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Nomor Tujuan</span>
-              <span className="text-sm font-mono font-medium text-gray-900">{transaction.nomorTujuan}</span>
+              <span className="text-sm text-gray-500">
+                {getTampilanTransaksi(
+                  transaction.produk.kategori,
+                  transaction.nomorTujuan,
+                  transaction.produk.nama,
+                ).labelNomorTujuan}
+              </span>
+              <span className="text-sm font-mono font-medium text-gray-900">
+                {transaction.nomorTujuan}
+              </span>
             </div>
           )}
 
@@ -143,14 +201,18 @@ function TransactionDetailModal({
           {transaction.sn && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">Serial Number</span>
-              <span className="text-sm font-mono text-gray-900">{transaction.sn}</span>
+              <span className="text-sm font-mono text-gray-900">
+                {transaction.sn}
+              </span>
             </div>
           )}
 
           {/* Error Message */}
           {transaction.errorMessage && (
             <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
-              <p className="text-xs font-medium text-red-600 mb-1">Pesan Error</p>
+              <p className="text-xs font-medium text-red-600 mb-1">
+                Pesan Error
+              </p>
               <p className="text-sm text-red-700">{transaction.errorMessage}</p>
             </div>
           )}
@@ -165,6 +227,7 @@ export default function TransaksiPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKonter, setSelectedKonter] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedJenisTransaksi, setSelectedJenisTransaksi] = useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
@@ -184,7 +247,8 @@ export default function TransaksiPage() {
   const [konterList, setKonterList] = useState<Konter[]>([]);
 
   // Detail modal state
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaksi | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaksi | null>(null);
 
   // Fetch konter list
   useEffect(() => {
@@ -195,7 +259,7 @@ export default function TransaksiPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Resetting page on filter change is a valid pattern
     setCurrentPage(1);
-  }, [dateFrom, dateTo, selectedKonter, selectedStatus, searchTerm]);
+  }, [dateFrom, dateTo, selectedKonter, selectedStatus, selectedJenisTransaksi, searchTerm]);
 
   // Fetch transactions with proper dependencies
   useEffect(() => {
@@ -209,6 +273,7 @@ export default function TransaksiPage() {
           ...(dateTo && { endDate: new Date(dateTo) }),
           ...(selectedKonter && { konterId: selectedKonter }),
           ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
+          ...(selectedJenisTransaksi && { jenisTransaksi: selectedJenisTransaksi }),
           ...(searchTerm && { search: searchTerm }),
           sortBy: sortField,
           sortOrder: sortDirection,
@@ -273,7 +338,9 @@ export default function TransaksiPage() {
       const csvContent = await exportTransaksiCSV(filters);
 
       // Create download link with BOM for Excel compatibility
-      const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob(["\ufeff" + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -299,6 +366,17 @@ export default function TransaksiPage() {
     { value: "sukses", label: "Sukses" },
     { value: "gagal", label: "Gagal" },
     { value: "pending", label: "Pending" },
+  ];
+
+  // Jenis transaksi options for filter
+  const jenisTransaksiOptions = [
+    { value: "", label: "Semua Jenis" },
+    { value: "pulsa", label: "Pulsa" },
+    { value: "paket_data", label: "Paket Data" },
+    { value: "pln", label: "PLN" },
+    { value: "ewallet_dana", label: "E-Wallet DANA" },
+    { value: "voucher", label: "Voucher" },
+    { value: "pulsa_op", label: "Pulsa Operator" },
   ];
 
   // Clear all filters
@@ -381,6 +459,15 @@ export default function TransaksiPage() {
                 placeholder="Status"
                 className="w-full sm:w-40"
               />
+
+              {/* Jenis Transaksi Filter */}
+              <Select
+                options={jenisTransaksiOptions}
+                value={selectedJenisTransaksi}
+                onChange={setSelectedJenisTransaksi}
+                placeholder="Jenis Transaksi"
+                className="w-full sm:w-48"
+              />
             </div>
 
             {/* Date Range & Clear */}
@@ -437,15 +524,17 @@ export default function TransaksiPage() {
             <span className="font-medium text-text-secondary">
               {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}
             </span>{" "}
-            dari <span className="font-medium text-text-secondary">{totalItems}</span> transaksi
+            dari{" "}
+            <span className="font-medium text-text-secondary">
+              {totalItems}
+            </span>{" "}
+            transaksi
           </p>
 
           {hasActiveFilters && (
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-text-tertiary" />
-              <span className="text-sm text-text-tertiary">
-                Filter aktif
-              </span>
+              <span className="text-sm text-text-tertiary">Filter aktif</span>
             </div>
           )}
         </div>
@@ -484,80 +573,110 @@ export default function TransaksiPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((trx) => (
-                    <TableRow key={trx.id}>
-                      <TableCell className="whitespace-nowrap">
-                        <div>
-                          <p className="text-sm font-medium text-text-primary">
-                            {formatWaktu(trx.waktu)}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-sm text-text-primary">
-                          {potongTeks(trx.konterNama, 20)}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <div>
+                  {transactions.map((trx) => {
+                    const tampilan = getTampilanTransaksi(
+                      trx.produk.kategori,
+                      trx.nomorTujuan,
+                      trx.produk.nama,
+                    );
+                    return (
+                      <TableRow
+                        key={trx.id}
+                        className={trx.perluReview ? "bg-yellow-50" : undefined}
+                      >
+                        <TableCell className="whitespace-nowrap">
+                          <div>
+                            <p className="text-sm font-medium text-text-primary">
+                              {formatWaktu(trx.waktu)}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <p className="text-sm text-text-primary">
-                            {trx.produk.nama}
+                            {potongTeks(trx.konterNama, 20)}
                           </p>
-                          <p className="text-xs text-text-tertiary capitalize">
-                            {trx.produk.kategori}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="default"
+                                size="sm"
+                                className={getCategoryBadgeColor(trx.produk.kategori)}
+                              >
+                                {tampilan.labelJenisTransaksi}
+                              </Badge>
+                              {trx.perluReview && (
+                                <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
+                                  PERLU REVIEW
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-sm text-text-primary">
+                              {trx.produk.nama}
+                            </span>
+                            {tampilan.tampilkanProviderSeluler && trx.providerSeluler && (
+                              <span className="text-xs text-text-tertiary">
+                                {trx.providerSeluler}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <p className="text-sm font-medium text-text-primary">
+                            {formatRupiah(trx.nominal)}
                           </p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <p className="text-sm font-medium text-text-primary">
-                          {formatRupiah(trx.nominal)}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            trx.status === "sukses"
-                              ? "success"
-                              : trx.status === "gagal"
-                                ? "error"
-                                : "warning"
-                          }
-                          size="sm"
-                          dot
-                        >
-                          {STATUS_LABELS[trx.status]}
-                        </Badge>
-                        {trx.errorMessage && (
-                          <p
-                            className="text-xs text-text-tertiary mt-1 truncate max-w-[150px]"
-                            title={trx.errorMessage}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              trx.status === "sukses"
+                                ? "success"
+                                : trx.status === "gagal"
+                                  ? "error"
+                                  : "warning"
+                            }
+                            size="sm"
+                            dot
                           >
-                            {trx.errorMessage}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedTransaction(trx)}
-                          className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                          title="Lihat Detail"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {STATUS_LABELS[trx.status]}
+                          </Badge>
+                          {trx.errorMessage && (
+                            <p
+                              className="text-xs text-text-tertiary mt-1 truncate max-w-[150px]"
+                              title={trx.errorMessage}
+                            >
+                              {trx.errorMessage}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedTransaction(trx)}
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                            title="Lihat Detail"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
                 {/* Total Row */}
                 <TableRow className="bg-gray-50 font-semibold">
                   <TableCell colSpan={3} className="text-right">
-                    <span className="text-sm font-semibold text-gray-900">Total {transactions.length} Transaksi</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      Total {transactions.length} Transaksi
+                    </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <p className="text-sm font-bold text-blue-600">
-                      {formatRupiah(transactions.reduce((sum, trx) => sum + trx.nominal, 0))}
+                      {formatRupiah(
+                        transactions.reduce((sum, trx) => sum + trx.nominal, 0),
+                      )}
                     </p>
                   </TableCell>
                   <TableCell></TableCell>

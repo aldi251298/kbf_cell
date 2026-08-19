@@ -16,7 +16,10 @@ function addDays(date: Date, days: number): Date {
 }
 
 // Cache for transaction data to avoid regenerating
-let transactionCache: { days: number; data: Awaited<ReturnType<typeof generateTransaksiData>> } | null = null;
+let transactionCache: {
+  days: number;
+  data: Awaited<ReturnType<typeof generateTransaksiData>>;
+} | null = null;
 
 async function getTransactionData(days: number) {
   if (!transactionCache || transactionCache.days < days) {
@@ -30,9 +33,10 @@ export async function getRingkasanHarian(
 ): Promise<RingkasanHarian> {
   // Get transactions for the required days
   const now = new Date();
-  const daysNeeded = Math.ceil((now.getTime() - tanggal.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const daysNeeded =
+    Math.ceil((now.getTime() - tanggal.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   const allData = await getTransactionData(Math.max(daysNeeded, 30));
-  
+
   const dayStart = startOfDay(tanggal);
   const dayEnd = addDays(dayStart, 1);
 
@@ -59,6 +63,7 @@ export async function getRingkasanHarian(
     { omzet: number; jumlahTransaksi: number }
   >();
   dailyTrx.forEach((trx) => {
+    if (!trx.konterId) return;
     const existing = konterMap.get(trx.konterId) || {
       omzet: 0,
       jumlahTransaksi: 0,
@@ -94,7 +99,7 @@ export async function getRingkasanPeriode(
 ): Promise<RingkasanHarian[]> {
   // Get all transaction data once
   const allData = await getTransactionData(hariKembali);
-  
+
   const now = new Date();
   const summaries: RingkasanHarian[] = [];
 
@@ -126,6 +131,7 @@ export async function getRingkasanPeriode(
       { omzet: number; jumlahTransaksi: number }
     >();
     dailyTrx.forEach((trx) => {
+      if (!trx.konterId) return;
       const existing = konterMap.get(trx.konterId) || {
         omzet: 0,
         jumlahTransaksi: 0,
@@ -139,7 +145,8 @@ export async function getRingkasanPeriode(
     const kontribusiPerKonter = Array.from(konterMap.entries()).map(
       ([konterId, data]) => {
         const konterNama =
-          dailyTrx.find((t) => t.konterId === konterId)?.konterNama || "Unknown";
+          dailyTrx.find((t) => t.konterId === konterId)?.konterNama ||
+          "Unknown";
         return { konterId, konterNama, ...data };
       },
     );

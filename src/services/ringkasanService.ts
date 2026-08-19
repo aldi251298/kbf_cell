@@ -1,69 +1,49 @@
 /**
  * Ringkasan Service Layer
  *
- * TODO [BACKEND INTEGRATION]: Replace fake data calls with actual API endpoints:
- * - GET    /api/ringkasan/hari-ini   -> today's summary
- * - GET    /api/ringkasan/:tanggal   -> summary for specific date
- * - GET    /api/ringkasan/periode?start=...&end=... -> summary for date range
- *
- * Current implementation uses fake data generator from 'src/data/ringkasanData'
+ * Phase 2: implementation now fetches real data from the /api/ringkasan route
+ * (which aggregates from Supabase). Signatures preserved.
  */
 
-import { getRingkasanHarian, getRingkasanPeriode } from "@/data/ringkasanData";
 import type { RingkasanHarian } from "@/types";
 
 /**
- * Get today's summary
- * @returns Promise<RingkasanHarian>
+ * Get today's summary.
  */
 export async function getRingkasanHariIni(): Promise<RingkasanHarian> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const response = await fetch('/api/ringkasan/hari-ini');
-  // return response.json();
-
-  const now = new Date();
-  return getRingkasanHarian(now);
+  const today = new Date().toISOString().slice(0, 10);
+  const res = await fetch(`/api/ringkasan?tanggal=${today}`);
+  if (!res.ok) throw new Error("Gagal mengambil ringkasan hari ini.");
+  return res.json();
 }
 
 /**
- * Get summary for specific date
+ * Get summary for specific date.
  * @param tanggal - Target date
- * @returns Promise<RingkasanHarian>
  */
 export async function getRingkasanByTanggal(
   tanggal: Date,
 ): Promise<RingkasanHarian> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const dateStr = tanggal.toISOString().split('T')[0];
-  // const response = await fetch(`/api/ringkasan/${dateStr}`);
-  // return response.json();
-
-  return getRingkasanHarian(tanggal);
+  const dateStr = tanggal.toISOString().slice(0, 10);
+  const res = await fetch(`/api/ringkasan?tanggal=${dateStr}`);
+  if (!res.ok) throw new Error("Gagal mengambil ringkasan.");
+  return res.json();
 }
 
 /**
- * Get summary for date range
+ * Get summary for date range.
  * @param hariKembali - Number of days to look back
- * @returns Promise<RingkasanHarian[]>
  */
 export async function getRingkasanPeriodeService(
   hariKembali: number = 30,
 ): Promise<RingkasanHarian[]> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const endDate = new Date().toISOString().split('T')[0];
-  // const startDate = new Date(Date.now() - hariKembali * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  // const response = await fetch(`/api/ringkasan/periode?start=${startDate}&end=${endDate}`);
-  // return response.json();
-
-  return getRingkasanPeriode(hariKembali);
+  const res = await fetch(`/api/ringkasan?hariKembali=${hariKembali}`);
+  if (!res.ok) throw new Error("Gagal mengambil ringkasan periode.");
+  return res.json();
 }
 
 /**
- * Get summary comparison (today vs yesterday)
- * TODO [BACKEND INTEGRATION]: Replace with:
- * - GET /api/ringkasan/perbandingan
- *
- * @returns Promise<{ today: RingkasanHarian; yesterday: RingkasanHarian; perubahan: { omzet: number; transaksi: number } }>
+ * Get summary comparison (today vs yesterday).
  */
 export async function getPerbandinganRingkasan(): Promise<{
   today: RingkasanHarian;
@@ -73,20 +53,7 @@ export async function getPerbandinganRingkasan(): Promise<{
     transaksi: number;
   };
 }> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const response = await fetch('/api/ringkasan/perbandingan');
-  // return response.json();
-
-  const today = await getRingkasanHariIni();
-
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayData = await getRingkasanHarian(yesterday);
-
-  const perubahan = {
-    omzet: today.totalOmzet - yesterdayData.totalOmzet,
-    transaksi: today.totalTransaksi - yesterdayData.totalTransaksi,
-  };
-
-  return { today, yesterday: yesterdayData, perubahan };
+  const res = await fetch(`/api/ringkasan?perbandingan=true`);
+  if (!res.ok) throw new Error("Gagal mengambil perbandingan ringkasan.");
+  return res.json();
 }

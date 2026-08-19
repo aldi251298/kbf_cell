@@ -31,7 +31,8 @@ export default function NotFound() {
               </h2>
             </div>
             <p className="text-lg text-gray-600 max-w-md mx-auto leading-relaxed">
-              Maaf, halaman yang Anda cari tidak dapat ditemukan. Halaman mungkin telah dipindahkan atau dihapus.
+              Maaf, halaman yang Anda cari tidak dapat ditemukan. Halaman
+              mungkin telah dipindahkan atau dihapus.
             </p>
           </div>
 
@@ -56,7 +57,9 @@ export default function NotFound() {
 
           {/* Common Pages */}
           <div className="pt-8 border-t border-gray-200">
-            <p className="text-sm text-gray-500 mb-4">Atau kunjungi halaman berikut:</p>
+            <p className="text-sm text-gray-500 mb-4">
+              Atau kunjungi halaman berikut:
+            </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               {[
                 { label: "Dashboard", href: "/" },

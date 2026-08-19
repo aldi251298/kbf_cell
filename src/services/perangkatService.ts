@@ -1,108 +1,112 @@
 /**
  * Perangkat Service Layer
  *
- * TODO [BACKEND INTEGRATION]: Replace fake data calls with actual API endpoints:
- * - GET    /api/perangkat        -> fetch all devices
- * - GET    /api/perangkat/:id    -> fetch single device
- * - GET    /api/perangkat/:id/history -> fetch device status history
- * - WS     /api/perangkat/realtime -> WebSocket for real-time status updates
- *
- * Current implementation uses fake data generator from 'src/data/perangkatData'
+ * Phase 2: implementation now fetches real data from the /api/perangkat and
+ * /api/konter routes (which read from Supabase). Signatures preserved.
  */
 
-import { PERANGKAT_LIST } from "@/data/perangkatData";
-import { getRiwayatStatusPerangkat } from "@/data/perangkatData";
-import { KONTER_LIST } from "@/data/konterData";
 import type { Perangkat, RiwayatStatusPerangkat, Konter } from "@/types";
 
 /**
- * Get all device statuses
- * @returns Promise<Perangkat[]>
+ * Get all device statuses.
  */
 export async function getPerangkat(): Promise<Perangkat[]> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const response = await fetch('/api/perangkat');
-  // return response.json();
-
-  // Simulate slight delay for realistic feel
-  await new Promise((resolve) => setTimeout(resolve, 200));
-
-  return [...PERANGKAT_LIST]; // Return copy to prevent mutation
+  const res = await fetch("/api/perangkat");
+  if (!res.ok) throw new Error("Gagal mengambil data perangkat.");
+  return res.json();
 }
 
 /**
- * Get device status by ID
- * @param id - Device ID
- * @returns Promise<Perangkat | undefined>
+ * Get device status by ID.
  */
 export async function getPerangkatById(
   id: string,
 ): Promise<Perangkat | undefined> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const response = await fetch(`/api/perangkat/${id}`);
-  // return response.json();
-
-  await new Promise((resolve) => setTimeout(resolve, 150));
-
-  return PERANGKAT_LIST.find((p) => p.id === id);
+  const all = await getPerangkat();
+  return all.find((p) => p.id === id);
 }
 
 /**
- * Get device status history
+ * Get device status history.
  * @param konterId - Counter/Device ID
  * @param days - Number of days of history (default: 7)
- * @returns Promise<RiwayatStatusPerangkat>
  */
 export async function getPerangkatHistory(
   konterId: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _days: number = 7,
+  days: number = 7,
 ): Promise<RiwayatStatusPerangkat> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const response = await fetch(`/api/perangkat/${konterId}/history?days=${days}`);
-  // return response.json();
-
-  await new Promise((resolve) => setTimeout(resolve, 250));
-
-  return getRiwayatStatusPerangkat(konterId);
+  const res = await fetch(`/api/perangkat/${konterId}/history?days=${days}`);
+  if (!res.ok) throw new Error("Gagal mengambil riwayat perangkat.");
+  return res.json();
 }
 
 /**
- * Simulate real-time device status check
- * TODO [BACKEND INTEGRATION]: Replace with WebSocket subscription:
- * const ws = new WebSocket('/api/perangkat/realtime');
- * ws.onmessage = (event) => {
- *   const data = JSON.parse(event.data);
- *   updateDeviceStatus(data);
- * };
+ * Subscribe to real-time device status updates via Supabase Realtime.
  *
- * @param callback - Function to call with updated status
- * @returns Cleanup function to unsubscribe
+ * The callback is invoked with the full device list whenever a perangkat row
+ * changes (e.g. heartbeat update). The returned cleanup function removes the
+ * subscription to prevent memory leaks on unmount.
+ *
+ * Decision: new transactions/devices that don't match the current view are
+ * still pushed — the callback receives the full list and the UI decides what
+ * to render. This keeps the subscription simple and avoids stale filters.
  */
 export function subscribePerangkatStatus(
   callback: (status: Perangkat[]) => void,
 ): () => void {
-  // TODO [BACKEND INTEGRATION]: Replace with WebSocket subscription
+  let supabase: ReturnType<
+    typeof import("@/lib/supabase/client").createClient
+  > | null = null;
+  let channel: unknown = null;
+  let cancelled = false;
 
-  // For now, just call callback once with current data
-  getPerangkat().then(callback);
+  (async () => {
+    const { createClient } = await import("@/lib/supabase/client");
+    supabase = createClient();
 
-  // Return cleanup function (no-op for now)
+    // Initial fetch
+    const initial = await getPerangkat();
+    if (!cancelled) callback(initial);
+
+    // Subscribe to perangkat table changes
+    channel = supabase
+      .channel("perangkat-status")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "perangkat" },
+        async () => {
+          if (cancelled) return;
+          const updated = await getPerangkat();
+          callback(updated);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "device_heartbeat" },
+        async () => {
+          if (cancelled) return;
+          const updated = await getPerangkat();
+          callback(updated);
+        },
+      )
+      .subscribe();
+  })();
+
   return () => {
-    // TODO [BACKEND INTEGRATION]: Close WebSocket connection
-    console.log("Cleanup: WebSocket subscription removed");
+    cancelled = true;
+    if (channel && supabase) {
+      supabase.removeChannel(
+        channel as Parameters<typeof supabase.removeChannel>[0],
+      );
+    }
   };
 }
 
 /**
- * Get all counter (konter) list
- * @returns Promise<Konter[]>
+ * Get all counter (konter) list.
  */
 export async function getKonterList(): Promise<Konter[]> {
-  // TODO [BACKEND INTEGRATION]: Replace with:
-  // const response = await fetch('/api/konter');
-  // return response.json();
-
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  return [...KONTER_LIST]; // Return copy to prevent mutation
+  const res = await fetch("/api/konter");
+  if (!res.ok) throw new Error("Gagal mengambil data konter.");
+  return res.json();
 }
