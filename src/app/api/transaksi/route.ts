@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   const endDate = url.searchParams.get("endDate");
   const konterId = url.searchParams.get("konterId");
   const status = url.searchParams.get("status");
+  const jenisTransaksi = url.searchParams.get("jenisTransaksi");
   const search = url.searchParams.get("search");
   const sortBy = url.searchParams.get("sortBy") ?? "waktu";
   const sortOrder = url.searchParams.get("sortOrder") ?? "desc";
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
   if (endDate) query = query.lte("waktu", endDate);
   if (konterId) query = query.eq("konter_id", konterId);
   if (status) query = query.eq("status", status);
+  if (jenisTransaksi) query = query.eq("jenis_transaksi", jenisTransaksi);
   if (search) {
     query = query.or(
       `nomor_tujuan.ilike.%${search}%,produk_nama.ilike.%${search}%,konter_nama.ilike.%${search}%`,

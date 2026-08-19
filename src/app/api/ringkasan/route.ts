@@ -78,27 +78,42 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  function startOfDayUTC(d: Date): Date {
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  // WIB = UTC+7 — adjust query range so "today" matches Indonesia local date
+  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+  function startOfDayWIB(d: Date): Date {
+    // Convert to WIB, get date parts, then convert back to UTC timestamp
+    const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
+    const wibMs = utcMs + WIB_OFFSET_MS;
+    const wibDate = new Date(wibMs);
+    const result = new Date(
+      Date.UTC(
+        wibDate.getUTCFullYear(),
+        wibDate.getUTCMonth(),
+        wibDate.getUTCDate(),
+      ),
+    );
+    // Convert back from UTC to WIB boundary expressed as UTC timestamp
+    return new Date(result.getTime() - WIB_OFFSET_MS);
   }
 
   // --- Mode: perbandingan (today vs yesterday) ---
   if (perbandingan) {
     const now = new Date();
-    const todayStart = startOfDayUTC(now);
-    const yesterdayStart = startOfDayUTC(new Date(now.getTime() - 86400000));
+    const todayStart = startOfDayWIB(now);
+    const yesterdayStart = startOfDayWIB(new Date(now.getTime() - 86400000));
     const todayEnd = new Date(todayStart.getTime() + 86400000);
     const yesterdayEnd = new Date(yesterdayStart.getTime() + 86400000);
 
     const [{ data: todayRows }, { data: yesterdayRows }] = await Promise.all([
       supabase
         .from("transaksi")
-        .select("*, konter(nama)", { count: "exact" })
+        .select("*", { count: "exact" })
         .gte("waktu", todayStart.toISOString())
         .lt("waktu", todayEnd.toISOString()),
       supabase
         .from("transaksi")
-        .select("*, konter(nama)", { count: "exact" })
+        .select("*", { count: "exact" })
         .gte("waktu", yesterdayStart.toISOString())
         .lt("waktu", yesterdayEnd.toISOString()),
     ]);
@@ -124,12 +139,12 @@ export async function GET(req: NextRequest) {
 
   // --- Mode: single tanggal ---
   if (tanggalParam) {
-    const dayStart = startOfDayUTC(new Date(tanggalParam));
+    const dayStart = startOfDayWIB(new Date(tanggalParam));
     const dayEnd = new Date(dayStart.getTime() + 86400000);
 
     const { data } = await supabase
       .from("transaksi")
-      .select("*, konter(nama)", { count: "exact" })
+      .select("*", { count: "exact" })
       .gte("waktu", dayStart.toISOString())
       .lt("waktu", dayEnd.toISOString());
 
@@ -141,8 +156,8 @@ export async function GET(req: NextRequest) {
   // --- Mode: periode (hariKembali) ---
   const days = Math.max(1, Math.min(365, hariKembali || 30));
   const now = new Date();
-  const startDate = startOfDayUTC(new Date(now.getTime() - (days - 1) * 86400000));
-  const endDate = startOfDayUTC(new Date(now.getTime() + 86400000));
+  const startDate = startOfDayWIB(new Date(now.getTime() - (days - 1) * 86400000));
+  const endDate = startOfDayWIB(new Date(now.getTime() + 86400000));
 
   const { data } = await supabase
     .from("transaksi")
@@ -164,7 +179,7 @@ export async function GET(req: NextRequest) {
 
   const summaries: RingkasanHarian[] = [];
   for (let i = 0; i < days; i++) {
-    const dayStart = startOfDayUTC(new Date(now.getTime() - i * 86400000));
+    const dayStart = startOfDayWIB(new Date(now.getTime() - i * 86400000));
     const key = dayStart.toISOString().slice(0, 10);
     const rows = byDay.get(key) ?? [];
     summaries.push(buildSummary(dayStart, rows));

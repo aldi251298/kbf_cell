@@ -268,9 +268,26 @@ export default function TransaksiPage() {
     setLoading(true);
     const fetchTransactions = async () => {
       try {
+        // WIB = UTC+7 — adjust date inputs so they match Indonesia local date
+        const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+        const toWIBStart = (dateStr: string) => {
+          const d = new Date(dateStr);
+          const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
+          const wibMs = utcMs + WIB_OFFSET_MS;
+          const wibDate = new Date(wibMs);
+          const result = new Date(
+            Date.UTC(
+              wibDate.getUTCFullYear(),
+              wibDate.getUTCMonth(),
+              wibDate.getUTCDate(),
+            ),
+          );
+          return new Date(result.getTime() - WIB_OFFSET_MS);
+        };
+
         const filters = {
-          ...(dateFrom && { startDate: new Date(dateFrom) }),
-          ...(dateTo && { endDate: new Date(dateTo) }),
+          ...(dateFrom && { startDate: toWIBStart(dateFrom) }),
+          ...(dateTo && { endDate: toWIBStart(dateTo) }),
           ...(selectedKonter && { konterId: selectedKonter }),
           ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
           ...(selectedJenisTransaksi && { jenisTransaksi: selectedJenisTransaksi }),
@@ -327,11 +344,29 @@ export default function TransaksiPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
+      // WIB = UTC+7 — adjust date inputs so they match Indonesia local date
+      const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+      const toWIBStart = (dateStr: string) => {
+        const d = new Date(dateStr);
+        const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
+        const wibMs = utcMs + WIB_OFFSET_MS;
+        const wibDate = new Date(wibMs);
+        const result = new Date(
+          Date.UTC(
+            wibDate.getUTCFullYear(),
+            wibDate.getUTCMonth(),
+            wibDate.getUTCDate(),
+          ),
+        );
+        return new Date(result.getTime() - WIB_OFFSET_MS);
+      };
+
       const filters = {
-        ...(dateFrom && { startDate: new Date(dateFrom) }),
-        ...(dateTo && { endDate: new Date(dateTo) }),
+        ...(dateFrom && { startDate: toWIBStart(dateFrom) }),
+        ...(dateTo && { endDate: toWIBStart(dateTo) }),
         ...(selectedKonter && { konterId: selectedKonter }),
         ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
+        ...(selectedJenisTransaksi && { jenisTransaksi: selectedJenisTransaksi }),
         ...(searchTerm && { search: searchTerm }),
       };
 
@@ -368,15 +403,16 @@ export default function TransaksiPage() {
     { value: "pending", label: "Pending" },
   ];
 
-  // Jenis transaksi options for filter
+  // Jenis transaksi options for filter — must match actual jenis_transaksi values in DB
   const jenisTransaksiOptions = [
     { value: "", label: "Semua Jenis" },
     { value: "pulsa", label: "Pulsa" },
     { value: "paket_data", label: "Paket Data" },
     { value: "pln", label: "PLN" },
-    { value: "ewallet_dana", label: "E-Wallet DANA" },
+    { value: "ewallet", label: "E-Wallet" },
     { value: "voucher", label: "Voucher" },
     { value: "pulsa_op", label: "Pulsa Operator" },
+    { value: "belum_dikenal", label: "Belum Dikenal" },
   ];
 
   // Clear all filters
@@ -384,6 +420,7 @@ export default function TransaksiPage() {
     setSearchTerm("");
     setSelectedKonter("");
     setSelectedStatus("");
+    setSelectedJenisTransaksi("");
     setDateFrom("");
     setDateTo("");
   };
@@ -544,7 +581,7 @@ export default function TransaksiPage() {
       <Card>
         {loading ? (
           <CardContent className="pt-6">
-            <TableSkeleton rows={5} columns={5} />
+            <TableSkeleton rows={5} columns={7} />
           </CardContent>
         ) : transactions.length > 0 ? (
           <>
@@ -569,6 +606,7 @@ export default function TransaksiPage() {
                       Nominal
                     </SortableTableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Tujuan</TableHead>
                     <TableHead>Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -651,6 +689,15 @@ export default function TransaksiPage() {
                           )}
                         </TableCell>
                         <TableCell>
+                          {tampilan.tampilkanNomorTujuan && trx.nomorTujuan ? (
+                            <span className="text-sm text-text-primary font-mono">
+                              {trx.nomorTujuan}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-text-tertiary">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -667,7 +714,7 @@ export default function TransaksiPage() {
                 </TableBody>
                 {/* Total Row */}
                 <TableRow className="bg-gray-50 font-semibold">
-                  <TableCell colSpan={3} className="text-right">
+                  <TableCell colSpan={4} className="text-right">
                     <span className="text-sm font-semibold text-gray-900">
                       Total {transactions.length} Transaksi
                     </span>
@@ -679,6 +726,7 @@ export default function TransaksiPage() {
                       )}
                     </p>
                   </TableCell>
+                  <TableCell></TableCell>
                   <TableCell></TableCell>
                   <TableCell></TableCell>
                 </TableRow>
