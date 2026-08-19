@@ -176,21 +176,61 @@ export async function exportTransaksiCSV(
     return str;
   };
 
+  // Format waktu from ISO string to readable format
+  const formatWaktu = (waktu: string | Date): string => {
+    const d = typeof waktu === "string" ? new Date(waktu) : waktu;
+    return new Intl.DateTimeFormat("id-ID", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(d);
+  };
+
+  // Format nominal as Rupiah
+  const formatNominal = (nominal: number): string => {
+    return "Rp " + nominal.toLocaleString("id-ID");
+  };
+
+  // Force nomor tujuan to be treated as text (prefix with single quote)
+  const formatNomorTujuan = (nomor: string | null | undefined): string => {
+    if (!nomor || nomor === "-") return "-";
+    return "'" + nomor; // Prefix with ' to force Excel to treat as text
+  };
+
   const rows = filteredData.map((trx) => [
-    trx.waktu.toLocaleString("id-ID"),
+    formatWaktu(trx.waktu),
     trx.konterNama,
-    trx.nomorTujuan || "-",
+    formatNomorTujuan(trx.nomorTujuan),
     trx.produk.nama,
     trx.produk.kategori,
-    trx.nominal,
-    trx.status,
+    formatNominal(trx.nominal),
+    trx.status.charAt(0).toUpperCase() + trx.status.slice(1),
     trx.sn || "-",
   ]);
+
+  // Calculate total nominal
+  const totalNominal = filteredData.reduce((sum, trx) => sum + trx.nominal, 0);
+  const totalRow = [
+    "",
+    "",
+    "",
+    "",
+    "TOTAL",
+    formatNominal(totalNominal),
+    `${filteredData.length} transaksi`,
+    "",
+  ];
 
   const csvContent = [
     headers.join(";"),
     ...rows.map((row) => row.map(escapeCsvField).join(";")),
+    totalRow.map(escapeCsvField).join(";"),
   ].join("\n");
 
-  return csvContent;
+  // Add BOM for Excel UTF-8 compatibility
+  return "\ufeff" + csvContent;
 }

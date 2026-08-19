@@ -94,7 +94,15 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  // 4. Simpan ke tabel transaksi
+  // 4. Tambah biaya admin Rp 2.000 untuk pulsa & paket data
+  const BIAYA_ADMIN = 2000;
+  const jenisTransaksi = parsed.jenis_transaksi.toLowerCase();
+  const nominalFinal =
+    jenisTransaksi === "pulsa" || jenisTransaksi === "paket_data"
+      ? (parsed.nominal ?? 0) + BIAYA_ADMIN
+      : parsed.nominal;
+
+  // 5. Simpan ke tabel transaksi
   const supabase = createServiceRoleClient();
   const insertRow = {
     waktu: body.waktu_capture,
@@ -107,11 +115,15 @@ export async function POST(req: NextRequest) {
     nama_produk: parsed.nama_produk,
     provider_seluler: parsed.provider_seluler,
     nama_pemilik: parsed.nama_pemilik,
-    nominal: parsed.nominal,
+    nominal: nominalFinal,
     nomor_tujuan: parsed.nomor_tujuan,
     status: parsed.status,
     raw_notification_text: parsed.raw_notification_text,
-    detail_tambahan: parsed.detail_tambahan,
+    detail_tambahan: {
+      ...parsed.detail_tambahan,
+      nominal_asli: parsed.nominal,
+      biaya_admin: jenisTransaksi === "pulsa" || jenisTransaksi === "paket_data" ? BIAYA_ADMIN : 0,
+    },
     perlu_review: parsed.perlu_review,
   };
 

@@ -372,8 +372,8 @@ export default function TransaksiPage() {
 
       const csvContent = await exportTransaksiCSV(filters);
 
-      // Create download link with BOM for Excel compatibility
-      const blob = new Blob(["\ufeff" + csvContent], {
+      // Create download link (BOM is already included in csvContent from service)
+      const blob = new Blob([csvContent], {
         type: "text/csv;charset=utf-8;",
       });
       const url = URL.createObjectURL(blob);
