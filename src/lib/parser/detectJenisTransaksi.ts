@@ -18,7 +18,6 @@ function scoringPaketAtauPulsa(rawText: string): {
   kategori: string;
   skor: number;
 } {
-  const lower = rawText.toLowerCase();
   const adaKataPaket = /\bpaket\b/i.test(rawText);
   const adaNelpon = /\b(nelpon|telepon|talkmania|nelpon\s*sms|sms\s*nelpon|kombo\s*nelpon|voice\s*call)\b/i.test(rawText);
   const adaData = /\b(paket\s*data|kuota|internet|gb\b|mb\b)\b/i.test(rawText);
@@ -91,14 +90,13 @@ export function detectJenisTransaksi(text: string): string {
 export async function scoringKeywordKategori(
   rawText: string,
 ): Promise<{ kategori: string; skor: number }> {
-  const lower = rawText.toLowerCase();
   const scores: Record<string, number> = {};
 
   for (const [kategori, keywords] of Object.entries(JENIS_TRANSAKSI_KEYWORDS)) {
     let score = 0;
     for (const kw of keywords) {
       const regex = new RegExp(escapeRegex(kw), "gi");
-      const matches = lower.match(regex);
+      const matches = rawText.match(regex);
       if (matches) score += matches.length;
     }
     scores[kategori] = score;

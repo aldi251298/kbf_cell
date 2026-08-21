@@ -10,7 +10,6 @@ import type { ParsedTransaksi } from "./types";
 import { detectJenisTransaksi } from "./detectJenisTransaksi";
 import { extractNominal } from "./extractNominal";
 import { extractNomorTujuan } from "./extractNomorTujuan";
-import { extractStatus } from "./extractStatus";
 import { extractProviderSeluler } from "./extractProviderSeluler";
 import { extractNamaProduk } from "./extractNamaProduk";
 import { extractDetailTambahan } from "./extractDetailTambahan";
