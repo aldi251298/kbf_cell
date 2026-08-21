@@ -143,94 +143,354 @@ export async function getTransaksiPaginated(
 }
 
 /**
- * Export transactions to CSV format (client-side from fetched real data).
- * Kept client-side because data volume is small (3 devices) — see SRS Bagian 8.
+ * Export transactions to Excel (.xlsx) format with professional styling.
+ * Uses ExcelJS for native Excel formatting support.
  */
-export async function exportTransaksiCSV(
+export async function exportTransaksiExcel(
   filters?: TransaksiFilters,
-): Promise<string> {
+): Promise<Blob> {
+  // Dynamic import to avoid SSR issues
+  const ExcelJS = await import("exceljs");
+
   const params = filtersToParams(filters);
   params.set("limit", "10000");
+  // Default sort by waktu ascending (oldest first) for chronological report
+  if (!params.has("sortBy")) {
+    params.set("sortBy", "waktu");
+    params.set("sortOrder", "asc");
+  }
 
   const res = await fetch(`/api/transaksi?${params.toString()}`);
   if (!res.ok) throw new Error("Gagal mengambil data untuk export.");
   const json = await res.json();
   const filteredData: Transaksi[] = json.data;
 
+  // Sort by waktu ascending (chronological) as default
+  filteredData.sort(
+    (a, b) => new Date(a.waktu).getTime() - new Date(b.waktu).getTime(),
+  );
+
+  // Create workbook
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Riwayat Transaksi");
+
+  // ============================================================
+  // STYLING DEFINITIONS
+  // ============================================================
+  const headerFill = {
+    type: "pattern" as const,
+    pattern: "solid" as const,
+    fgColor: { argb: "FF2563EB" }, // Blue-600 from design system
+  };
+
+  const headerFont = {
+    bold: true,
+    color: { argb: "FFFFFFFF" }, // White
+    size: 11,
+  };
+
+  const titleFont = {
+    bold: true,
+    size: 16,
+    color: { argb: "FF111827" }, // Gray-900
+  };
+
+  const dataFont = {
+    size: 11,
+  };
+
+  const totalFont = {
+    bold: true,
+    size: 11,
+  };
+
+  const thinBorder = {
+    top: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+    left: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+    bottom: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+    right: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+  };
+
+  const thickTopBorder = {
+    top: { style: "medium" as const, color: { argb: "FF2563EB" } },
+    left: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+    bottom: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+    right: { style: "thin" as const, color: { argb: "FFE5E7EB" } },
+  };
+
+  const zebraFill = {
+    type: "pattern" as const,
+    pattern: "solid" as const,
+    fgColor: { argb: "FFF9FAFB" }, // Gray-50
+  };
+
+  const nominalFormat = "#,##0";
+  const dateFormat = "DD/MM/YYYY HH:mm:ss";
+
+  // ============================================================
+  // TITLE ROWS
+  // ============================================================
+  // Determine konter name for title
+  const konterNames = [...new Set(filteredData.map((t) => t.konterNama))];
+  const konterTitle =
+    konterNames.length === 1 ? konterNames[0] : "Semua Konter";
+
+  // Determine date range for title
+  let dateRangeTitle = "";
+  if (filteredData.length > 0) {
+    const firstDate = new Date(filteredData[0].waktu);
+    const lastDate = new Date(filteredData[filteredData.length - 1].waktu);
+    const formatDate = (d: Date) =>
+      d.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    dateRangeTitle = `${formatDate(firstDate)} s/d ${formatDate(lastDate)}`;
+  }
+
+  // Row 1: Main title
+  worksheet.mergeCells("A1:H1");
+  const titleCell = worksheet.getCell("A1");
+  titleCell.value = `Riwayat Transaksi — ${konterTitle} — ${dateRangeTitle}`;
+  titleCell.font = titleFont;
+  titleCell.alignment = { horizontal: "left", vertical: "middle" };
+  worksheet.getRow(1).height = 30;
+
+  // Row 2: Empty separator
+  worksheet.getRow(2).height = 10;
+
+  // ============================================================
+  // HEADER ROW (Row 3)
+  // ============================================================
   const headers = [
     "Waktu",
     "Konter",
     "Nomor Tujuan",
     "Produk",
     "Kategori",
-    "Nominal",
+    "Nominal (Rp)",
     "Status",
     "Serial Number",
   ];
 
-  const escapeCsvField = (field: string | number): string => {
-    const str = String(field);
-    if (/[;,"\n\r]/.test(str)) {
-      return '"' + str.replace(/"/g, '""') + '"';
+  const headerRow = worksheet.getRow(3);
+  headers.forEach((header, index) => {
+    const cell = headerRow.getCell(index + 1);
+    cell.value = header;
+    cell.fill = headerFill;
+    cell.font = headerFont;
+    cell.border = thinBorder;
+    cell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+      wrapText: true,
+    };
+  });
+  headerRow.height = 25;
+
+  // Freeze panes (row 3 = header row)
+  worksheet.views = [{ state: "frozen", ySplit: 3, activeCell: "A4" }];
+
+  // Auto-filter on header row
+  worksheet.autoFilter = {
+    from: { row: 3, column: 1 },
+    to: { row: 3, column: headers.length },
+  };
+
+  // ============================================================
+  // DATA ROWS (starting from row 4)
+  // ============================================================
+  // Import utilities dynamically to avoid circular dependency
+  const { getKategoriLabel, getTampilanTransaksi } =
+    await import("@/lib/utils");
+
+  filteredData.forEach((trx, rowIndex) => {
+    const rowNum = rowIndex + 4; // Data starts at row 4
+    const row = worksheet.getRow(rowNum);
+
+    // Waktu - native Excel date value
+    const waktuCell = row.getCell(1);
+    waktuCell.value = new Date(trx.waktu);
+    waktuCell.numFmt = dateFormat;
+    waktuCell.font = dataFont;
+    waktuCell.border = thinBorder;
+    waktuCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    // Konter
+    const konterCell = row.getCell(2);
+    konterCell.value = trx.konterNama;
+    konterCell.font = dataFont;
+    konterCell.border = thinBorder;
+    konterCell.alignment = {
+      horizontal: "left",
+      vertical: "middle",
+      wrapText: true,
+    };
+
+    // Nomor Tujuan - empty cell for PLN/empty, not "-"
+    const nomorCell = row.getCell(3);
+    const tampilan = getTampilanTransaksi(
+      trx.produk.kategori,
+      trx.nomorTujuan,
+      trx.produk.nama,
+    );
+    if (
+      tampilan.tampilkanNomorTujuan &&
+      trx.nomorTujuan &&
+      trx.nomorTujuan !== "-"
+    ) {
+      nomorCell.value = trx.nomorTujuan;
+      nomorCell.alignment = { horizontal: "left", vertical: "middle" };
+    } else {
+      nomorCell.value = null; // Truly empty cell
     }
-    return str;
-  };
+    nomorCell.font = dataFont;
+    nomorCell.border = thinBorder;
 
-  // Format waktu from ISO string to readable format
-  const formatWaktu = (waktu: string | Date): string => {
-    const d = typeof waktu === "string" ? new Date(waktu) : waktu;
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    }).format(d);
-  };
+    // Produk
+    const produkCell = row.getCell(4);
+    produkCell.value = trx.produk.nama;
+    produkCell.font = dataFont;
+    produkCell.border = thinBorder;
+    produkCell.alignment = {
+      horizontal: "left",
+      vertical: "middle",
+      wrapText: true,
+    };
 
-  // Format nominal as Rupiah
-  const formatNominal = (nominal: number): string => {
-    return "Rp " + nominal.toLocaleString("id-ID");
-  };
+    // Kategori - human-readable label
+    const kategoriCell = row.getCell(5);
+    kategoriCell.value = getKategoriLabel(trx.produk.kategori);
+    kategoriCell.font = dataFont;
+    kategoriCell.border = thinBorder;
+    kategoriCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  // Force nomor tujuan to be treated as text (prefix with single quote)
-  const formatNomorTujuan = (nomor: string | null | undefined): string => {
-    if (!nomor || nomor === "-") return "-";
-    return "'" + nomor; // Prefix with ' to force Excel to treat as text
-  };
+    // Nominal - number with format
+    const nominalCell = row.getCell(6);
+    nominalCell.value = trx.nominal;
+    nominalCell.numFmt = nominalFormat;
+    nominalCell.font = dataFont;
+    nominalCell.border = thinBorder;
+    nominalCell.alignment = { horizontal: "right", vertical: "middle" };
 
-  const rows = filteredData.map((trx) => [
-    formatWaktu(trx.waktu),
-    trx.konterNama,
-    formatNomorTujuan(trx.nomorTujuan),
-    trx.produk.nama,
-    trx.produk.kategori,
-    formatNominal(trx.nominal),
-    trx.status.charAt(0).toUpperCase() + trx.status.slice(1),
-    trx.sn || "-",
-  ]);
+    // Status
+    const statusCell = row.getCell(7);
+    statusCell.value = trx.status.charAt(0).toUpperCase() + trx.status.slice(1);
+    statusCell.font = dataFont;
+    statusCell.border = thinBorder;
+    statusCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  // Calculate total nominal
+    // Serial Number - empty if not available
+    const snCell = row.getCell(8);
+    if (trx.sn && trx.sn !== "-") {
+      snCell.value = trx.sn;
+    } else {
+      snCell.value = null;
+    }
+    snCell.font = dataFont;
+    snCell.border = thinBorder;
+    snCell.alignment = { horizontal: "left", vertical: "middle" };
+
+    // Zebra striping
+    if (rowIndex % 2 === 1) {
+      row.eachCell((cell) => {
+        cell.fill = zebraFill;
+      });
+    }
+  });
+
+  // ============================================================
+  // SUMMARY ROW
+  // ============================================================
+  const summaryRowNum = filteredData.length + 4;
+  const summaryRow = worksheet.getRow(summaryRowNum);
+
+  // Merge first 5 cells for "TOTAL" label
+  worksheet.mergeCells(`A${summaryRowNum}:E${summaryRowNum}`);
+  const totalLabelCell = summaryRow.getCell(1);
+  totalLabelCell.value = "TOTAL";
+  totalLabelCell.font = totalFont;
+  totalLabelCell.border = thickTopBorder;
+  totalLabelCell.alignment = { horizontal: "right", vertical: "middle" };
+
+  // Total nominal
   const totalNominal = filteredData.reduce((sum, trx) => sum + trx.nominal, 0);
-  const totalRow = [
-    "",
-    "",
-    "",
-    "",
-    "TOTAL",
-    formatNominal(totalNominal),
-    `${filteredData.length} transaksi`,
-    "",
+  const totalNominalCell = summaryRow.getCell(6);
+  totalNominalCell.value = totalNominal;
+  totalNominalCell.numFmt = nominalFormat;
+  totalNominalCell.font = totalFont;
+  totalNominalCell.border = thickTopBorder;
+  totalNominalCell.alignment = { horizontal: "right", vertical: "middle" };
+
+  // Total count
+  const totalCountCell = summaryRow.getCell(7);
+  totalCountCell.value = `${filteredData.length} transaksi`;
+  totalCountCell.font = totalFont;
+  totalCountCell.border = thickTopBorder;
+  totalCountCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  // Empty SN column
+  const totalSnCell = summaryRow.getCell(8);
+  totalSnCell.border = thickTopBorder;
+
+  // ============================================================
+  // COLUMN WIDTHS (auto-fit with reasonable min/max)
+  // ============================================================
+  const columnWidths = [
+    { min: 20, max: 22 }, // Waktu
+    { min: 18, max: 30 }, // Konter
+    { min: 18, max: 25 }, // Nomor Tujuan
+    { min: 25, max: 50 }, // Produk (can be long)
+    { min: 16, max: 22 }, // Kategori
+    { min: 16, max: 20 }, // Nominal
+    { min: 12, max: 14 }, // Status
+    { min: 18, max: 30 }, // Serial Number
   ];
 
-  const csvContent = [
-    headers.join(";"),
-    ...rows.map((row) => row.map(escapeCsvField).join(";")),
-    totalRow.map(escapeCsvField).join(";"),
-  ].join("\n");
+  columnWidths.forEach((width, index) => {
+    const column = worksheet.getColumn(index + 1);
+    // Calculate based on content
+    let maxLength = width.min;
+    column.eachCell({ includeEmpty: true }, (cell) => {
+      if (cell.value) {
+        const length = String(cell.value).length;
+        if (length > maxLength) maxLength = length;
+      }
+    });
+    column.width = Math.min(Math.max(maxLength + 2, width.min), width.max);
+  });
 
-  // Add BOM for Excel UTF-8 compatibility
-  return "\ufeff" + csvContent;
+  // ============================================================
+  // GENERATE BLOB
+  // ============================================================
+  const buffer = await workbook.xlsx.writeBuffer();
+  return new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
+/**
+ * Generate descriptive filename for export
+ */
+export function generateExportFilename(filters?: TransaksiFilters): string {
+  const konterNames = filters?.konterId ? [filters.konterId] : ["Semua-Konter"];
+  const konterPart =
+    konterNames[0] === "Semua-Konter" ? "Semua-Konter" : konterNames[0];
+
+  let datePart = "";
+  if (filters?.startDate && filters?.endDate) {
+    const formatDate = (d: Date) =>
+      d.toISOString().split("T")[0].replace(/-/g, "");
+    datePart = `-${formatDate(filters.startDate)}_sd_${formatDate(filters.endDate)}`;
+  } else if (filters?.startDate) {
+    const formatDate = (d: Date) =>
+      d.toISOString().split("T")[0].replace(/-/g, "");
+    datePart = `-${formatDate(filters.startDate)}`;
+  } else {
+    const today = new Date().toISOString().split("T")[0].replace(/-/g, "");
+    datePart = `-${today}`;
+  }
+
+  return `Riwayat-Transaksi-${konterPart}${datePart}.xlsx`;
 }

@@ -47,22 +47,29 @@ export function mapPerangkat(row: PerangkatRow): Perangkat {
 export function mapTransaksi(row: TransaksiRow): Transaksi {
   const kategoriMap: Record<string, KategoriTransaksi> = {
     pulsa: "pulsa",
-    paket_data: "data",
-    pln: "ppob",
+    paket_data: "paket_data",
+    pln: "pln",
     ewallet_dana: "ewallet",
     voucher: "voucher",
     pulsa_op: "pulsa",
     ewallet: "ewallet",
-    ppob: "ppob",
-    data: "data",
+    game_topup: "game_topup",
+    wifi: "wifi",
+    tv_kabel: "tv_kabel",
+    pdam: "pdam",
+    token_listrik_reseller: "token_listrik_reseller",
+    data: "paket_data",
     p2p: "p2p",
-    gametopup: "gametopup",
+    ppob: "pln",
+    gametopup: "game_topup",
     keuangan: "keuangan",
-    belum_dikenal: "pulsa",
+    belum_dikenal: "belum_dikenal",
   };
 
   const jenis = row.jenis_transaksi;
-  const kategori = kategoriMap[jenis] ?? "pulsa";
+  const kategori =
+    kategoriMap[jenis] ??
+    (jenis.startsWith("lainnya_") ? jenis : "belum_dikenal");
 
   return {
     id: row.id,
@@ -110,6 +117,16 @@ function getDefaultProdukNama(jenis: string): string {
       return "Pulsa Operator";
     case "ewallet":
       return "E-Wallet";
+    case "game_topup":
+      return "Top Up Game";
+    case "wifi":
+      return "Internet/WiFi";
+    case "tv_kabel":
+      return "TV Kabel";
+    case "pdam":
+      return "PDAM/Air";
+    case "token_listrik_reseller":
+      return "Token Listrik Reseller";
     case "ppob":
       return "PPOB";
     case "data":
@@ -123,6 +140,11 @@ function getDefaultProdukNama(jenis: string): string {
     case "belum_dikenal":
       return "Transaksi (Perlu Review)";
     default:
+      if (jenis.startsWith("lainnya_")) {
+        // Format: "lainnya_wifi" -> "Wifi"
+        const label = jenis.replace("lainnya_", "").replace(/_/g, " ");
+        return label.charAt(0).toUpperCase() + label.slice(1);
+      }
       return "Transaksi";
   }
 }

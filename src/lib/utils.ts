@@ -167,6 +167,23 @@ export function getTampilanTransaksi(
   let tampilkanProviderSeluler = false;
   let tampilkanNamaPemilik = false;
 
+  // Handle dynamic categories (lainnya_*)
+  if (jt.startsWith("lainnya_")) {
+    const label = jt.replace("lainnya_", "").replace(/_/g, " ");
+    labelJenisTransaksi = label.charAt(0).toUpperCase() + label.slice(1);
+    labelNomorTujuan = "Nomor Tujuan";
+    tampilkanNomorTujuan = !!nomorTujuan;
+    tampilkanNamaProduk = !!namaProduk;
+    return {
+      labelNomorTujuan,
+      tampilkanNomorTujuan,
+      tampilkanNamaProduk,
+      labelJenisTransaksi,
+      tampilkanProviderSeluler,
+      tampilkanNamaPemilik,
+    };
+  }
+
   switch (jt) {
     case "pulsa":
       labelNomorTujuan = "Nomor HP";
@@ -208,6 +225,67 @@ export function getTampilanTransaksi(
       labelJenisTransaksi = "Pulsa Operator";
       tampilkanProviderSeluler = true;
       break;
+    case "game_topup":
+    case "gametopup":
+      labelNomorTujuan = "ID Game / User ID";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Top Up Game";
+      break;
+    case "wifi":
+      labelNomorTujuan = "ID Pelanggan / Nomor";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Internet / WiFi";
+      break;
+    case "tv_kabel":
+      labelNomorTujuan = "ID Pelanggan";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "TV Kabel";
+      break;
+    case "pdam":
+      labelNomorTujuan = "ID Pelanggan";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "PDAM / Air";
+      break;
+    case "token_listrik_reseller":
+      labelNomorTujuan = "Nomor Meter / Token";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Token Listrik Reseller";
+      break;
+    case "ppob":
+      labelNomorTujuan = "ID Pelanggan";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "PPOB";
+      break;
+    case "data":
+      labelNomorTujuan = "Nomor HP";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Paket Data";
+      break;
+    case "p2p":
+      labelNomorTujuan = "Nomor Tujuan";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Transfer P2P";
+      break;
+    case "keuangan":
+      labelNomorTujuan = "Nomor Rekening";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Keuangan";
+      break;
+    case "belum_dikenal":
+      labelNomorTujuan = "Nomor Tujuan";
+      tampilkanNomorTujuan = !!nomorTujuan;
+      tampilkanNamaProduk = !!namaProduk;
+      labelJenisTransaksi = "Belum Dikenal";
+      break;
     default:
       // Jenis belum dikenali / fallback
       labelNomorTujuan = "Nomor Tujuan";
@@ -225,4 +303,40 @@ export function getTampilanTransaksi(
     tampilkanProviderSeluler,
     tampilkanNamaPemilik,
   };
+}
+
+// ---------------------------------------------------------------------------
+// getKategoriLabel — centralized mapping from internal kategori code
+// to human-readable label for display/export.
+// Single source of truth used by dashboard components and export logic.
+// ---------------------------------------------------------------------------
+export function getKategoriLabel(kategori: string): string {
+  const labelMap: Record<string, string> = {
+    pulsa: "Pulsa",
+    paket_data: "Paket Data",
+    data: "Paket Data",
+    pln: "PLN",
+    ewallet: "E-Wallet",
+    ewallet_dana: "E-Wallet",
+    voucher: "Voucher",
+    game_topup: "Top Up Game",
+    gametopup: "Top Up Game",
+    wifi: "Internet / WiFi",
+    tv_kabel: "TV Kabel",
+    pdam: "PDAM / Air",
+    token_listrik_reseller: "Token Listrik Reseller",
+    pulsa_op: "Pulsa Operator",
+    ppob: "PPOB",
+    p2p: "Transfer P2P",
+    keuangan: "Keuangan",
+    belum_dikenal: "Belum Dikenal",
+  };
+
+  // Handle dynamic categories (lainnya_*)
+  if (kategori.startsWith("lainnya_")) {
+    const label = kategori.replace("lainnya_", "").replace(/_/g, " ");
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  return labelMap[kategori] ?? kategori;
 }

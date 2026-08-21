@@ -3,14 +3,23 @@ export type StatusTransaksi = "sukses" | "gagal" | "pending";
 export type KategoriTransaksi =
   | "pulsa"
   | "paket_data"
-  | "ewallet_dana"
-  | "data"
-  | "voucher"
-  | "p2p"
+  | "pln"
   | "ewallet"
+  | "ewallet_dana"
+  | "voucher"
+  | "game_topup"
+  | "wifi"
+  | "tv_kabel"
+  | "pdam"
+  | "token_listrik_reseller"
+  | "pulsa_op"
+  | "data"
+  | "p2p"
   | "ppob"
   | "gametopup"
-  | "keuangan";
+  | "keuangan"
+  | "belum_dikenal"
+  | `lainnya_${string}`;
 
 export interface TransaksiDetail {
   nomorTujuan?: string;

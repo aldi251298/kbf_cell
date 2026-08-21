@@ -3,10 +3,16 @@
 import { useState, useEffect } from "react";
 import {
   getTransaksiPaginated,
-  exportTransaksiCSV,
-} from "@/services/transaksiService";
+  exportTransaksiExcel,
+  generateExportFilename,
+} from "@/services";
 import type { Transaksi, StatusTransaksi } from "@/types";
-import { formatRupiah, formatWaktu, potongTeks, getTampilanTransaksi } from "@/lib/utils";
+import {
+  formatRupiah,
+  formatWaktu,
+  potongTeks,
+  getTampilanTransaksi,
+} from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +42,9 @@ type SortField = "waktu" | "nominal";
 type SortDirection = "asc" | "desc";
 
 // Helper functions (shared between modal and table)
-function getStatusBadgeVariant(status: string): "success" | "warning" | "error" | "default" {
+function getStatusBadgeVariant(
+  status: string,
+): "success" | "warning" | "error" | "default" {
   switch (status) {
     case "sukses":
       return "success";
@@ -53,6 +61,7 @@ function getCategoryBadgeColor(kategori: string): string {
   switch (kategori) {
     case "pulsa":
       return "bg-blue-50 text-blue-700";
+    case "paket_data":
     case "data":
       return "bg-purple-50 text-purple-700";
     case "voucher":
@@ -60,10 +69,32 @@ function getCategoryBadgeColor(kategori: string): string {
     case "p2p":
       return "bg-green-50 text-green-700";
     case "ewallet":
+    case "ewallet_dana":
       return "bg-cyan-50 text-cyan-700";
+    case "pln":
     case "ppob":
       return "bg-orange-50 text-orange-700";
+    case "game_topup":
+    case "gametopup":
+      return "bg-pink-50 text-pink-700";
+    case "wifi":
+      return "bg-indigo-50 text-indigo-700";
+    case "tv_kabel":
+      return "bg-teal-50 text-teal-700";
+    case "pdam":
+      return "bg-sky-50 text-sky-700";
+    case "token_listrik_reseller":
+      return "bg-amber-50 text-amber-700";
+    case "pulsa_op":
+      return "bg-blue-50 text-blue-700";
+    case "keuangan":
+      return "bg-emerald-50 text-emerald-700";
+    case "belum_dikenal":
+      return "bg-yellow-50 text-yellow-700";
     default:
+      if (kategori.startsWith("lainnya_")) {
+        return "bg-gray-50 text-gray-700";
+      }
       return "bg-gray-50 text-gray-700";
   }
 }
@@ -76,7 +107,6 @@ function TransactionDetailModal({
   transaction: Transaksi;
   onClose: () => void;
 }) {
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -135,11 +165,13 @@ function TransactionDetailModal({
                   size="sm"
                   className={getCategoryBadgeColor(transaction.produk.kategori)}
                 >
-                  {getTampilanTransaksi(
-                    transaction.produk.kategori,
-                    transaction.nomorTujuan,
-                    transaction.produk.nama,
-                  ).labelJenisTransaksi}
+                  {
+                    getTampilanTransaksi(
+                      transaction.produk.kategori,
+                      transaction.nomorTujuan,
+                      transaction.produk.nama,
+                    ).labelJenisTransaksi
+                  }
                 </Badge>
                 {transaction.perluReview && (
                   <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
@@ -185,11 +217,13 @@ function TransactionDetailModal({
           {transaction.nomorTujuan && transaction.nomorTujuan !== "-" && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">
-                {getTampilanTransaksi(
-                  transaction.produk.kategori,
-                  transaction.nomorTujuan,
-                  transaction.produk.nama,
-                ).labelNomorTujuan}
+                {
+                  getTampilanTransaksi(
+                    transaction.produk.kategori,
+                    transaction.nomorTujuan,
+                    transaction.produk.nama,
+                  ).labelNomorTujuan
+                }
               </span>
               <span className="text-sm font-mono font-medium text-gray-900">
                 {transaction.nomorTujuan}
@@ -227,7 +261,8 @@ export default function TransaksiPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKonter, setSelectedKonter] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [selectedJenisTransaksi, setSelectedJenisTransaksi] = useState<string>("");
+  const [selectedJenisTransaksi, setSelectedJenisTransaksi] =
+    useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
@@ -246,6 +281,11 @@ export default function TransaksiPage() {
   const [exporting, setExporting] = useState(false);
   const [konterList, setKonterList] = useState<Konter[]>([]);
 
+  // Dynamic categories state
+  const [dynamicCategories, setDynamicCategories] = useState<
+    Array<{ kode: string; label_tampilan: string }>
+  >([]);
+
   // Detail modal state
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaksi | null>(null);
@@ -255,11 +295,34 @@ export default function TransaksiPage() {
     getKonterList().then(setKonterList);
   }, []);
 
+  // Fetch dynamic categories
+  useEffect(() => {
+    const fetchDynamicCategories = async () => {
+      try {
+        const res = await fetch("/api/kategori-dinamis");
+        if (res.ok) {
+          const json = await res.json();
+          setDynamicCategories(json.data ?? []);
+        }
+      } catch (error) {
+        console.error("Error fetching dynamic categories:", error);
+      }
+    };
+    fetchDynamicCategories();
+  }, []);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Resetting page on filter change is a valid pattern
     setCurrentPage(1);
-  }, [dateFrom, dateTo, selectedKonter, selectedStatus, selectedJenisTransaksi, searchTerm]);
+  }, [
+    dateFrom,
+    dateTo,
+    selectedKonter,
+    selectedStatus,
+    selectedJenisTransaksi,
+    searchTerm,
+  ]);
 
   // Fetch transactions with proper dependencies
   useEffect(() => {
@@ -290,7 +353,9 @@ export default function TransaksiPage() {
           ...(dateTo && { endDate: toWIBStart(dateTo) }),
           ...(selectedKonter && { konterId: selectedKonter }),
           ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
-          ...(selectedJenisTransaksi && { jenisTransaksi: selectedJenisTransaksi }),
+          ...(selectedJenisTransaksi && {
+            jenisTransaksi: selectedJenisTransaksi,
+          }),
           ...(searchTerm && { search: searchTerm }),
           sortBy: sortField,
           sortOrder: sortDirection,
@@ -366,20 +431,19 @@ export default function TransaksiPage() {
         ...(dateTo && { endDate: toWIBStart(dateTo) }),
         ...(selectedKonter && { konterId: selectedKonter }),
         ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
-        ...(selectedJenisTransaksi && { jenisTransaksi: selectedJenisTransaksi }),
+        ...(selectedJenisTransaksi && {
+          jenisTransaksi: selectedJenisTransaksi,
+        }),
         ...(searchTerm && { search: searchTerm }),
       };
 
-      const csvContent = await exportTransaksiCSV(filters);
+      const blob = await exportTransaksiExcel(filters);
+      const filename = generateExportFilename(filters);
 
-      // Create download link (BOM is already included in csvContent from service)
-      const blob = new Blob([csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `transaksi-konter-pulsa-${new Date().toISOString().split("T")[0]}.csv`;
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -404,15 +468,34 @@ export default function TransaksiPage() {
   ];
 
   // Jenis transaksi options for filter — must match actual jenis_transaksi values in DB
-  const jenisTransaksiOptions = [
+  // Includes static known types + dynamic categories from backend
+  const staticJenisTransaksiOptions = [
     { value: "", label: "Semua Jenis" },
     { value: "pulsa", label: "Pulsa" },
     { value: "paket_data", label: "Paket Data" },
-    { value: "pln", label: "PLN" },
+    { value: "pln", label: "PLN / Token Listrik" },
     { value: "ewallet", label: "E-Wallet" },
     { value: "voucher", label: "Voucher" },
     { value: "pulsa_op", label: "Pulsa Operator" },
+    { value: "game_topup", label: "Top Up Game" },
+    { value: "wifi", label: "Internet / WiFi" },
+    { value: "tv_kabel", label: "TV Kabel" },
+    { value: "pdam", label: "PDAM / Air" },
+    { value: "token_listrik_reseller", label: "Token Listrik Reseller" },
     { value: "belum_dikenal", label: "Belum Dikenal" },
+  ];
+
+  // Merge static options with dynamic categories (avoid duplicates)
+  const dynamicOptions = dynamicCategories
+    .filter(
+      (cat) =>
+        !staticJenisTransaksiOptions.some((opt) => opt.value === cat.kode),
+    )
+    .map((cat) => ({ value: cat.kode, label: cat.label_tampilan }));
+
+  const jenisTransaksiOptions = [
+    ...staticJenisTransaksiOptions,
+    ...dynamicOptions,
   ];
 
   // Clear all filters
@@ -450,7 +533,7 @@ export default function TransaksiPage() {
           icon={<Download className="h-4 w-4" />}
           disabled={loading && transactions.length === 0}
         >
-          Export CSV
+          Export Excel
         </Button>
       </div>
 
@@ -640,7 +723,9 @@ export default function TransaksiPage() {
                               <Badge
                                 variant="default"
                                 size="sm"
-                                className={getCategoryBadgeColor(trx.produk.kategori)}
+                                className={getCategoryBadgeColor(
+                                  trx.produk.kategori,
+                                )}
                               >
                                 {tampilan.labelJenisTransaksi}
                               </Badge>
@@ -653,11 +738,12 @@ export default function TransaksiPage() {
                             <span className="text-sm text-text-primary">
                               {trx.produk.nama}
                             </span>
-                            {tampilan.tampilkanProviderSeluler && trx.providerSeluler && (
-                              <span className="text-xs text-text-tertiary">
-                                {trx.providerSeluler}
-                              </span>
-                            )}
+                            {tampilan.tampilkanProviderSeluler &&
+                              trx.providerSeluler && (
+                                <span className="text-xs text-text-tertiary">
+                                  {trx.providerSeluler}
+                                </span>
+                              )}
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -694,7 +780,9 @@ export default function TransaksiPage() {
                               {trx.nomorTujuan}
                             </span>
                           ) : (
-                            <span className="text-sm text-text-tertiary">-</span>
+                            <span className="text-sm text-text-tertiary">
+                              -
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>
