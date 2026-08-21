@@ -30,7 +30,7 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { Search, X, Download, Receipt, Filter, Eye } from "lucide-react";
+import { Search, X, Download, Receipt, Filter, Eye, AlertTriangle } from "lucide-react";
 import { STATUS_LABELS } from "@/constants/statusTransaksi";
 import { getKonterList } from "@/services";
 import type { Konter } from "@/types";
@@ -41,7 +41,7 @@ const ITEMS_PER_PAGE = 20;
 type SortField = "waktu" | "nominal";
 type SortDirection = "asc" | "desc";
 
-// Helper functions (shared between modal and table)
+// Helper functions
 function getStatusBadgeVariant(
   status: string,
 ): "success" | "warning" | "error" | "default" {
@@ -252,17 +252,55 @@ function TransactionDetailModal({
               <p className="text-sm text-red-700">{transaction.errorMessage}</p>
             </div>
           )}
+
+          {/* Alasan Review */}
+          {transaction.detailTambahan?.alasan_review && (
+            <div className="p-3 bg-yellow-50 border border-yellow-100 rounded-xl">
+              <p className="text-xs font-medium text-yellow-600 mb-1">
+                Alasan Perlu Review
+              </p>
+              <p className="text-sm text-yellow-700">
+                {transaction.detailTambahan.alasan_review as string}
+              </p>
+            </div>
+          )}
+
+          {/* Raw Text History */}
+          {transaction.detailTambahan?.raw_text_history && (
+            <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl">
+              <p className="text-xs font-medium text-gray-600 mb-1">
+                Riwayat Notifikasi ({(
+                  transaction.detailTambahan.raw_text_history as string[]
+                ).length})
+              </p>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {(transaction.detailTambahan.raw_text_history as string[]).map(
+                  (text, idx) => (
+                    <div
+                      key={idx}
+                      className="text-xs text-gray-700 p-2 bg-white rounded border border-gray-200"
+                    >
+                      <span className="font-medium text-gray-500">
+                        #{idx + 1}:
+                      </span>{" "}
+                      {text}
+                    </div>
+                  ),
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-export default function TransaksiPage() {
+export default function TransaksiPendingPage() {
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKonter, setSelectedKonter] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("pending");
   const [selectedJenisTransaksi, setSelectedJenisTransaksi] =
     useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -461,16 +499,14 @@ export default function TransaksiPage() {
     ...konterList.map((k) => ({ value: k.id, label: k.nama })),
   ];
 
-  // Status options for filter
+  // Status options for filter - only pending and gagal for this page
   const statusOptions = [
-    { value: "", label: "Semua Status" },
-    { value: "sukses", label: "Sukses" },
-    { value: "gagal", label: "Gagal" },
+    { value: "", label: "Semua Status (Pending & Gagal)" },
     { value: "pending", label: "Pending" },
+    { value: "gagal", label: "Gagal" },
   ];
 
-  // Jenis transaksi options for filter — must match actual jenis_transaksi values in DB
-  // Includes static known types + dynamic categories from backend
+  // Jenis transaksi options for filter
   const staticJenisTransaksiOptions = [
     { value: "", label: "Semua Jenis" },
     { value: "pulsa", label: "Pulsa" },
@@ -505,7 +541,7 @@ export default function TransaksiPage() {
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedKonter("");
-    setSelectedStatus("");
+    setSelectedStatus("pending");
     setSelectedJenisTransaksi("");
     setDateFrom("");
     setDateTo("");
@@ -520,11 +556,17 @@ export default function TransaksiPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-text-primary tracking-tight">
-            Transaksi
-          </h1>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-2xl font-display font-bold text-text-primary tracking-tight">
+              Transaksi Pending & Bermasalah
+            </h1>
+            <Badge variant="warning" size="sm" dot>
+              <AlertTriangle className="h-3 w-3" />
+              Perlu Perhatian
+            </Badge>
+          </div>
           <p className="text-text-secondary mt-1 text-sm">
-            Riwayat lengkap semua transaksi konter pulsa
+            Transaksi dengan status pending atau gagal — belum masuk laporan omzet utama
           </p>
         </div>
 
@@ -842,11 +884,11 @@ export default function TransaksiPage() {
           <CardContent className="pt-6">
             <EmptyState
               icon={<Receipt className="h-6 w-6 text-text-tertiary" />}
-              title="Tidak ada transaksi ditemukan"
+              title="Tidak ada transaksi pending/gagal ditemukan"
               description={
                 hasActiveFilters
                   ? "Coba ubah atau hapus filter untuk melihat transaksi"
-                  : "Belum ada transaksi. Transaksi akan muncul saat ada aktivitas konter."
+                  : "Tidak ada transaksi dengan status pending atau gagal saat ini."
               }
               actionLabel={hasActiveFilters ? "Hapus Filter" : undefined}
               onAction={hasActiveFilters ? clearFilters : undefined}

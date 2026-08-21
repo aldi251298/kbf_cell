@@ -74,6 +74,7 @@ export interface AlpinesStructure {
   statusKeyword: string | null;
   snRefSegment: string;
   saldoMatch: RegExpMatchArray | null;
+  kodeTransaksiHeader: string | null;
 }
 
 export function parseStrukturAlpines(rawText: string): AlpinesStructure {
@@ -103,7 +104,12 @@ export function parseStrukturAlpines(rawText: string): AlpinesStructure {
     );
   }
 
-  return { headerSegment, statusKeyword, snRefSegment, saldoMatch };
+  // Ekstrak kode transaksi header (Fase 2.3.2 Bug 3 fix)
+  // Pola: "*888*Nomor Sn# VTR10.0895" atau "838nomor voucher#VA5.0838"
+  const kodeHeaderMatch = rawText.match(/(?:nomor\s*sn#|nomor\s*voucher#)\s*([A-Z0-9.]+)/i);
+  const kodeTransaksiHeader = kodeHeaderMatch?.[1]?.trim() ?? null;
+
+  return { headerSegment, statusKeyword, snRefSegment, saldoMatch, kodeTransaksiHeader };
 }
 
 // ============================================================================
@@ -276,7 +282,7 @@ function parseAngkaIndonesia(raw: string): number {
 const keywordGagal =
   /\b(gagal|failed|ditolak|bermasalah|gangguan|error|tidak dapat diproses|koneksi\s*(terputus|bermasalah|gagal)|timeout|kadaluarsa|expired)\b/i;
 const keywordPending =
-  /\b(pending|diproses|menunggu|mohon\s*tunggu|sedang\s*(diproses|berlangsung)|silakan\s*tunggu)\b/i;
+  /\b(pending|diproses|menunggu|mohon\s*tunggu|sedang\s*(diproses|berlangsung)|silakan\s*tunggu|akan\s*diproses|tunggu\s*sms\s*notifikasi)\b/i;
 const keywordSukses =
   /\b(berhasil|sukses|success|telah\s*(dilakukan|selesai))\b/i;
 
@@ -285,6 +291,13 @@ export function extractStatusUniversal(
   _jenisTransaksi: string,
   detailTambahan: Record<string, unknown>,
 ): { status: "sukses" | "gagal" | "pending"; perluReview: boolean } {
+  // Explicit detection for Alpines "sedang diproses" placeholder notifications
+  // These are VALID pending notifications, not failed parsing
+  const keywordSedangDiproses = /\b(akan\s*diproses|tunggu\s*sms\s*notifikasi|mohon\s*tunggu|sedang\s*diproses|silakan\s*tunggu)\b/i;
+  if (keywordSedangDiproses.test(rawText)) {
+    return { status: "pending", perluReview: false }; // valid pending, not a guess
+  }
+
   if (keywordGagal.test(rawText))
     return { status: "gagal", perluReview: false };
   if (keywordPending.test(rawText))

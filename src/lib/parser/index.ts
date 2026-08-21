@@ -56,44 +56,83 @@ export function parseNotifikasi(
   const { provider, rawText } = options;
   const text = rawText.trim();
 
-  // 1. Deteksi jenis transaksi (scoring) - synchronous, known categories only
+  // 1. Deteksi jenis transaksi (synchronous, known categories only)
   const jenisTransaksi = detectJenisTransaksi(text);
 
-  // 2. Ekstraksi field independen
-  const nominal = extractNominal(text, jenisTransaksi);
+  // 2. Extract detailTambahan (without alasanReview) for status extraction
+  const detailTambahanForStatus = extractDetailTambahan(
+    text,
+    jenisTransaksi,
+    null,
+  );
+
+  // 3. Extract status using extractStatusUniversal
+  const { status, perluReview: perluReviewStatus } = extractStatusUniversal(
+    text,
+    jenisTransaksi,
+    detailTambahanForStatus ?? {},
+  );
+
+  // 4. Extract nominal
+  let nominal: number | null = null;
+  let nominalFromSaldoFallback = false;
+  if (provider === "alpines") {
+    const structure = parseStrukturAlpines(text);
+    const nominalResult = extractNominalAlpines(
+      text,
+      structure.headerSegment,
+      structure.snRefSegment,
+      structure.saldoMatch,
+    );
+    nominal = nominalResult.nominal;
+    nominalFromSaldoFallback = nominalResult.dariSaldoFallback;
+  } else {
+    nominal = extractNominal(text, jenisTransaksi);
+  }
+
+  // 5. Extract nomor tujuan
   const nomorTujuan = extractNomorTujuan(text, jenisTransaksi);
-  const status = extractStatus(text);
+
+  // 6. Extract provider seluler (only for pulsa)
   const providerSeluler =
     jenisTransaksi === "pulsa"
       ? extractProviderSeluler(text, nomorTujuan)
       : null;
 
-  // Deteksi nama e-wallet untuk nama_produk
+  // 7. Detect e-wallet name for nama_produk
   const ewalletName = detectEwalletName(text);
+
+  // 8. Extract nama produk
   const namaProduk = extractNamaProduk(text, jenisTransaksi, ewalletName);
+
+  // 9. Extract nama pemilik
   const namaPemilik = extractNamaPemilik(text);
 
-  // 3. Sanity check — tandai perlu_review jika ada masalah
+  // 10. Extract waktu opsional (hanya untuk referensi, tidak disimpan sebagai waktu_transaksi)
+  extractWaktuOpsional(text);
+
+  // 11. Compute alasan review
   const alasanReview = computeAlasanReview({
     jenisTransaksi,
     nominal,
     nomorTujuan,
     status,
   });
-  const perluReview = alasanReview !== null;
 
-  // 4. ID transaksi — gunakan kombinasi provider + hash teks agar stabil
+  // 12. Detail tambahan lengkap (tambahkan alasan review jika ada)
+  const detailTambahan = { ...detailTambahanForStatus };
+  if (alasanReview && detailTambahan) {
+    detailTambahan.alasan_review = alasanReview;
+  }
+
+  // 13. ID transaksi — gunakan kombinasi provider + hash teks agar stabil
   const id_transaksi_provider = computeStableId(provider, text);
 
-  // 5. Detail tambahan
-  const detailTambahan = extractDetailTambahan(
-    text,
-    jenisTransaksi,
-    alasanReview,
-  );
-
-  // 6. Waktu opsional (hanya untuk referensi, tidak disimpan sebagai waktu_transaksi)
-  extractWaktuOpsional(text);
+  // 14. Sanity check — tandai perlu_review jika ada masalah
+  const perluReview =
+    alasanReview !== null ||
+    (provider === "alpines" && nominalFromSaldoFallback) ||
+    perluReviewStatus;
 
   return {
     provider,
@@ -216,11 +255,10 @@ export async function parseNotifikasiUniversal(
   const id_transaksi_provider = computeStableId(provider, teksTanpaSaldo);
 
   // 9. Detail tambahan lengkap
-  const detailTambahan = extractDetailTambahan(
-    teksTanpaSaldo,
-    jenisTransaksi,
-    alasanReview,
-  );
+  const detailTambahan = { ...detailTambahanTemp };
+  if (alasanReview && detailTambahan) {
+    detailTambahan.alasan_review = alasanReview;
+  }
   // Tambahkan saldoInfo ke detail_tambahan untuk audit
   if (saldoInfo && detailTambahan) {
     detailTambahan.saldo_aplikasi_terdeteksi = saldoInfo;
@@ -269,7 +307,7 @@ function extractNamaPemilik(text: string): string | null {
   const namaMatch = text.match(/NAMA:\s*([^/]+)/i);
   if (namaMatch) return namaMatch[1].trim();
 
-  // Pola 2: Segmen kedua di SN/Ref setelah nama e-wallet (format: EWALLET/nama/nominal/nomor/REFF:...)
+  // Pola 2: Segmen kedua di SN/Ref setelah nama e-wallet (format: EWALLET/nama/nomor/nomor/REFF:...)
   const snRefMatch = text.match(/SN\/Ref:\s*(.+?)(?:\.\s*Saldo\s|$)/i);
   if (snRefMatch) {
     const segments = snRefMatch[1].split("/").map((s) => s.trim());

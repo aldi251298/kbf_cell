@@ -8,7 +8,25 @@
 // ---------------------------------------------------------------------------
 export const JENIS_TRANSAKSI_KEYWORDS: Record<string, string[]> = {
   pulsa: ["isi ulang pulsa", "isi ulang", "pulsa"],
-  paket_data: ["paket data", "voucher", "gb", "mb", "hari"],
+  paket_nelpon: [
+    "nelpon",
+    "telepon",
+    "talkmania",
+    "nelpon sms",
+    "sms nelpon",
+    "kombo nelpon",
+    "voice call",
+  ],
+  paket_data: [
+    "paket data",
+    "paket",
+    "kuota",
+    "internet",
+    "voucher senilai",
+    "voucher internet",
+    "voucher data",
+    "voucher",
+  ],
   pln: [
     "pln",
     "token listrik",
@@ -30,15 +48,15 @@ export const JENIS_TRANSAKSI_KEYWORDS: Record<string, string[]> = {
   // Fase 2.3 - New transaction types
   game_topup: [
     "free fire",
-    "ff",
     "mobile legends",
-    "ml",
     "pubg",
     "valorant",
     "genshin",
-    "diamond",
-    "uc",
-    "voucher game",
+    "diamond ff",
+    "diamond ml",
+    "diamond mobile",
+    "garena",
+    "steam wallet",
     "top up game",
     "topup game",
   ],
@@ -64,6 +82,7 @@ export const JENIS_TRANSAKSI_PRIORITY = [
   "wifi",
   "tv_kabel",
   "pdam",
+  "paket_nelpon",
   "paket_data",
   "pulsa",
 ];
@@ -103,6 +122,8 @@ export const STATUS_KEYWORDS: Record<"sukses" | "gagal" | "pending", string[]> =
       "sedang diproses",
       "sedang berlangsung",
       "silakan tunggu",
+      "akan diproses",
+      "tunggu sms notifikasi",
     ],
   };
 

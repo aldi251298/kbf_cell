@@ -148,19 +148,26 @@ export async function POST(req: NextRequest) {
     perlu_review: parsed.perlu_review,
   };
 
-  // 7. DEDUPLICATION: Cek transaksi duplikat berdasarkan SN/REFF/ID Transaksi dalam 15 menit
+  // 7. DEDUPLICATION: Cek transaksi duplikat berdasarkan kode_transaksi_header (prioritas 1),
+  // lalu REFF, SN, ID Transaksi dalam 15 menit (Fase 2.3.2 Bug 3 fix)
   // Ekstrak identifier dari detail_tambahan
   const detailTambahan = parsed.detail_tambahan as Record<
     string,
     unknown
   > | null;
-  const identifier =
-    (detailTambahan?.reff as string) ??
-    (detailTambahan?.sn as string) ??
-    (detailTambahan?.id_transaksi as string) ??
-    null;
+  const kodeHeader = detailTambahan?.kode_transaksi_header as string | null;
+  const reff = detailTambahan?.reff as string | null;
+  const sn = detailTambahan?.sn as string | null;
+  const idTransaksi = detailTambahan?.id_transaksi as string | null;
 
-  if (identifier) {
+  // Build OR query with priority: kode_transaksi_header first, then reff, sn, id_transaksi
+  const orConditions: string[] = [];
+  if (kodeHeader) orConditions.push(`detail_tambahan->>kode_transaksi_header.eq.${kodeHeader}`);
+  if (reff) orConditions.push(`detail_tambahan->>reff.eq.${reff}`);
+  if (sn) orConditions.push(`detail_tambahan->>sn.eq.${sn}`);
+  if (idTransaksi) orConditions.push(`detail_tambahan->>id_transaksi.eq.${idTransaksi}`);
+
+  if (orConditions.length > 0) {
     const limaBelasMenitLalu = new Date(
       Date.now() - 15 * 60 * 1000,
     ).toISOString();
@@ -170,9 +177,7 @@ export async function POST(req: NextRequest) {
       .select("*")
       .eq("konter_id", konterId)
       .gte("waktu_transaksi", limaBelasMenitLalu)
-      .or(
-        `detail_tambahan->>reff.eq.${identifier},detail_tambahan->>sn.eq.${identifier},detail_tambahan->>id_transaksi.eq.${identifier}`,
-      )
+      .or(orConditions.join(","))
       .limit(1)
       .maybeSingle();
 
@@ -184,12 +189,13 @@ export async function POST(req: NextRequest) {
         ?.raw_text_history as string[]) ?? [existing.raw_notification_text];
       const newHistory = [...existingHistory, rawNotificationText];
 
-      // Update: timpa status, nominal, nomor_tujuan, raw_notification_text, detail_tambahan
+      // Update: timpa status, nominal, nomor_tujuan, nama_produk, raw_notification_text, detail_tambahan
       // Pertahankan nilai lama kalau yang baru kosong/null
       const updateRow = {
         status: parsed.status,
         nominal: parsed.nominal ?? existing.nominal,
         nomor_tujuan: parsed.nomor_tujuan ?? existing.nomor_tujuan,
+        nama_produk: parsed.nama_produk ?? existing.nama_produk,
         raw_notification_text: rawNotificationText, // pakai versi terbaru
         detail_tambahan: {
           ...existing.detail_tambahan,
@@ -197,6 +203,10 @@ export async function POST(req: NextRequest) {
           raw_text_history: newHistory,
           nominal_asli:
             parsed.nominal ?? existing.detail_tambahan?.nominal_asli,
+          // Pastikan kode_transaksi_header tetap konsisten
+          kode_transaksi_header:
+            parsed.detail_tambahan?.kode_transaksi_header ??
+            existing.detail_tambahan?.kode_transaksi_header,
         },
         perlu_review: parsed.perlu_review,
         updated_at: new Date().toISOString(),
@@ -218,8 +228,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      const matchedKey = kodeHeader ? "kode_transaksi_header" : reff ? "reff" : sn ? "sn" : "id_transaksi";
       console.log(
-        `[ingest] transaksi duplikat di-update: id=${existing.id} provider=${provider} jenis=${parsed.jenis_transaksi} identifier=${identifier}`,
+        `[ingest] transaksi duplikat di-update: id=${existing.id} provider=${provider} jenis=${parsed.jenis_transaksi} matched_by=${matchedKey}`,
       );
 
       return NextResponse.json({

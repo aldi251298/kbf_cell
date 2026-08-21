@@ -52,6 +52,11 @@ export function extractDetailTambahan(
     };
   }
 
+  // Kode transaksi header (Fase 2.3.2 Bug 3 fix) - kunci dedup utama untuk Alpines
+  if (structure.kodeTransaksiHeader) {
+    detail.kode_transaksi_header = structure.kodeTransaksiHeader;
+  }
+
   // Alasan review (jika ada)
   if (alasanReview) {
     detail.alasan_review = alasanReview;

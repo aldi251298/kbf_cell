@@ -192,6 +192,12 @@ export function getTampilanTransaksi(
       labelJenisTransaksi = "Isi Ulang Pulsa";
       tampilkanProviderSeluler = true;
       break;
+    case "paket_nelpon":
+      labelNomorTujuan = "Nomor HP";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Paket Nelpon/SMS";
+      break;
     case "paket_data":
       labelNomorTujuan = "Nomor HP";
       tampilkanNomorTujuan = true;
@@ -313,6 +319,7 @@ export function getTampilanTransaksi(
 export function getKategoriLabel(kategori: string): string {
   const labelMap: Record<string, string> = {
     pulsa: "Pulsa",
+    paket_nelpon: "Paket Nelpon/SMS",
     paket_data: "Paket Data",
     data: "Paket Data",
     pln: "PLN",

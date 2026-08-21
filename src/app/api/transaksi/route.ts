@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
   const konterId = url.searchParams.get("konterId");
-  const status = url.searchParams.get("status");
+  // Default to "sukses" for main dashboard view unless explicitly specified
+  const status = url.searchParams.get("status") ?? "sukses";
   const jenisTransaksi = url.searchParams.get("jenisTransaksi");
   const search = url.searchParams.get("search");
   const sortBy = url.searchParams.get("sortBy") ?? "waktu";

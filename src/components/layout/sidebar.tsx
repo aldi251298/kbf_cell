@@ -9,6 +9,7 @@ import {
   Plus,
   Minimize2,
   Maximize2,
+  AlertTriangle,
 } from "lucide-react";
 import { NavItem } from "./nav-item";
 import { useState } from "react";
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/transaksi-baru", icon: Plus, label: "Transaksi Baru" },
   { href: "/transaksi", icon: Receipt, label: "Riwayat Transaksi" },
+  { href: "/transaksi-pending", icon: AlertTriangle, label: "Pending & Gagal" },
   { href: "/laporan", icon: BarChart3, label: "Laporan" },
   { href: "/perangkat", icon: Monitor, label: "Perangkat" },
 ];

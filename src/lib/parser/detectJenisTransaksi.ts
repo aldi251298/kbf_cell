@@ -7,6 +7,42 @@
 
 import { JENIS_TRANSAKSI_KEYWORDS, JENIS_TRANSAKSI_PRIORITY } from "./keywords";
 
+/**
+ * Special scoring for paket_nelpon vs paket_data vs pulsa (Fase 2.3.2 Bug 1 fix + new category)
+ * - paket_nelpon checked FIRST (higher priority) for nelpon/telepon/talkmania keywords
+ * - paket_data no longer requires GB+Hari combination
+ * - paket_data gets boosted by "paket" keyword or telco package names
+ * - pulsa only if explicit "pulsa" keyword AND no "paket" keyword
+ */
+function scoringPaketAtauPulsa(rawText: string): {
+  kategori: string;
+  skor: number;
+} {
+  const lower = rawText.toLowerCase();
+  const adaKataPaket = /\bpaket\b/i.test(rawText);
+  const adaNelpon = /\b(nelpon|telepon|talkmania|nelpon\s*sms|sms\s*nelpon|kombo\s*nelpon|voice\s*call)\b/i.test(rawText);
+  const adaData = /\b(paket\s*data|kuota|internet|gb\b|mb\b)\b/i.test(rawText);
+  const adaGBHari = /\d+(\.\d+)?\s*(GB|MB)\b.*?\d+\s*(hari|day)/i.test(rawText);
+  const adaKataPulsaEksplisit = /\bpulsa\b/i.test(rawText) && !adaKataPaket;
+
+  // Cek nelpon DULU — prioritas lebih tinggi dari paket_data
+  if (adaNelpon) {
+    return { kategori: "paket_nelpon", skor: 2 };
+  }
+  if (adaKataPaket && (adaData || adaGBHari)) {
+    return { kategori: "paket_data", skor: 2 };
+  }
+  if (adaKataPaket) {
+    // ada kata "paket" tapi tidak jelas nelpon atau data — default ke paket_data,
+    // tapi tandai perlu_review supaya bisa dicek manual kalau ternyata kategori baru
+    return { kategori: "paket_data", skor: 1 };
+  }
+  if (adaKataPulsaEksplisit) {
+    return { kategori: "pulsa", skor: 1 };
+  }
+  return { kategori: "", skor: 0 };
+}
+
 export function detectJenisTransaksi(text: string): string {
   const lower = text.toLowerCase();
   const scores: Record<string, number> = {};
@@ -21,6 +57,12 @@ export function detectJenisTransaksi(text: string): string {
       if (matches) score += matches.length;
     }
     scores[kategori] = score;
+  }
+
+  // Special handling for paket_data vs pulsa (Fase 2.3.2)
+  const paketPulsaScore = scoringPaketAtauPulsa(text);
+  if (paketPulsaScore.kategori) {
+    scores[paketPulsaScore.kategori] = (scores[paketPulsaScore.kategori] ?? 0) + paketPulsaScore.skor;
   }
 
   // Pick highest score; break ties by priority order
@@ -60,6 +102,12 @@ export async function scoringKeywordKategori(
       if (matches) score += matches.length;
     }
     scores[kategori] = score;
+  }
+
+  // Special handling for paket_data vs pulsa (Fase 2.3.2)
+  const paketPulsaScore = scoringPaketAtauPulsa(rawText);
+  if (paketPulsaScore.kategori) {
+    scores[paketPulsaScore.kategori] = (scores[paketPulsaScore.kategori] ?? 0) + paketPulsaScore.skor;
   }
 
   let best = "belum_dikenal";
