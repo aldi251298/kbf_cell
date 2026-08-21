@@ -1,7 +1,8 @@
 ﻿/**
- * extractStatus � extract status from notification text (Bagian 3.6).
+ * extractStatus — extract status from notification text (Bagian 3.6).
  * Priority: first match wins.
  * Default: "pending" + perlu_review=true if nothing found.
+ * Updated with expanded keywords for Fase 2.3.
  */
 
 import { STATUS_KEYWORDS } from "./keywords";

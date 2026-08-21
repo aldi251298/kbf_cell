@@ -1,0 +1,316 @@
+/**
+ * Universal Parser Functions — Fase 2.3 & 2.3.1
+ *
+ * Contains:
+ * 1. parseStrukturAlpines - Universal Alpines structure parser
+ * 2. pisahkanSaldoAplikasi - Separate app balance from transaction text (both providers)
+ * 3. apakahTransaksiPelanggan - Filter non-transaction notifications
+ * 4. tebakJenisTransaksiUniversal - Dynamic category detection with DB lookup
+ */
+
+import { createServiceRoleClient } from "@/lib/supabase/server";
+
+// ============================================================================
+// 1. PISAHAN SALDO APLIKASI (Universal - both Digipos & Alpines)
+// ============================================================================
+
+const polaSaldoAplikasi =
+  /Saldo\s+(LinkAja|Digipos|Alpines|Dompet)?\s*[\d.,]+(\s*-\s*[\d.,]+\s*=\s*[\d.,]+)?(\s*@\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}:\d{2})?/gi;
+
+export function pisahkanSaldoAplikasi(rawText: string): {
+  teksTanpaSaldo: string;
+  saldoInfo: string | null;
+} {
+  const match = rawText.match(polaSaldoAplikasi);
+  if (!match) return { teksTanpaSaldo: rawText, saldoInfo: null };
+
+  return {
+    teksTanpaSaldo: rawText.replace(polaSaldoAplikasi, "").trim(),
+    saldoInfo: match.join(" | "),
+  };
+}
+
+// ============================================================================
+// 2. FILTER NOTIFIKASI NON-TRANSAKSI
+// ============================================================================
+
+const keywordBukanTransaksi =
+  /\b(promo|info|pengumuman|notifikasi rutin|selamat datang|kode referral|yuk\s|cashback|event\s|maintenance|gangguan sistem sedang|pemberitahuan|reminder|newsletter)\b/i;
+
+const keywordTopUpSaldoSendiri =
+  /\b(top\s?up saldo (digipos|alpines|akun|deposit)|isi saldo aplikasi|deposit anda|saldo anda (bertambah|ditambahkan)|pengisian saldo (digipos|alpines|dompet) anda)\b/i;
+
+export function apakahTransaksiPelanggan(rawText: string): {
+  valid: boolean;
+  alasan?: string;
+} {
+  if (keywordBukanTransaksi.test(rawText)) {
+    return { valid: false, alasan: "terdeteksi_promo_atau_info" };
+  }
+  if (keywordTopUpSaldoSendiri.test(rawText)) {
+    return { valid: false, alasan: "top_up_saldo_aplikasi_sendiri" };
+  }
+
+  const adaNomorTujuan = /\b(08|62)\d{8,11}\b/.test(rawText);
+  const adaReferensi = /\b(SN|REFF|ID Transaksi|IDT)\b/i.test(rawText);
+  const adaNominalEksplisit = /\bRp\s?[\d.,]+|\bNOMINAL:\s?[\d.,]+/i.test(
+    rawText,
+  );
+
+  // Tolak HANYA kalau ketiga sinyal transaksi sama sekali tidak ada
+  if (!adaNomorTujuan && !adaReferensi && !adaNominalEksplisit) {
+    return { valid: false, alasan: "tidak_ada_elemen_transaksi" };
+  }
+
+  return { valid: true };
+}
+
+// ============================================================================
+// 3. PARSE STRUKTUR ALPINES (Universal base extractor)
+// ============================================================================
+
+export interface AlpinesStructure {
+  headerSegment: string;
+  statusKeyword: string | null;
+  snRefSegment: string;
+  saldoMatch: RegExpMatchArray | null;
+}
+
+export function parseStrukturAlpines(rawText: string): AlpinesStructure {
+  // Cari titik potong "Berhasil"/"Gagal" — pemisah header vs sisanya
+  const statusMatch = rawText.match(/\b(Berhasil|Gagal)\b/i);
+  const headerSegment = statusMatch
+    ? rawText.slice(0, statusMatch.index).trim()
+    : rawText;
+  const statusKeyword = statusMatch?.[1]?.toLowerCase() ?? null;
+
+  // Cari segmen SN/Ref
+  const snRefMatch = rawText.match(
+    /SN\/Ref:?\s*([\s\S]*?)(?=\s*Saldo\s+[\d.,]+)/i,
+  );
+  const snRefSegment = snRefMatch?.[1]?.trim() ?? "";
+
+  // Segmen saldo — SELALU pola terakhir, pisahkan jadi 3 angka
+  // Regex ketat dulu (dengan - dan =)
+  let saldoMatch = rawText.match(
+    /Saldo\s+([\d.,]+)\s*-\s*([\d.,]+)\s*=\s*([\d.,]+)\s*@(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2}:\d{2})/i,
+  );
+
+  // Fallback ke regex longgar kalau yang ketat tidak match
+  if (!saldoMatch) {
+    saldoMatch = rawText.match(
+      /Saldo\s+([\d.,]+)[\s\-]+([\d.,]+)[\s=]+([\d.,]+)\s*@/i,
+    );
+  }
+
+  return { headerSegment, statusKeyword, snRefSegment, saldoMatch };
+}
+
+// ============================================================================
+// 4. TEBAK JENIS TRANSAKSI UNIVERSAL (Dynamic Category System)
+// ============================================================================
+
+import { JENIS_TRANSAKSI_KEYWORDS, JENIS_TRANSAKSI_PRIORITY } from "./keywords";
+
+export interface TebakJenisResult {
+  jenis: string;
+  perluReview: boolean;
+}
+
+async function scoringKeywordKategori(
+  rawText: string,
+): Promise<{ kategori: string; skor: number }> {
+  const lower = rawText.toLowerCase();
+  const scores: Record<string, number> = {};
+
+  for (const [kategori, keywords] of Object.entries(JENIS_TRANSAKSI_KEYWORDS)) {
+    let score = 0;
+    for (const kw of keywords) {
+      const regex = new RegExp(escapeRegex(kw), "gi");
+      const matches = lower.match(regex);
+      if (matches) score += matches.length;
+    }
+    scores[kategori] = score;
+  }
+
+  let best = "belum_dikenal";
+  let bestScore = 0;
+
+  for (const kategori of JENIS_TRANSAKSI_PRIORITY) {
+    if ((scores[kategori] ?? 0) > bestScore) {
+      bestScore = scores[kategori] ?? 0;
+      best = kategori;
+    }
+  }
+
+  for (const [kategori, score] of Object.entries(scores)) {
+    if (!JENIS_TRANSAKSI_PRIORITY.includes(kategori) && score > bestScore) {
+      bestScore = score;
+      best = kategori;
+    }
+  }
+
+  return { kategori: best, skor: bestScore };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export async function tebakJenisTransaksiUniversal(
+  rawText: string,
+  headerSegment: string,
+): Promise<TebakJenisResult> {
+  // 1. Cek terhadap kategori resmi yang sudah di-hardcode
+  const hasilKnown = await scoringKeywordKategori(rawText);
+  if (hasilKnown.skor > 0) {
+    return { jenis: hasilKnown.kategori, perluReview: false };
+  }
+
+  // 2. Tebak kode kategori dari header
+  const kataPertama = headerSegment
+    .split(/\s+/)[0]
+    ?.toLowerCase()
+    .replace(/[^a-z0-9]/g, "_");
+  if (!kataPertama || kataPertama.length <= 2) {
+    return { jenis: "belum_dikenal", perluReview: true };
+  }
+  const kodeKategori = `lainnya_${kataPertama}`;
+
+  // 3. Cek apakah kategori ini SUDAH PERNAH muncul sebelumnya
+  const supabase = createServiceRoleClient();
+  const { data: existing } = await supabase
+    .from("kategori_transaksi_dinamis")
+    .select("*")
+    .eq("kode", kodeKategori)
+    .maybeSingle();
+
+  if (existing) {
+    // Sudah pernah muncul — kenali otomatis, TIDAK perlu review lagi
+    await supabase
+      .from("kategori_transaksi_dinamis")
+      .update({
+        jumlah_kemunculan: existing.jumlah_kemunculan + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("kode", kodeKategori);
+
+    return { jenis: kodeKategori, perluReview: false };
+  }
+
+  // Kemunculan PERTAMA — catat kategori baru, DAN tandai review (hanya kali ini)
+  await supabase.from("kategori_transaksi_dinamis").insert({
+    kode: kodeKategori,
+    label_tampilan: kataPertama
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+    contoh_header: headerSegment.slice(0, 100),
+  });
+
+  return { jenis: kodeKategori, perluReview: true };
+}
+
+// ============================================================================
+// 5. EKSTRAKSI NOMINAL UNTUK ALPINES (Priority Order)
+// ============================================================================
+
+export function extractNominalAlpines(
+  _text: string,
+  headerSegment: string,
+  snRefSegment: string,
+  saldoMatch: RegExpMatchArray | null,
+): { nominal: number | null; dariSaldoFallback: boolean } {
+  // 1. Keyword eksplisit di segmen SN/Ref: NOMINAL:, TOKEN, atau angka di format /-separated
+  const nominalLabelMatch = snRefSegment.match(/NOMINAL:\s*([\d.,]+)/i);
+  if (nominalLabelMatch) {
+    const val = parseAngkaIndonesia(nominalLabelMatch[1]);
+    if (val > 0) return { nominal: val, dariSaldoFallback: false };
+  }
+
+  // Cek pola TOKEN di header (mis. "TOKEN 100000 PH100...")
+  const tokenMatch = headerSegment.match(/^TOKEN\s+(\d+)/i);
+  if (tokenMatch) {
+    const val = parseInt(tokenMatch[1], 10);
+    if (val > 0) return { nominal: val, dariSaldoFallback: false };
+  }
+
+  // Cek pola /-separated di SN/Ref (mis. GOPAY/Jasmisaputra/100000/...)
+  const snRefParts = snRefSegment.split("/").map((s) => s.trim());
+  if (snRefParts.length >= 3) {
+    // Cari angka yang bukan nomor HP (10-13 digit diawali 08/62)
+    for (const part of snRefParts) {
+      if (/^\d{3,6}$/.test(part) && !/^(08|62)\d{8,11}$/.test(part)) {
+        const val = parseInt(part, 10);
+        if (val > 0) return { nominal: val, dariSaldoFallback: false };
+      }
+    }
+  }
+
+  // 2. Angka di header sebelum kode produk (sudah ditangani TOKEN di atas)
+  // Cek angka eksplisit di awal header
+  const headerAngkaMatch = headerSegment.match(/^(\d{3,6})\s+/);
+  if (headerAngkaMatch) {
+    const val = parseInt(headerAngkaMatch[1], 10);
+    if (val > 0) return { nominal: val, dariSaldoFallback: false };
+  }
+
+  // 3. FALLBACK TERAKHIR: angka B dari segmen saldo (Saldo A - B = C)
+  if (saldoMatch && saldoMatch[2]) {
+    const val = parseAngkaIndonesia(saldoMatch[2]);
+    if (val > 0) return { nominal: val, dariSaldoFallback: true };
+  }
+
+  return { nominal: null, dariSaldoFallback: false };
+}
+
+function parseAngkaIndonesia(raw: string): number {
+  const cleaned = raw.replace(/\./g, "").replace(/,/g, "");
+  const parsed = parseInt(cleaned, 10);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+// ============================================================================
+// 6. EKSTRAKSI STATUS UNIVERSAL (Expanded Keywords)
+// ============================================================================
+
+const keywordGagal =
+  /\b(gagal|failed|ditolak|bermasalah|gangguan|error|tidak dapat diproses|koneksi\s*(terputus|bermasalah|gagal)|timeout|kadaluarsa|expired)\b/i;
+const keywordPending =
+  /\b(pending|diproses|menunggu|mohon\s*tunggu|sedang\s*(diproses|berlangsung)|silakan\s*tunggu)\b/i;
+const keywordSukses =
+  /\b(berhasil|sukses|success|telah\s*(dilakukan|selesai))\b/i;
+
+export function extractStatusUniversal(
+  rawText: string,
+  _jenisTransaksi: string,
+  detailTambahan: Record<string, unknown>,
+): { status: "sukses" | "gagal" | "pending"; perluReview: boolean } {
+  if (keywordGagal.test(rawText))
+    return { status: "gagal", perluReview: false };
+  if (keywordPending.test(rawText))
+    return { status: "pending", perluReview: false };
+  if (keywordSukses.test(rawText))
+    return { status: "sukses", perluReview: false };
+
+  // Fallback sinyal implisit sukses — generik, bukan cuma PLN
+  const adaReferensiLengkap =
+    detailTambahan.id_transaksi != null ||
+    detailTambahan.sn != null ||
+    detailTambahan.reff != null;
+  const frasaKonfirmasi = /anda telah melakukan/i.test(rawText);
+  if (adaReferensiLengkap && frasaKonfirmasi) {
+    return { status: "sukses", perluReview: false };
+  }
+
+  return { status: "pending", perluReview: true };
+}
+
+// ============================================================================
+// 7. EKSTRAKSI NAMA PRODUK PAKET DATA (Structural Keyword Approach)
+// ============================================================================
+
+export function extractNamaProdukPaketData(text: string): string | null {
+  // Nama paket selalu berada di antara keyword "paket data" dan keyword "pada" (penanda tanggal)
+  const paketDataMatch = text.match(/paket data\s+(.+?)\s+pada\s+\d/i);
+  return paketDataMatch?.[1]?.trim() ?? null;
+}

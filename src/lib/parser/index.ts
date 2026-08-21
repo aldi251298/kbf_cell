@@ -3,6 +3,7 @@
  *
  * parseNotifikasi(provider, rawText) mengembalikan ParsedTransaksi lengkap.
  * Prinsip: setiap field diekstrak independen, transaksi tidak pernah ditolak.
+ * Updated for Fase 2.3 & 2.3.1: Universal parser, dynamic categories, non-transaction filter.
  */
 
 import type { ParsedTransaksi } from "./types";
@@ -14,6 +15,14 @@ import { extractProviderSeluler } from "./extractProviderSeluler";
 import { extractNamaProduk } from "./extractNamaProduk";
 import { extractDetailTambahan } from "./extractDetailTambahan";
 import { extractWaktuOpsional } from "./extractWaktuOpsional";
+import {
+  pisahkanSaldoAplikasi,
+  apakahTransaksiPelanggan,
+  parseStrukturAlpines,
+  tebakJenisTransaksiUniversal,
+  extractStatusUniversal,
+  extractNominalAlpines,
+} from "./universal";
 
 export { detectJenisTransaksi } from "./detectJenisTransaksi";
 export { extractNominal } from "./extractNominal";
@@ -23,6 +32,12 @@ export { extractProviderSeluler } from "./extractProviderSeluler";
 export { extractNamaProduk } from "./extractNamaProduk";
 export { extractDetailTambahan } from "./extractDetailTambahan";
 export { extractWaktuOpsional } from "./extractWaktuOpsional";
+export {
+  pisahkanSaldoAplikasi,
+  apakahTransaksiPelanggan,
+  tebakJenisTransaksiUniversal,
+  parseStrukturAlpines,
+} from "./universal";
 
 export interface ParseNotifikasiOptions {
   /** Provider dari client (digipos / alpines) — digunakan untuk konteks, bukan untuk deteksi */
@@ -31,11 +46,17 @@ export interface ParseNotifikasiOptions {
   rawText: string;
 }
 
-export function parseNotifikasi(options: ParseNotifikasiOptions): ParsedTransaksi {
+/**
+ * Main parsing function - synchronous version for known categories only.
+ * For full dynamic category support, use parseNotifikasiUniversal (async).
+ */
+export function parseNotifikasi(
+  options: ParseNotifikasiOptions,
+): ParsedTransaksi {
   const { provider, rawText } = options;
   const text = rawText.trim();
 
-  // 1. Deteksi jenis transaksi (scoring)
+  // 1. Deteksi jenis transaksi (scoring) - synchronous, known categories only
   const jenisTransaksi = detectJenisTransaksi(text);
 
   // 2. Ekstraksi field independen
@@ -43,7 +64,9 @@ export function parseNotifikasi(options: ParseNotifikasiOptions): ParsedTransaks
   const nomorTujuan = extractNomorTujuan(text, jenisTransaksi);
   const status = extractStatus(text);
   const providerSeluler =
-    jenisTransaksi === "pulsa" ? extractProviderSeluler(text, nomorTujuan) : null;
+    jenisTransaksi === "pulsa"
+      ? extractProviderSeluler(text, nomorTujuan)
+      : null;
 
   // Deteksi nama e-wallet untuk nama_produk
   const ewalletName = detectEwalletName(text);
@@ -63,7 +86,11 @@ export function parseNotifikasi(options: ParseNotifikasiOptions): ParsedTransaks
   const id_transaksi_provider = computeStableId(provider, text);
 
   // 5. Detail tambahan
-  const detailTambahan = extractDetailTambahan(text, jenisTransaksi, alasanReview);
+  const detailTambahan = extractDetailTambahan(
+    text,
+    jenisTransaksi,
+    alasanReview,
+  );
 
   // 6. Waktu opsional (hanya untuk referensi, tidak disimpan sebagai waktu_transaksi)
   extractWaktuOpsional(text);
@@ -81,6 +108,146 @@ export function parseNotifikasi(options: ParseNotifikasiOptions): ParsedTransaks
     raw_notification_text: rawText,
     detail_tambahan: detailTambahan,
     perlu_review: perluReview,
+  };
+}
+
+/**
+ * Universal async parsing function with full Fase 2.3.1 features:
+ * - Saldo aplikasi separation (both providers)
+ * - Non-transaction filter
+ * - Dynamic category detection with DB lookup
+ * - Alpines structure parsing
+ * - Expanded status keywords
+ * Returns parsed result plus metadata about filtering
+ */
+export async function parseNotifikasiUniversal(
+  options: ParseNotifikasiOptions,
+): Promise<{
+  parsed: ParsedTransaksi | null;
+  filtered: boolean;
+  filterReason?: string;
+  saldoInfo: string | null;
+}> {
+  const { provider, rawText } = options;
+
+  // 1. Pisahkan saldo aplikasi (universal untuk kedua provider)
+  const { teksTanpaSaldo, saldoInfo } = pisahkanSaldoAplikasi(rawText);
+
+  // 2. Klasifikasi apakah ini transaksi pelanggan
+  const klasifikasi = apakahTransaksiPelanggan(teksTanpaSaldo);
+  if (!klasifikasi.valid) {
+    return {
+      parsed: null,
+      filtered: true,
+      filterReason: klasifikasi.alasan,
+      saldoInfo,
+    };
+  }
+
+  // 3. Parse struktur Alpines (khusus Alpines)
+  let alpinesStructure = null;
+  if (provider === "alpines") {
+    alpinesStructure = parseStrukturAlpines(teksTanpaSaldo);
+  }
+
+  // 4. Deteksi jenis transaksi universal (dengan sistem kategori dinamis)
+  const headerSegment = alpinesStructure?.headerSegment ?? teksTanpaSaldo;
+  const { jenis: jenisTransaksi, perluReview: perluReviewKategori } =
+    await tebakJenisTransaksiUniversal(teksTanpaSaldo, headerSegment);
+
+  // 5. Ekstraksi field independen (menggunakan teksTanpaSaldo sebagai basis)
+  let nominal: number | null = null;
+  let dariSaldoFallback = false;
+
+  if (provider === "alpines" && alpinesStructure) {
+    const nominalResult = extractNominalAlpines(
+      teksTanpaSaldo,
+      alpinesStructure.headerSegment,
+      alpinesStructure.snRefSegment,
+      alpinesStructure.saldoMatch,
+    );
+    nominal = nominalResult.nominal;
+    dariSaldoFallback = nominalResult.dariSaldoFallback;
+  } else {
+    nominal = extractNominal(teksTanpaSaldo, jenisTransaksi);
+  }
+
+  const nomorTujuan = extractNomorTujuan(teksTanpaSaldo, jenisTransaksi);
+  const providerSeluler =
+    jenisTransaksi === "pulsa"
+      ? extractProviderSeluler(teksTanpaSaldo, nomorTujuan)
+      : null;
+
+  // Deteksi nama e-wallet untuk nama_produk
+  const ewalletName = detectEwalletName(teksTanpaSaldo);
+  const namaProduk = extractNamaProduk(
+    teksTanpaSaldo,
+    jenisTransaksi,
+    ewalletName,
+  );
+  const namaPemilik = extractNamaPemilik(teksTanpaSaldo);
+
+  // 6. Status universal (dengan keyword expanded)
+  const detailTambahanTemp = extractDetailTambahan(
+    teksTanpaSaldo,
+    jenisTransaksi,
+    null,
+  );
+  const { status, perluReview: perluReviewStatus } = extractStatusUniversal(
+    teksTanpaSaldo,
+    jenisTransaksi,
+    detailTambahanTemp ?? {},
+  );
+
+  // 7. Sanity check — tandai perlu_review jika ada masalah
+  const alasanReview = computeAlasanReview({
+    jenisTransaksi,
+    nominal,
+    nomorTujuan,
+    status,
+  });
+  const perluReview =
+    perluReviewKategori ||
+    perluReviewStatus ||
+    alasanReview !== null ||
+    dariSaldoFallback;
+
+  // 8. ID transaksi
+  const id_transaksi_provider = computeStableId(provider, teksTanpaSaldo);
+
+  // 9. Detail tambahan lengkap
+  const detailTambahan = extractDetailTambahan(
+    teksTanpaSaldo,
+    jenisTransaksi,
+    alasanReview,
+  );
+  // Tambahkan saldoInfo ke detail_tambahan untuk audit
+  if (saldoInfo && detailTambahan) {
+    detailTambahan.saldo_aplikasi_terdeteksi = saldoInfo;
+  }
+
+  // 10. Waktu opsional
+  extractWaktuOpsional(teksTanpaSaldo);
+
+  const parsed: ParsedTransaksi = {
+    provider,
+    id_transaksi_provider,
+    jenis_transaksi: jenisTransaksi,
+    nominal,
+    nomor_tujuan: nomorTujuan,
+    nama_produk: namaProduk,
+    provider_seluler: providerSeluler,
+    nama_pemilik: namaPemilik,
+    status,
+    raw_notification_text: rawText, // SELALU simpan rawText ASLI UTUH
+    detail_tambahan: detailTambahan,
+    perlu_review: perluReview,
+  };
+
+  return {
+    parsed,
+    filtered: false,
+    saldoInfo,
   };
 }
 
@@ -133,8 +300,10 @@ function computeAlasanReview(params: {
 }): string | null {
   const { jenisTransaksi, nominal, nomorTujuan } = params;
 
-  if (jenisTransaksi === "belum_dikenal") return "jenis_transaksi tidak dikenali";
-  if (nominal === null || nominal <= 0) return "nominal tidak ditemukan atau nol";
+  if (jenisTransaksi === "belum_dikenal")
+    return "jenis_transaksi tidak dikenali";
+  if (nominal === null || nominal <= 0)
+    return "nominal tidak ditemukan atau nol";
   if (
     nomorTujuan === null &&
     ["pulsa", "paket_data", "ewallet"].includes(jenisTransaksi)

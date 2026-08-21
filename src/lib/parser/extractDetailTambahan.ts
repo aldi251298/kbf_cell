@@ -1,6 +1,9 @@
 ﻿/**
  * extractDetailTambahan — extract SN, REFF, ID Transaksi, saldo, alasan review (Bagian 3.8e, 3.7).
+ * Updated for Fase 2.3: stores saldo_konter and supports raw_text_history for deduplication.
  */
+
+import { parseStrukturAlpines } from "./universal";
 
 export function extractDetailTambahan(
   text: string,
@@ -16,7 +19,8 @@ export function extractDetailTambahan(
   }
 
   // SN eksplisit (bisa tanpa colon, cek berbagai pola)
-  const snExplicit = text.match(/\bSN\b[:\s]*([^\s]+)/i) || text.match(/SN:\s*([^\s]+)/i);
+  const snExplicit =
+    text.match(/\bSN\b[:\s]*([^\s]+)/i) || text.match(/SN:\s*([^\s]+)/i);
   if (snExplicit) detail.sn = snExplicit[1].trim();
 
   // REFF
@@ -38,11 +42,14 @@ export function extractDetailTambahan(
     detail.id_transaksi = reffMatchDetail[1].trim();
   }
 
-  // Saldo (dari perhitungan saldo)
-  const saldoMatch = text.match(/Saldo\s+([\d.,]+)\s*-\s*([\d.,]+)\s*=\s*([\d.,]+)/i);
-  if (saldoMatch) {
-    detail.saldo_sebelum = saldoMatch[1].trim();
-    detail.saldo_sesudah = saldoMatch[3].trim();
+  // Saldo konter (untuk Alpines) - SELALU di detail_tambahan, JANGAN PERNAH ditampilkan sebagai nominal
+  const structure = parseStrukturAlpines(text);
+  if (structure.saldoMatch) {
+    detail.saldo_konter = {
+      sebelum: structure.saldoMatch[1],
+      terpakai: structure.saldoMatch[2],
+      sesudah: structure.saldoMatch[3],
+    };
   }
 
   // Alasan review (jika ada)

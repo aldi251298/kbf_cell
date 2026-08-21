@@ -1,8 +1,10 @@
 ﻿/**
  * extractNamaProduk — extract nama_produk based on jenis_transaksi (Bagian 3.8b, 3.8c).
+ * Updated for Fase 2.3: paket_data uses structural keyword approach.
  */
 
 import { EWALLET_NORMALIZATION } from "./keywords";
+import { extractNamaProdukPaketData } from "./universal";
 
 export function extractNamaProduk(
   text: string,
@@ -11,20 +13,15 @@ export function extractNamaProduk(
 ): string | null {
   switch (jenisTransaksi) {
     case "paket_data": {
-      // Cari pola [huruf/angka] GB/MB [angka] Hari — tangkap sampai akhir string atau tanda baca berikutnya
-      // Gunakan greedy match untuk menangkap duplikasi seperti "28 Hari 28 Hari"
-      const paketMatch = text.match(
-        /(?:transaksi\s+pengisian\s+paket\s+data\s+)?(?:VOUCHER\s+)?([a-zA-Z0-9][a-zA-Z0-9\s]*?\d+(?:\.\d+)?\s*(?:GB|MB|gb|mb)[\s\S]*?\d+\s*(?:Hari|hari|HARI)(?:\s+\d+\s*(?:Hari|hari|HARI))?)/i,
-      );
-      if (paketMatch) {
-        return paketMatch[1].trim();
-      }
-      return null;
+      // Use structural keyword approach: between "paket data" and "pada"
+      return extractNamaProdukPaketData(text);
     }
 
     case "voucher": {
       // Untuk voucher Alpines, ambil nama produk setelah keyword VOUCHER
-      const voucherMatch = text.match(/VOUCHER\s+([a-zA-Z0-9][a-zA-Z0-9\s]*?)(?:\s+\d|$)/i);
+      const voucherMatch = text.match(
+        /VOUCHER\s+([a-zA-Z0-9][a-zA-Z0-9\s]*?)(?:\s+\d|$)/i,
+      );
       if (voucherMatch) {
         return voucherMatch[1].trim();
       }
@@ -37,7 +34,10 @@ export function extractNamaProduk(
         const normalized = EWALLET_NORMALIZATION[ewalletName.toLowerCase()];
         if (normalized) return normalized;
         // Capitalize first letter as fallback
-        return ewalletName.charAt(0).toUpperCase() + ewalletName.slice(1).toLowerCase();
+        return (
+          ewalletName.charAt(0).toUpperCase() +
+          ewalletName.slice(1).toLowerCase()
+        );
       }
       return null;
     }

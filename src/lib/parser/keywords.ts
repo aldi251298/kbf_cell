@@ -1,30 +1,21 @@
 ﻿/**
- * Keyword definitions for the centralized parser (Fase 2.2).
+ * Keyword definitions for the centralized parser (Fase 2.2 & 2.3).
  * Used for scoring-based detection of jenis_transaksi and provider_seluler.
  */
 
 // ---------------------------------------------------------------------------
-// Jenis transaksi keywords (Bagian 3.3)
+// Jenis transaksi keywords (Bagian 3.3 + Fase 2.3 expansions)
 // ---------------------------------------------------------------------------
 export const JENIS_TRANSAKSI_KEYWORDS: Record<string, string[]> = {
-  pulsa: [
-    "isi ulang pulsa",
-    "isi ulang",
-    "pulsa",
-  ],
-  paket_data: [
-    "paket data",
-    "voucher",
-    "gb",
-    "mb",
-    "hari",
-  ],
+  pulsa: ["isi ulang pulsa", "isi ulang", "pulsa"],
+  paket_data: ["paket data", "voucher", "gb", "mb", "hari"],
   pln: [
     "pln",
     "token listrik",
     "stroom",
     "meter",
     "pembayaran pln",
+    "token pln prabayar",
   ],
   ewallet: [
     "dana",
@@ -36,19 +27,84 @@ export const JENIS_TRANSAKSI_KEYWORDS: Record<string, string[]> = {
     "saldo dana",
     "saldo gopay",
   ],
+  // Fase 2.3 - New transaction types
+  game_topup: [
+    "free fire",
+    "ff",
+    "mobile legends",
+    "ml",
+    "pubg",
+    "valorant",
+    "genshin",
+    "diamond",
+    "uc",
+    "voucher game",
+    "top up game",
+    "topup game",
+  ],
+  wifi: ["wifi", "indihome", "internet rumah", "broadband"],
+  tv_kabel: [
+    "tv kabel",
+    "indovision",
+    "transvision",
+    "k-vision",
+    "nex parabola",
+  ],
+  pdam: ["pdam", "air minum", "tagihan air"],
+  token_listrik_reseller: ["token ph", "token listrik reseller"],
 };
 
 // Priority order for disambiguation (higher = checked first)
-export const JENIS_TRANSAKSI_PRIORITY = ["ewallet", "pln", "paket_data", "pulsa"];
+// New categories added before generic ones
+export const JENIS_TRANSAKSI_PRIORITY = [
+  "ewallet",
+  "pln",
+  "token_listrik_reseller",
+  "game_topup",
+  "wifi",
+  "tv_kabel",
+  "pdam",
+  "paket_data",
+  "pulsa",
+];
 
 // ---------------------------------------------------------------------------
-// Status keywords (Bagian 3.6)
+// Status keywords (Bagian 3.6) - EXPANDED for Fase 2.3
 // ---------------------------------------------------------------------------
-export const STATUS_KEYWORDS: Record<"sukses" | "gagal" | "pending", string[]> = {
-  sukses: ["berhasil", "sukses", "success"],
-  gagal: ["gagal", "failed", "ditolak"],
-  pending: ["pending", "diproses", "menunggu"],
-};
+export const STATUS_KEYWORDS: Record<"sukses" | "gagal" | "pending", string[]> =
+  {
+    sukses: [
+      "berhasil",
+      "sukses",
+      "success",
+      "telah dilakukan",
+      "telah selesai",
+    ],
+    gagal: [
+      "gagal",
+      "failed",
+      "ditolak",
+      "bermasalah",
+      "gangguan",
+      "error",
+      "tidak dapat diproses",
+      "koneksi terputus",
+      "koneksi bermasalah",
+      "koneksi gagal",
+      "timeout",
+      "kadaluarsa",
+      "expired",
+    ],
+    pending: [
+      "pending",
+      "diproses",
+      "menunggu",
+      "mohon tunggu",
+      "sedang diproses",
+      "sedang berlangsung",
+      "silakan tunggu",
+    ],
+  };
 
 // ---------------------------------------------------------------------------
 // Provider seluler keywords (Bagian 3.8a)
@@ -63,7 +119,18 @@ export const PROVIDER_SELULER_KEYWORDS: Record<string, string[]> = {
 
 // Prefix fallback for provider seluler detection
 export const PROVIDER_SELULER_PREFIXES: Record<string, string[]> = {
-  Telkomsel: ["0811", "0812", "0813", "0821", "0822", "0823", "0851", "0852", "0853", "0838"],
+  Telkomsel: [
+    "0811",
+    "0812",
+    "0813",
+    "0821",
+    "0822",
+    "0823",
+    "0851",
+    "0852",
+    "0853",
+    "0838",
+  ],
   Axis: ["0838", "0831", "0832", "0833"],
   Tri: ["0895", "0896", "0897", "0898", "0899"],
   Indosat: ["0855", "0856", "0857", "0858", "0814", "0815"],

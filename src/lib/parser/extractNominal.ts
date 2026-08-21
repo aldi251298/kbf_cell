@@ -6,7 +6,14 @@
  *  3. Pola SN/Ref: X/Y/angka/nomor_hp/... (untuk ewallet Alpines)
  *  4. Saldo\s*[\d.,]+\s*-\s*[\d.,]+\s*=\s*[\d.,]+  → ambil angka kedua
  *  5. Fallback: angka besar terdekat keyword nominal/senilai/sebesar/Rp
+ *
+ * For Alpines: uses extractNominalAlpines from universal.ts with priority:
+ *  1. Keyword eksplisit di segmen SN/Ref: NOMINAL:, TOKEN, atau angka di format /-separated
+ *  2. Angka di header sebelum kode produk
+ *  3. FALLBACK TERAKHIR: angka B dari segmen saldo (Saldo A - B = C) — tandai perlu_review
  */
+
+import { parseStrukturAlpines, extractNominalAlpines } from "./universal";
 
 export function extractNominal(
   text: string,
@@ -69,6 +76,24 @@ export function extractNominal(
   }
 
   return null;
+}
+
+/**
+ * Extract nominal for Alpines using the priority order from Fase 2.3
+ * Returns { nominal, dariSaldoFallback } where dariSaldoFallback indicates
+ * if the nominal came from saldo fallback (should trigger perlu_review)
+ */
+export function extractNominalForAlpines(text: string): {
+  nominal: number | null;
+  dariSaldoFallback: boolean;
+} {
+  const structure = parseStrukturAlpines(text);
+  return extractNominalAlpines(
+    text,
+    structure.headerSegment,
+    structure.snRefSegment,
+    structure.saldoMatch,
+  );
 }
 
 /**

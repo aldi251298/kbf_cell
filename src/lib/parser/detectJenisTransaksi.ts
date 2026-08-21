@@ -1,6 +1,8 @@
 ﻿/**
- * detectJenisTransaksi � scoring-based detection (Bagian 3.3).
+ * detectJenisTransaksi — scoring-based detection (Bagian 3.3).
  * Returns the jenis_transaksi with the highest keyword score.
+ * Synchronous version for known categories only.
+ * For dynamic categories, use tebakJenisTransaksiUniversal from universal.ts
  */
 
 import { JENIS_TRANSAKSI_KEYWORDS, JENIS_TRANSAKSI_PRIORITY } from "./keywords";
@@ -41,6 +43,43 @@ export function detectJenisTransaksi(text: string): string {
   }
 
   return best;
+}
+
+// Export scoring function for use by tebakJenisTransaksiUniversal
+export async function scoringKeywordKategori(
+  rawText: string,
+): Promise<{ kategori: string; skor: number }> {
+  const lower = rawText.toLowerCase();
+  const scores: Record<string, number> = {};
+
+  for (const [kategori, keywords] of Object.entries(JENIS_TRANSAKSI_KEYWORDS)) {
+    let score = 0;
+    for (const kw of keywords) {
+      const regex = new RegExp(escapeRegex(kw), "gi");
+      const matches = lower.match(regex);
+      if (matches) score += matches.length;
+    }
+    scores[kategori] = score;
+  }
+
+  let best = "belum_dikenal";
+  let bestScore = 0;
+
+  for (const kategori of JENIS_TRANSAKSI_PRIORITY) {
+    if ((scores[kategori] ?? 0) > bestScore) {
+      bestScore = scores[kategori] ?? 0;
+      best = kategori;
+    }
+  }
+
+  for (const [kategori, score] of Object.entries(scores)) {
+    if (!JENIS_TRANSAKSI_PRIORITY.includes(kategori) && score > bestScore) {
+      bestScore = score;
+      best = kategori;
+    }
+  }
+
+  return { kategori: best, skor: bestScore };
 }
 
 function escapeRegex(str: string): string {
