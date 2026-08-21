@@ -15,6 +15,14 @@ import type { TransaksiRow, KonterRow } from "@/types/database";
  *   - hariKembali=N       -> N daily summaries (most recent first)
  *   - perbandingan=true   -> today + yesterday + delta
  */
+
+// Cache control headers to prevent stale data
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 export async function GET(req: NextRequest) {
   const supabase = createServiceRoleClient();
   const url = req.nextUrl;
@@ -127,14 +135,17 @@ export async function GET(req: NextRequest) {
       (yesterdayRows ?? []) as unknown as TransaksiRow[],
     );
 
-    return NextResponse.json({
-      today,
-      yesterday,
-      perubahan: {
-        omzet: today.totalOmzet - yesterday.totalOmzet,
-        transaksi: today.totalTransaksi - yesterday.totalTransaksi,
+    return NextResponse.json(
+      {
+        today,
+        yesterday,
+        perubahan: {
+          omzet: today.totalOmzet - yesterday.totalOmzet,
+          transaksi: today.totalTransaksi - yesterday.totalTransaksi,
+        },
       },
-    });
+      { headers: NO_STORE_HEADERS },
+    );
   }
 
   // --- Mode: single tanggal ---
@@ -150,13 +161,16 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       buildSummary(dayStart, (data ?? []) as unknown as TransaksiRow[]),
+      { headers: NO_STORE_HEADERS },
     );
   }
 
   // --- Mode: periode (hariKembali) ---
   const days = Math.max(1, Math.min(365, hariKembali || 30));
   const now = new Date();
-  const startDate = startOfDayWIB(new Date(now.getTime() - (days - 1) * 86400000));
+  const startDate = startOfDayWIB(
+    new Date(now.getTime() - (days - 1) * 86400000),
+  );
   const endDate = startOfDayWIB(new Date(now.getTime() + 86400000));
 
   const { data } = await supabase
@@ -188,5 +202,5 @@ export async function GET(req: NextRequest) {
   // ascending by date
   summaries.sort((a, b) => a.tanggal.getTime() - b.tanggal.getTime());
 
-  return NextResponse.json(summaries);
+  return NextResponse.json(summaries, { headers: NO_STORE_HEADERS });
 }

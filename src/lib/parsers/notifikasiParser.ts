@@ -10,6 +10,8 @@
 //    dilempar sebagai error khusus PENDING_SKIP, ditangkap oleh caller.
 // ---------------------------------------------------------------------------
 
+import { parseAngkaIndonesia } from "@/lib/parser/universal";
+
 export interface ParsedNotifikasi {
   provider: string;
   id_transaksi_provider: string;
@@ -176,7 +178,8 @@ function tryParseAlpinesGeneric(text: string): ParsedNotifikasi | null {
   );
   // Kalau bukan e-wallet dikenal, simpan deskripsi apa adanya (dipotong agar
   // tidak kepanjangan) sebagai nama produk — tetap lebih baik daripada kosong.
-  const namaProduk = (knownMatch ?? description.slice(0, 60)) || "Produk Alpines";
+  const namaProduk =
+    (knownMatch ?? description.slice(0, 60)) || "Produk Alpines";
 
   // Blok SN/Ref utuh
   const snRefMatch = text.match(/SN\/Ref:\s*(.+?)(?:\.\s*Saldo\s|$)/i);
@@ -186,17 +189,17 @@ function tryParseAlpinesGeneric(text: string): ParsedNotifikasi | null {
   let nominal = 0;
 
   // 1) Format berlabel: "NOMINAL:200000"
-  const nominalLabelMatch = text.match(/NOMINAL:\s*(\d+)/i);
+  const nominalLabelMatch = text.match(/NOMINAL:\s*([\d.,]+)/i);
   if (nominalLabelMatch) {
-    nominal = parseInt(nominalLabelMatch[1], 10);
+    nominal = parseAngkaIndonesia(nominalLabelMatch[1]);
   }
 
   // 2) Format posisional: segmen 3-6 digit murni di antara "/"
   if (nominal === 0 && snRefBlock.includes("/")) {
     for (const rawSeg of snRefBlock.split("/")) {
       const seg = rawSeg.trim();
-      if (/^\d{3,6}$/.test(seg)) {
-        nominal = parseInt(seg, 10);
+      if (/^[\d.,]{3,6}$/.test(seg)) {
+        nominal = parseAngkaIndonesia(seg);
         break;
       }
     }
@@ -206,9 +209,9 @@ function tryParseAlpinesGeneric(text: string): ParsedNotifikasi | null {
   // bisa termasuk biaya admin (tidak selalu sama persis dengan nominal murni),
   // jadi hanya dipakai kalau dua cara di atas benar-benar tidak ketemu apa pun.
   if (nominal === 0) {
-    const saldoCalcMatch = text.match(/-\s*([\d.]+)\s*=/);
+    const saldoCalcMatch = text.match(/-\s*([\d.,]+)\s*=/);
     if (saldoCalcMatch) {
-      nominal = parseInt(saldoCalcMatch[1].replace(/\./g, ""), 10);
+      nominal = parseAngkaIndonesia(saldoCalcMatch[1]);
     }
   }
 
@@ -239,7 +242,10 @@ function tryParseAlpinesGeneric(text: string): ParsedNotifikasi | null {
   const reffMatch = text.match(/REFF:(\S+)/i);
   const idtMatch = text.match(/IDT:(\S+)/i);
   const idTransaksi =
-    reffMatch?.[1] ?? idtMatch?.[1] ?? snRefBlock ?? `ALP-UNKNOWN-${Date.now()}`;
+    reffMatch?.[1] ??
+    idtMatch?.[1] ??
+    snRefBlock ??
+    `ALP-UNKNOWN-${Date.now()}`;
 
   return {
     provider: "alpines",
@@ -275,17 +281,17 @@ function fallbackUniversal(text: string): ParsedNotifikasi {
 
   // Nominal — coba beberapa pola berurutan, jangan langsung menyerah ke 0
   let nominal = 0;
-  const rpMatch = text.match(/Rp\s*([\d.]+)/i);
+  const rpMatch = text.match(/Rp\s*([\d.,]+)/i);
   if (rpMatch) {
-    nominal = parseInt(rpMatch[1].replace(/\./g, ""), 10);
+    nominal = parseAngkaIndonesia(rpMatch[1]);
   } else {
-    const senilaiMatch = text.match(/senilai\s+([\d.]+)/i);
+    const senilaiMatch = text.match(/senilai\s+([\d.,]+)/i);
     if (senilaiMatch) {
-      nominal = parseInt(senilaiMatch[1].replace(/\./g, ""), 10);
+      nominal = parseAngkaIndonesia(senilaiMatch[1]);
     } else {
-      const saldoCalcMatch = text.match(/-\s*([\d.]+)\s*=/);
+      const saldoCalcMatch = text.match(/-\s*([\d.,]+)\s*=/);
       if (saldoCalcMatch) {
-        nominal = parseInt(saldoCalcMatch[1].replace(/\./g, ""), 10);
+        nominal = parseAngkaIndonesia(saldoCalcMatch[1]);
       }
     }
   }

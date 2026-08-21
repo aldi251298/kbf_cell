@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   getRingkasanHariIni,
   getPerbandinganRingkasan,
   getTransaksiPaginated,
 } from "@/services";
+import { useTransaksiRealtime } from "@/hooks/useTransaksiRealtime";
 import type { RingkasanHarian, Transaksi } from "@/types";
 import {
   formatRupiah,
@@ -16,10 +17,7 @@ import {
 } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Skeleton,
-  CardSkeleton,
-} from "@/components/ui/skeleton";
+import { Skeleton, CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +44,188 @@ import {
 // Items per page for riwayat transaksi
 const ITEMS_PER_PAGE = 10;
 
+// Day change check interval (every 5 minutes)
+const DAY_CHANGE_CHECK_INTERVAL = 5 * 60 * 1000;
+
+// Transaction Detail Modal Component (moved outside to avoid react-hooks/static-components error)
+function TransactionDetailModal({
+  transaction,
+  onClose,
+}: {
+  transaction: Transaksi;
+  onClose: () => void;
+}) {
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "sukses":
+        return "success";
+      case "pending":
+        return "warning";
+      case "gagal":
+        return "error";
+      default:
+        return "default";
+    }
+  };
+
+  const getCategoryBadgeColor = (kategori: string) => {
+    switch (kategori) {
+      case "pulsa":
+        return "bg-blue-50 text-blue-700";
+      case "data":
+        return "bg-purple-50 text-purple-700";
+      case "voucher":
+        return "bg-amber-50 text-amber-700";
+      case "p2p":
+        return "bg-green-50 text-green-700";
+      case "ewallet":
+        return "bg-cyan-50 text-cyan-700";
+      case "ppob":
+        return "bg-orange-50 text-orange-700";
+      case "gametopup":
+        return "bg-pink-50 text-pink-700";
+      case "keuangan":
+        return "bg-teal-50 text-teal-700";
+      default:
+        return "bg-gray-50 text-gray-700";
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Detail Transaksi
+          </h3>
+          <button
+            onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Status */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+            <span className="text-sm text-gray-500">Status</span>
+            <Badge
+              variant={
+                getStatusBadgeVariant(transaction.status) as
+                  "success" | "warning" | "error" | "default"
+              }
+              size="sm"
+            >
+              {transaction.status.charAt(0).toUpperCase() +
+                transaction.status.slice(1)}
+            </Badge>
+          </div>
+
+          {/* Waktu */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Waktu Transaksi</span>
+            <span className="text-sm font-medium text-gray-900">
+              {new Date(transaction.waktu).toLocaleString("id-ID", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+
+          {/* Konter */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Konter</span>
+            <span className="text-sm font-medium text-gray-900">
+              {transaction.konterNama}
+            </span>
+          </div>
+
+          {/* Produk */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Produk</span>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="default"
+                size="sm"
+                className={getCategoryBadgeColor(transaction.produk.kategori)}
+              >
+                {
+                  getTampilanTransaksi(
+                    transaction.produk.kategori,
+                    transaction.nomorTujuan,
+                    transaction.produk.nama,
+                  ).labelJenisTransaksi
+                }
+              </Badge>
+              {getTampilanTransaksi(
+                transaction.produk.kategori,
+                transaction.nomorTujuan,
+                transaction.produk.nama,
+              ).tampilkanNamaProduk && (
+                <span className="text-sm font-medium text-gray-900">
+                  {transaction.produk.nama}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Nominal */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Nominal</span>
+            <span className="text-sm font-bold text-gray-900">
+              {formatRupiah(transaction.nominal)}
+            </span>
+          </div>
+
+          {/* Nomor Tujuan - Only show if exists and not empty */}
+          {transaction.nomorTujuan && transaction.nomorTujuan !== "-" && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">
+                {
+                  getTampilanTransaksi(
+                    transaction.produk.kategori,
+                    transaction.nomorTujuan,
+                    transaction.produk.nama,
+                  ).labelNomorTujuan
+                }
+              </span>
+              <span className="text-sm font-mono font-medium text-gray-900">
+                {transaction.nomorTujuan}
+              </span>
+            </div>
+          )}
+
+          {/* Serial Number */}
+          {transaction.sn && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">Serial Number</span>
+              <span className="text-sm font-mono text-gray-900">
+                {transaction.sn}
+              </span>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {transaction.errorMessage && (
+            <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
+              <p className="text-xs font-medium text-red-600 mb-1">
+                Pesan Error
+              </p>
+              <p className="text-sm text-red-700">{transaction.errorMessage}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [ringkasan, setRingkasan] = useState<RingkasanHarian | null>(null);
   const [perbandingan, setPerbandingan] = useState<{
@@ -65,33 +245,75 @@ export default function DashboardPage() {
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaksi | null>(null);
 
-  // Fetch dashboard summary data
+  // Track current date for day change detection
+  const [currentDateKey, setCurrentDateKey] = useState<string>(() => {
+    const now = new Date();
+    const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+    const wibMs = utcMs + WIB_OFFSET_MS;
+    const wibDate = new Date(wibMs);
+    return `${wibDate.getUTCFullYear()}-${wibDate.getUTCMonth()}-${wibDate.getUTCDate()}`;
+  });
+
+  // Refs for realtime handling
+  const ringkasanRef = useRef(ringkasan);
+  const riwayatTransactionsRef = useRef(riwayatTransactions);
+  const perbandinganRef = useRef(perbandingan);
+
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const fetchData = async () => {
+    ringkasanRef.current = ringkasan;
+  }, [ringkasan]);
+
+  useEffect(() => {
+    riwayatTransactionsRef.current = riwayatTransactions;
+  }, [riwayatTransactions]);
+
+  useEffect(() => {
+    perbandinganRef.current = perbandingan;
+  }, [perbandingan]);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    let mounted = true;
+    const initFetch = async () => {
       try {
         const [ringkasanData, perbandinganData] = await Promise.all([
           getRingkasanHariIni(),
           getPerbandinganRingkasan(),
         ]);
-
-        if (!cancelled) {
+        if (mounted) {
           setRingkasan(ringkasanData);
           setPerbandingan(perbandinganData);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
-        if (!cancelled) {
+        if (mounted) {
           setLoading(false);
         }
       }
     };
-    fetchData();
+    initFetch();
     return () => {
-      cancelled = true;
+      mounted = false;
     };
+  }, []);
+
+  // Fetch dashboard summary data (for day change refetch)
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [ringkasanData, perbandinganData] = await Promise.all([
+        getRingkasanHariIni(),
+        getPerbandinganRingkasan(),
+      ]);
+      setRingkasan(ringkasanData);
+      setPerbandingan(perbandinganData);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   // Fetch riwayat transaksi when page changes
@@ -114,6 +336,135 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [riwayatPage]);
+
+  // Realtime subscription for new transactions
+  useTransaksiRealtime(
+    useCallback(
+      (newTrx: Transaksi) => {
+        // Check if the new transaction falls within today's WIB range
+        const now = new Date();
+        const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+        const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+        const wibMs = utcMs + WIB_OFFSET_MS;
+        const wibDate = new Date(wibMs);
+        const todayStart = new Date(
+          Date.UTC(
+            wibDate.getUTCFullYear(),
+            wibDate.getUTCMonth(),
+            wibDate.getUTCDate(),
+          ),
+        );
+        const todayStartUTC = new Date(todayStart.getTime() - WIB_OFFSET_MS);
+        const todayEndUTC = new Date(todayStartUTC.getTime() + 86400000);
+
+        const trxTime = new Date(newTrx.waktu).getTime();
+        if (
+          trxTime >= todayStartUTC.getTime() &&
+          trxTime < todayEndUTC.getTime()
+        ) {
+          // Update ringkasan (summary) - increment counts
+          setRingkasan((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              totalOmzet: prev.totalOmzet + newTrx.nominal,
+              totalTransaksi: prev.totalTransaksi + 1,
+              transaksiPerStatus: {
+                ...prev.transaksiPerStatus,
+                [newTrx.status]:
+                  (prev.transaksiPerStatus[
+                    newTrx.status as keyof typeof prev.transaksiPerStatus
+                  ] ?? 0) + 1,
+              },
+              kontribusiPerKonter: prev.kontribusiPerKonter.map((k) =>
+                k.konterId === newTrx.konterId
+                  ? {
+                      ...k,
+                      omzet: k.omzet + newTrx.nominal,
+                      jumlahTransaksi: k.jumlahTransaksi + 1,
+                    }
+                  : k,
+              ),
+            };
+          });
+
+          // Update perbandingan (today's data)
+          setPerbandingan((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              today: {
+                ...prev.today,
+                totalOmzet: prev.today.totalOmzet + newTrx.nominal,
+                totalTransaksi: prev.today.totalTransaksi + 1,
+                transaksiPerStatus: {
+                  ...prev.today.transaksiPerStatus,
+                  [newTrx.status]:
+                    (prev.today.transaksiPerStatus[
+                      newTrx.status as keyof typeof prev.today.transaksiPerStatus
+                    ] ?? 0) + 1,
+                },
+                kontribusiPerKonter: prev.today.kontribusiPerKonter.map((k) =>
+                  k.konterId === newTrx.konterId
+                    ? {
+                        ...k,
+                        omzet: k.omzet + newTrx.nominal,
+                        jumlahTransaksi: k.jumlahTransaksi + 1,
+                      }
+                    : k,
+                ),
+              },
+              perubahan: {
+                omzet:
+                  prev.today.totalOmzet +
+                  newTrx.nominal -
+                  prev.yesterday.totalOmzet,
+                transaksi:
+                  prev.today.totalTransaksi + 1 - prev.yesterday.totalTransaksi,
+              },
+            };
+          });
+
+          // Update riwayat transactions (add to front if on page 1)
+          setRiwayatTransactions((prev) => {
+            // Only add to the list if we're on page 1 (showing latest transactions)
+            if (riwayatPage === 1) {
+              return [newTrx, ...prev].slice(0, ITEMS_PER_PAGE);
+            }
+            return prev;
+          });
+
+          // Update total count
+          setTotalRiwayatItems((prev) => prev + 1);
+        }
+      },
+      [riwayatPage],
+    ),
+    true,
+  );
+
+  // Day change detection - check every 5 minutes if date has changed
+  useEffect(() => {
+    const checkDayChange = () => {
+      const now = new Date();
+      const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+      const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+      const wibMs = utcMs + WIB_OFFSET_MS;
+      const wibDate = new Date(wibMs);
+      const newDateKey = `${wibDate.getUTCFullYear()}-${wibDate.getUTCMonth()}-${wibDate.getUTCDate()}`;
+
+      if (newDateKey !== currentDateKey) {
+        // Date has changed - update date key and refetch data
+        setCurrentDateKey(newDateKey);
+        fetchDashboardData();
+        // Also refetch riwayat transactions for the new day
+        setRiwayatPage(1);
+      }
+    };
+
+    const interval = setInterval(checkDayChange, DAY_CHANGE_CHECK_INTERVAL);
+    return () => clearInterval(interval);
+  }, [currentDateKey, fetchDashboardData]);
 
   // Calculate delta percentages
   const omzetDelta = perbandingan
@@ -187,167 +538,6 @@ export default function DashboardPage() {
       default:
         return "bg-gray-50 text-gray-700";
     }
-  };
-
-  // Transaction Detail Modal Component
-  const TransactionDetailModal = ({
-    transaction,
-    onClose,
-  }: {
-    transaction: Transaksi;
-    onClose: () => void;
-  }) => {
-    const getStatusBadgeVariant = (status: string) => {
-      switch (status) {
-        case "sukses":
-          return "success";
-        case "pending":
-          return "warning";
-        case "gagal":
-          return "error";
-        default:
-          return "default";
-      }
-    };
-
-    const getCategoryBadgeColor = (kategori: string) => {
-      switch (kategori) {
-        case "pulsa":
-          return "bg-blue-50 text-blue-700";
-        case "data":
-          return "bg-purple-50 text-purple-700";
-        case "voucher":
-          return "bg-amber-50 text-amber-700";
-        case "p2p":
-          return "bg-green-50 text-green-700";
-        case "ewallet":
-          return "bg-cyan-50 text-cyan-700";
-        case "ppob":
-          return "bg-orange-50 text-orange-700";
-        case "gametopup":
-          return "bg-pink-50 text-pink-700";
-        case "keuangan":
-          return "bg-teal-50 text-teal-700";
-        default:
-          return "bg-gray-50 text-gray-700";
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between p-5 border-b border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Detail Transaksi
-            </h3>
-            <button
-              onClick={onClose}
-              className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-            {/* Status */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-              <span className="text-sm text-gray-500">Status</span>
-              <Badge
-                variant={
-                  getStatusBadgeVariant(transaction.status) as
-                    "success" | "warning" | "error" | "default"
-                }
-                size="sm"
-              >
-                {transaction.status.charAt(0).toUpperCase() +
-                  transaction.status.slice(1)}
-              </Badge>
-            </div>
-
-            {/* Waktu */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Waktu Transaksi</span>
-              <span className="text-sm font-medium text-gray-900">
-                {new Date(transaction.waktu).toLocaleString("id-ID", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-
-            {/* Konter */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Konter</span>
-              <span className="text-sm font-medium text-gray-900">
-                {transaction.konterNama}
-              </span>
-            </div>
-
-            {/* Produk */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Produk</span>
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="default"
-                  size="sm"
-                  className={getCategoryBadgeColor(transaction.produk.kategori)}
-                >
-                  {transaction.produk.kategori}
-                </Badge>
-                <span className="text-sm font-medium text-gray-900">
-                  {transaction.produk.nama}
-                </span>
-              </div>
-            </div>
-
-            {/* Nominal */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Nominal</span>
-              <span className="text-sm font-bold text-gray-900">
-                {formatRupiah(transaction.nominal)}
-              </span>
-            </div>
-
-            {/* Nomor Tujuan - Only show if exists and not empty */}
-            {transaction.nomorTujuan && transaction.nomorTujuan !== "-" && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Nomor Tujuan</span>
-                <span className="text-sm font-mono font-medium text-gray-900">
-                  {transaction.nomorTujuan}
-                </span>
-              </div>
-            )}
-
-            {/* Serial Number */}
-            {transaction.sn && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Serial Number</span>
-                <span className="text-sm font-mono text-gray-900">
-                  {transaction.sn}
-                </span>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {transaction.errorMessage && (
-              <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
-                <p className="text-xs font-medium text-red-600 mb-1">
-                  Pesan Error
-                </p>
-                <p className="text-sm text-red-700">
-                  {transaction.errorMessage}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -597,16 +787,22 @@ export default function DashboardPage() {
                           <TableCell className="whitespace-nowrap">
                             <div>
                               <p className="text-sm font-medium text-gray-900">
-                                {new Date(trx.waktu).toLocaleTimeString("id-ID", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                                {new Date(trx.waktu).toLocaleTimeString(
+                                  "id-ID",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
                               </p>
                               <p className="text-[11px] text-gray-400">
-                                {new Date(trx.waktu).toLocaleDateString("id-ID", {
-                                  day: "2-digit",
-                                  month: "short",
-                                })}
+                                {new Date(trx.waktu).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                  },
+                                )}
                               </p>
                             </div>
                           </TableCell>
@@ -621,9 +817,11 @@ export default function DashboardPage() {
                                 {getCategoryIcon(trx.produk.kategori)}
                               </div>
                               <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {trx.produk.nama}
-                                </p>
+                                {tampilan.tampilkanNamaProduk && (
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {trx.produk.nama}
+                                  </p>
+                                )}
                                 <Badge
                                   variant="default"
                                   size="sm"
@@ -654,7 +852,8 @@ export default function DashboardPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {tampilan.tampilkanNomorTujuan && trx.nomorTujuan ? (
+                            {tampilan.tampilkanNomorTujuan &&
+                            trx.nomorTujuan ? (
                               <span className="text-sm text-gray-600">
                                 {trx.nomorTujuan}
                               </span>
@@ -679,26 +878,26 @@ export default function DashboardPage() {
                         </TableRow>
                       );
                     })}
-                  <TableRow className="bg-gray-50 font-semibold">
-                    <TableCell colSpan={4} className="text-right">
-                      <span className="text-sm font-semibold text-gray-900">
-                        Total {ITEMS_PER_PAGE} Transaksi
-                      </span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <p className="text-sm font-bold text-blue-600">
-                        {formatRupiah(
-                          riwayatTransactions.reduce(
-                            (sum, trx) => sum + trx.nominal,
-                            0,
-                          ),
-                        )}
-                      </p>
-                    </TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableBody>
+                    <TableRow className="bg-gray-50 font-semibold">
+                      <TableCell colSpan={4} className="text-right">
+                        <span className="text-sm font-semibold text-gray-900">
+                          Total {ITEMS_PER_PAGE} Transaksi
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <p className="text-sm font-bold text-blue-600">
+                          {formatRupiah(
+                            riwayatTransactions.reduce(
+                              (sum, trx) => sum + trx.nominal,
+                              0,
+                            ),
+                          )}
+                        </p>
+                      </TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableBody>
                 </Table>
               </div>
 

@@ -21,7 +21,7 @@ export function extractNamaProduk(
       // Fallback for Alpines voucher format: "VOUCHER <nama> <specs>"
       // Clean the text from voucher code patterns (with or without asterisks) and then extract after VOUCHER
       let cleaned = text
-        .replace(/\*\d+\*.*$/i, "")           // remove "*838*..." and everything after
+        .replace(/\*\d+\*.*$/i, "") // remove "*838*..." and everything after
         .replace(/nomor\s*voucher#.*$/i, ""); // remove "nomor voucher#..." and everything after
 
       // Now, if there's a voucher code pattern without asterisks, we might have left some spaces? Trim.
@@ -66,7 +66,8 @@ export function extractNamaProduk(
 
     case "paket_nelpon": {
       // Pattern for Talkmania-like paket nelpon: "isi ulang paket <nama> <nomor> pd"
-      const polaPaketNelponVoucher = /isi ulang paket\s+(.+?)\s+(?:62\d{8,11}|08\d{8,11})\s+pd/i;
+      const polaPaketNelponVoucher =
+        /isi ulang paket\s+(.+?)\s+(?:62\d{8,11}|08\d{8,11})\s+pd/i;
       const namaProdukAlt = text.match(polaPaketNelponVoucher)?.[1]?.trim();
       if (namaProdukAlt) {
         return namaProdukAlt;
@@ -76,7 +77,9 @@ export function extractNamaProduk(
 
     case "game_topup": {
       // Extract game name from text
-      const gameMatch = text.match(/\b(FREE\s?FIRE|MOBILE\s?LEGENDS|PUBG|VALORANT|GENSHIN)\b/i);
+      const gameMatch = text.match(
+        /\b(FREE\s?FIRE|MOBILE\s?LEGENDS|PUBG|VALORANT|GENSHIN)\b/i,
+      );
       if (gameMatch) {
         return gameMatch[0].toUpperCase();
       }

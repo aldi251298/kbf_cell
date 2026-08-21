@@ -14,6 +14,14 @@ import type { TransaksiRow } from "@/types/database";
  *   page, limit, startDate, endDate, konterId, status, search,
  *   sortBy (waktu|nominal), sortOrder (asc|desc)
  */
+
+// Cache control headers to prevent stale data
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 export async function GET(req: NextRequest) {
   const supabase = createServiceRoleClient();
   const url = req.nextUrl;
@@ -26,7 +34,10 @@ export async function GET(req: NextRequest) {
   const endDate = url.searchParams.get("endDate");
   const konterId = url.searchParams.get("konterId");
   // Default to "sukses" for main dashboard view unless explicitly specified
-  const status = url.searchParams.get("status") ?? "sukses";
+  // Use nullish coalescing (??) to handle missing param, but also treat empty string as "sukses"
+  const statusParam = url.searchParams.get("status");
+  const status =
+    statusParam === null || statusParam === "" ? "sukses" : statusParam;
   const jenisTransaksi = url.searchParams.get("jenisTransaksi");
   const search = url.searchParams.get("search");
   const sortBy = url.searchParams.get("sortBy") ?? "waktu";
@@ -91,10 +102,13 @@ export async function GET(req: NextRequest) {
   const total = count ?? 0;
   const totalPages = Math.ceil(total / limit) || 1;
 
-  return NextResponse.json({
-    data: rows.map(mapTransaksi),
-    total,
-    page,
-    totalPages,
-  });
+  return NextResponse.json(
+    {
+      data: rows.map(mapTransaksi),
+      total,
+      page,
+      totalPages,
+    },
+    { headers: NO_STORE_HEADERS },
+  );
 }

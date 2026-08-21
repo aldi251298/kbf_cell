@@ -160,17 +160,26 @@ for (const tc of TEST_CASES) {
       `perlu_review: got ${result.perlu_review}, expected ${tc.expected.perlu_review}`,
     );
   }
-  if (tc.expected.provider_seluler !== undefined && result.provider_seluler !== tc.expected.provider_seluler) {
+  if (
+    tc.expected.provider_seluler !== undefined &&
+    result.provider_seluler !== tc.expected.provider_seluler
+  ) {
     errors.push(
       `provider_seluler: got "${result.provider_seluler}", expected "${tc.expected.provider_seluler}"`,
     );
   }
-  if (tc.expected.nama_produk !== undefined && result.nama_produk !== tc.expected.nama_produk) {
+  if (
+    tc.expected.nama_produk !== undefined &&
+    result.nama_produk !== tc.expected.nama_produk
+  ) {
     errors.push(
       `nama_produk: got "${result.nama_produk}", expected "${tc.expected.nama_produk}"`,
     );
   }
-  if (tc.expected.nama_pemilik !== undefined && result.nama_pemilik !== tc.expected.nama_pemilik) {
+  if (
+    tc.expected.nama_pemilik !== undefined &&
+    result.nama_pemilik !== tc.expected.nama_pemilik
+  ) {
     errors.push(
       `nama_pemilik: got "${result.nama_pemilik}", expected "${tc.expected.nama_pemilik}"`,
     );
@@ -185,7 +194,9 @@ for (const tc of TEST_CASES) {
 
   if (errors.length === 0) {
     console.log(`\n✅ PASS: ${tc.name}`);
-    console.log(`   jenis=${result.jenis_transaksi} nominal=${result.nominal} nomor=${result.nomor_tujuan} review=${result.perlu_review}`);
+    console.log(
+      `   jenis=${result.jenis_transaksi} nominal=${result.nominal} nomor=${result.nomor_tujuan} review=${result.perlu_review}`,
+    );
     passed++;
   } else {
     console.log(`\n❌ FAIL: ${tc.name}`);
@@ -197,7 +208,9 @@ for (const tc of TEST_CASES) {
 }
 
 console.log("\n" + "=".repeat(70));
-console.log(`Results: ${passed} passed, ${failed} failed out of ${TEST_CASES.length} tests`);
+console.log(
+  `Results: ${passed} passed, ${failed} failed out of ${TEST_CASES.length} tests`,
+);
 console.log("=".repeat(70));
 
 process.exit(failed > 0 ? 1 : 0);

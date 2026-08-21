@@ -13,13 +13,17 @@ import { JENIS_TRANSAKSI_KEYWORDS, JENIS_TRANSAKSI_PRIORITY } from "./keywords";
  * - paket_data no longer requires GB+Hari combination
  * - paket_data gets boosted by "paket" keyword or telco package names
  * - pulsa only if explicit "pulsa" keyword AND no "paket" keyword
+ * - NEW (Bug 2 fix): explicit detection for mobile operator + number = pulsa
  */
 function scoringPaketAtauPulsa(rawText: string): {
   kategori: string;
   skor: number;
 } {
   const adaKataPaket = /\bpaket\b/i.test(rawText);
-  const adaNelpon = /\b(nelpon|telepon|talkmania|nelpon\s*sms|sms\s*nelpon|kombo\s*nelpon|voice\s*call)\b/i.test(rawText);
+  const adaNelpon =
+    /\b(nelpon|telepon|talkmania|nelpon\s*sms|sms\s*nelpon|kombo\s*nelpon|voice\s*call)\b/i.test(
+      rawText,
+    );
   const adaData = /\b(paket\s*data|kuota|internet|gb\b|mb\b)\b/i.test(rawText);
   const adaGBHari = /\d+(\.\d+)?\s*(GB|MB)\b.*?\d+\s*(hari|day)/i.test(rawText);
   const adaKataPulsaEksplisit = /\bpulsa\b/i.test(rawText) && !adaKataPaket;
@@ -39,6 +43,19 @@ function scoringPaketAtauPulsa(rawText: string): {
   if (adaKataPulsaEksplisit) {
     return { kategori: "pulsa", skor: 1 };
   }
+
+  // Bug 2 fix: Deteksi eksplisit nama operator seluler + angka tanpa "paket"/"data" = pulsa
+  // Contoh: "Telkomsel BYU 15000 TSBYU15.085198025507" -> pulsa
+  const adaAngkaSetelahOperator =
+    /\b(telkomsel|byu|axis|tri|indosat|im3|xl|smartfren)\s+\d{3,6}\b/i;
+
+  if (
+    adaAngkaSetelahOperator.test(rawText) &&
+    !/\bpaket\b|\bdata\b/i.test(rawText)
+  ) {
+    return { kategori: "pulsa", skor: 2 };
+  }
+
   return { kategori: "", skor: 0 };
 }
 
@@ -61,7 +78,8 @@ export function detectJenisTransaksi(text: string): string {
   // Special handling for paket_data vs pulsa (Fase 2.3.2)
   const paketPulsaScore = scoringPaketAtauPulsa(text);
   if (paketPulsaScore.kategori) {
-    scores[paketPulsaScore.kategori] = (scores[paketPulsaScore.kategori] ?? 0) + paketPulsaScore.skor;
+    scores[paketPulsaScore.kategori] =
+      (scores[paketPulsaScore.kategori] ?? 0) + paketPulsaScore.skor;
   }
 
   // Pick highest score; break ties by priority order
@@ -105,7 +123,8 @@ export async function scoringKeywordKategori(
   // Special handling for paket_data vs pulsa (Fase 2.3.2)
   const paketPulsaScore = scoringPaketAtauPulsa(rawText);
   if (paketPulsaScore.kategori) {
-    scores[paketPulsaScore.kategori] = (scores[paketPulsaScore.kategori] ?? 0) + paketPulsaScore.skor;
+    scores[paketPulsaScore.kategori] =
+      (scores[paketPulsaScore.kategori] ?? 0) + paketPulsaScore.skor;
   }
 
   let best = "belum_dikenal";

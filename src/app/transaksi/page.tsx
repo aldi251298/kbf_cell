@@ -181,9 +181,15 @@ function TransactionDetailModal({
                   </span>
                 )}
               </div>
-              <span className="text-sm font-medium text-gray-900">
-                {transaction.produk.nama}
-              </span>
+              {getTampilanTransaksi(
+                transaction.produk.kategori,
+                transaction.nomorTujuan,
+                transaction.produk.nama,
+              ).tampilkanNamaProduk && (
+                <span className="text-sm font-medium text-gray-900">
+                  {transaction.produk.nama}
+                </span>
+              )}
             </div>
           </div>
 
@@ -742,7 +748,10 @@ export default function TransaksiPage() {
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="text-sm text-text-primary">
-                              {trx.produk.nama || (tampilan.tampilkanNamaProduk ? "-" : trx.produk.nama)}
+                              {trx.produk.nama ||
+                                (tampilan.tampilkanNamaProduk
+                                  ? "-"
+                                  : trx.produk.nama)}
                             </span>
                             {tampilan.tampilkanProviderSeluler &&
                               trx.providerSeluler && (
@@ -763,8 +772,8 @@ export default function TransaksiPage() {
                               trx.status === "sukses"
                                 ? "success"
                                 : trx.status === "gagal"
-                                ? "error"
-                                : "warning"
+                                  ? "error"
+                                  : "warning"
                             }
                             size="sm"
                             dot

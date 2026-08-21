@@ -66,12 +66,16 @@ export async function POST(req: NextRequest) {
   const sn = `SN-${Date.now().toString(36).toUpperCase()}`;
   // Derive provider + jenis_transaksi from kategori
   const kategori = body.produk.kategori;
-  const provider: "digipos" | "alpines" = kategori === "ewallet" ? "alpines" : "digipos";
+  const provider: "digipos" | "alpines" =
+    kategori === "ewallet" ? "alpines" : "digipos";
   const jenisTransaksi: "pulsa" | "paket_data" | "ewallet_dana" =
-    kategori === "pulsa" ? "pulsa"
-    : kategori === "data" ? "paket_data"
-    : kategori === "ewallet" ? "ewallet_dana"
-    : "pulsa"; // fallback
+    kategori === "pulsa"
+      ? "pulsa"
+      : kategori === "data"
+        ? "paket_data"
+        : kategori === "ewallet"
+          ? "ewallet_dana"
+          : "pulsa"; // fallback
   const idTransaksiProvider = `MANUAL-${Date.now().toString(36).toUpperCase()}`;
   const rawNotificationText = `[Manual Input] ${body.produk.nama} - ${body.nomorTujuan || "-"} - Rp${body.nominal}`;
 

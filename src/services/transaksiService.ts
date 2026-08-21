@@ -95,23 +95,39 @@ export async function getTransaksi(
     params.set("startDate", start.toISOString());
   }
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`);
+  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Gagal mengambil data transaksi.");
   const json = await res.json();
   return json.data as Transaksi[];
 }
 
 /**
- * Get today's transactions only.
+ * Get today's transactions only (WIB timezone).
  */
 export async function getTransaksiHariIniService(): Promise<Transaksi[]> {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+  const now = new Date();
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  const wibMs = utcMs + WIB_OFFSET_MS;
+  const wibDate = new Date(wibMs);
+  const startOfDayWIB = new Date(
+    Date.UTC(
+      wibDate.getUTCFullYear(),
+      wibDate.getUTCMonth(),
+      wibDate.getUTCDate(),
+    ),
+  );
+  const start = new Date(startOfDayWIB.getTime() - WIB_OFFSET_MS);
+
   const params = new URLSearchParams();
   params.set("startDate", start.toISOString());
   params.set("limit", "1000");
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`);
+  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Gagal mengambil transaksi hari ini.");
   const json = await res.json();
   return json.data as Transaksi[];
@@ -137,7 +153,9 @@ export async function getTransaksiPaginated(
   params.set("page", String(page));
   params.set("limit", String(limit));
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`);
+  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Gagal mengambil data transaksi.");
   return res.json();
 }

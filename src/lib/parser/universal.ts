@@ -6,7 +6,24 @@
  * 2. pisahkanSaldoAplikasi - Separate app balance from transaction text (both providers)
  * 3. apakahTransaksiPelanggan - Filter non-transaction notifications
  * 4. tebakJenisTransaksiUniversal - Dynamic category detection with DB lookup
+ * 5. normalisasiWhitespace - Normalize whitespace before parsing (Bug 5 fix)
  */
+
+// ============================================================================
+// 0. NORMALISASI WHITESPACE (Bug 5 fix)
+// ============================================================================
+
+/**
+ * Normalize whitespace in raw text before parsing.
+ * Replaces all whitespace sequences (including newlines, tabs) with single space.
+ * This ensures regex patterns that assume single-line text work correctly.
+ *
+ * IMPORTANT: raw_notification_text saved to DB should remain the ORIGINAL version
+ * with line breaks intact. This function is only for parsing/extraction purposes.
+ */
+export function normalisasiWhitespace(rawText: string): string {
+  return rawText.replace(/\s+/g, " ").trim();
+}
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
@@ -104,12 +121,30 @@ export function parseStrukturAlpines(rawText: string): AlpinesStructure {
     );
   }
 
-  // Ekstrak kode transaksi header (Fase 2.3.2 Bug 3 fix)
-  // Pola: "*888*Nomor Sn# VTR10.0895" atau "838nomor voucher#VA5.0838"
-  const kodeHeaderMatch = rawText.match(/(?:nomor\s*sn#|nomor\s*voucher#)\s*([A-Z0-9.]+)/i);
-  const kodeTransaksiHeader = kodeHeaderMatch?.[1]?.trim() ?? null;
+  // Ekstrak kode transaksi header (Fase 2.3.2 Bug 3 fix + Bug 4 fix)
+  // Pola umum: [KODE_ALFANUMERIK].[nomor HP 10-13 digit]
+  // Cocok untuk: "TSBYU15.085198025507", "VTR10.0895", "GO100.081372331339", dst
+  // Juga menangkap pola lama: "nomor sn# VTR10.0895", "nomor voucher#VA5.0838"
+  const kodeHeaderMatch = rawText.match(
+    /(?:nomor\s*sn#|nomor\s*voucher#)\s*([A-Z0-9.]+)|\b([A-Z0-9]{3,15})\.(\d{4,13})\b/i,
+  );
+  let kodeTransaksiHeader = null;
+  if (kodeHeaderMatch) {
+    // Prioritaskan match dari pola lama (group 1), fallback ke pola baru (group 2 + 3)
+    if (kodeHeaderMatch[1]) {
+      kodeTransaksiHeader = kodeHeaderMatch[1].trim();
+    } else if (kodeHeaderMatch[2] && kodeHeaderMatch[3]) {
+      kodeTransaksiHeader = `${kodeHeaderMatch[2]}.${kodeHeaderMatch[3]}`;
+    }
+  }
 
-  return { headerSegment, statusKeyword, snRefSegment, saldoMatch, kodeTransaksiHeader };
+  return {
+    headerSegment,
+    statusKeyword,
+    snRefSegment,
+    saldoMatch,
+    kodeTransaksiHeader,
+  };
 }
 
 // ============================================================================
@@ -137,6 +172,16 @@ async function scoringKeywordKategori(
       if (matches) score += matches.length;
     }
     scores[kategori] = score;
+  }
+
+  // Bug 2 fix: Deteksi eksplisit nama operator seluler + angka tanpa "paket"/"data" = pulsa
+  const adaAngkaSetelahOperator =
+    /\b(telkomsel|byu|axis|tri|indosat|im3|xl|smartfren)\s+\d{3,6}\b/i;
+  if (
+    adaAngkaSetelahOperator.test(rawText) &&
+    !/\bpaket\b|\bdata\b/i.test(rawText)
+  ) {
+    scores["pulsa"] = (scores["pulsa"] ?? 0) + 2;
   }
 
   let best = "belum_dikenal";
@@ -234,9 +279,9 @@ export function extractNominalAlpines(
   }
 
   // Cek pola TOKEN di header (mis. "TOKEN 100000 PH100...")
-  const tokenMatch = headerSegment.match(/^TOKEN\s+(\d+)/i);
+  const tokenMatch = headerSegment.match(/^TOKEN\s+([\d.,]+)/i);
   if (tokenMatch) {
-    const val = parseInt(tokenMatch[1], 10);
+    const val = parseAngkaIndonesia(tokenMatch[1]);
     if (val > 0) return { nominal: val, dariSaldoFallback: false };
   }
 
@@ -245,8 +290,8 @@ export function extractNominalAlpines(
   if (snRefParts.length >= 3) {
     // Cari angka yang bukan nomor HP (10-13 digit diawali 08/62)
     for (const part of snRefParts) {
-      if (/^\d{3,6}$/.test(part) && !/^(08|62)\d{8,11}$/.test(part)) {
-        const val = parseInt(part, 10);
+      if (/^[\d.,]{3,6}$/.test(part) && !/^(08|62)\d{8,11}$/.test(part)) {
+        const val = parseAngkaIndonesia(part);
         if (val > 0) return { nominal: val, dariSaldoFallback: false };
       }
     }
@@ -254,9 +299,9 @@ export function extractNominalAlpines(
 
   // 2. Angka di header sebelum kode produk (sudah ditangani TOKEN di atas)
   // Cek angka eksplisit di awal header
-  const headerAngkaMatch = headerSegment.match(/^(\d{3,6})\s+/);
+  const headerAngkaMatch = headerSegment.match(/^([\d.,]{3,6})\s+/);
   if (headerAngkaMatch) {
-    const val = parseInt(headerAngkaMatch[1], 10);
+    const val = parseAngkaIndonesia(headerAngkaMatch[1]);
     if (val > 0) return { nominal: val, dariSaldoFallback: false };
   }
 
@@ -269,10 +314,12 @@ export function extractNominalAlpines(
   return { nominal: null, dariSaldoFallback: false };
 }
 
-function parseAngkaIndonesia(raw: string): number {
-  const cleaned = raw.replace(/\./g, "").replace(/,/g, "");
-  const parsed = parseInt(cleaned, 10);
-  return isNaN(parsed) ? 0 : parsed;
+export function parseAngkaIndonesia(raw: string): number {
+  // Remove dots (thousands separator) but keep commas for potential decimals
+  // Then replace comma with dot for parseFloat, or just remove if we want integer
+  const cleaned = raw.replace(/\./g, "").replace(/,/g, ".");
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.round(parsed);
 }
 
 // ============================================================================
@@ -293,7 +340,8 @@ export function extractStatusUniversal(
 ): { status: "sukses" | "gagal" | "pending"; perluReview: boolean } {
   // Explicit detection for Alpines "sedang diproses" placeholder notifications
   // These are VALID pending notifications, not failed parsing
-  const keywordSedangDiproses = /\b(akan\s*diproses|tunggu\s*sms\s*notifikasi|mohon\s*tunggu|sedang\s*diproses|silakan\s*tunggu)\b/i;
+  const keywordSedangDiproses =
+    /\b(akan\s*diproses|tunggu\s*sms\s*notifikasi|mohon\s*tunggu|sedang\s*diproses|silakan\s*tunggu)\b/i;
   if (keywordSedangDiproses.test(rawText)) {
     return { status: "pending", perluReview: false }; // valid pending, not a guess
   }

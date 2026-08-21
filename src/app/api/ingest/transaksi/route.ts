@@ -162,10 +162,14 @@ export async function POST(req: NextRequest) {
 
   // Build OR query with priority: kode_transaksi_header first, then reff, sn, id_transaksi
   const orConditions: string[] = [];
-  if (kodeHeader) orConditions.push(`detail_tambahan->>kode_transaksi_header.eq.${kodeHeader}`);
+  if (kodeHeader)
+    orConditions.push(
+      `detail_tambahan->>kode_transaksi_header.eq.${kodeHeader}`,
+    );
   if (reff) orConditions.push(`detail_tambahan->>reff.eq.${reff}`);
   if (sn) orConditions.push(`detail_tambahan->>sn.eq.${sn}`);
-  if (idTransaksi) orConditions.push(`detail_tambahan->>id_transaksi.eq.${idTransaksi}`);
+  if (idTransaksi)
+    orConditions.push(`detail_tambahan->>id_transaksi.eq.${idTransaksi}`);
 
   if (orConditions.length > 0) {
     const limaBelasMenitLalu = new Date(
@@ -228,7 +232,13 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const matchedKey = kodeHeader ? "kode_transaksi_header" : reff ? "reff" : sn ? "sn" : "id_transaksi";
+      const matchedKey = kodeHeader
+        ? "kode_transaksi_header"
+        : reff
+          ? "reff"
+          : sn
+            ? "sn"
+            : "id_transaksi";
       console.log(
         `[ingest] transaksi duplikat di-update: id=${existing.id} provider=${provider} jenis=${parsed.jenis_transaksi} matched_by=${matchedKey}`,
       );

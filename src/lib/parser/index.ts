@@ -21,6 +21,7 @@ import {
   tebakJenisTransaksiUniversal,
   extractStatusUniversal,
   extractNominalAlpines,
+  normalisasiWhitespace,
 } from "./universal";
 
 export { detectJenisTransaksi } from "./detectJenisTransaksi";
@@ -36,6 +37,7 @@ export {
   apakahTransaksiPelanggan,
   tebakJenisTransaksiUniversal,
   parseStrukturAlpines,
+  normalisasiWhitespace,
 } from "./universal";
 
 export interface ParseNotifikasiOptions {
@@ -53,7 +55,11 @@ export function parseNotifikasi(
   options: ParseNotifikasiOptions,
 ): ParsedTransaksi {
   const { provider, rawText } = options;
-  const text = rawText.trim();
+
+  // 0. Normalisasi whitespace SEBELUM semua ekstraksi (Bug 5 fix)
+  // Gunakan versi ternormalisasi untuk SEMUA proses ekstraksi field,
+  // tapi raw_notification_text yang disimpan ke DB tetap versi ASLI
+  const text = normalisasiWhitespace(rawText);
 
   // 1. Deteksi jenis transaksi (synchronous, known categories only)
   const jenisTransaksi = detectJenisTransaksi(text);
@@ -168,8 +174,14 @@ export async function parseNotifikasiUniversal(
 }> {
   const { provider, rawText } = options;
 
+  // 0. Normalisasi whitespace SEBELUM semua ekstraksi (Bug 5 fix)
+  // Gunakan versi ternormalisasi untuk SEMUA proses ekstraksi field,
+  // tapi raw_notification_text yang disimpan ke DB tetap versi ASLI
+  const teksTernormalisasi = normalisasiWhitespace(rawText);
+
   // 1. Pisahkan saldo aplikasi (universal untuk kedua provider)
-  const { teksTanpaSaldo, saldoInfo } = pisahkanSaldoAplikasi(rawText);
+  const { teksTanpaSaldo, saldoInfo } =
+    pisahkanSaldoAplikasi(teksTernormalisasi);
 
   // 2. Klasifikasi apakah ini transaksi pelanggan
   const klasifikasi = apakahTransaksiPelanggan(teksTanpaSaldo);

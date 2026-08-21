@@ -30,7 +30,15 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { Search, X, Download, Receipt, Filter, Eye, AlertTriangle } from "lucide-react";
+import {
+  Search,
+  X,
+  Download,
+  Receipt,
+  Filter,
+  Eye,
+  AlertTriangle,
+} from "lucide-react";
 import { STATUS_LABELS } from "@/constants/statusTransaksi";
 import { getKonterList } from "@/services";
 import type { Konter } from "@/types";
@@ -181,9 +189,15 @@ function TransactionDetailModal({
                   </span>
                 )}
               </div>
-              <span className="text-sm font-medium text-gray-900">
-                {transaction.produk.nama}
-              </span>
+              {getTampilanTransaksi(
+                transaction.produk.kategori,
+                transaction.nomorTujuan,
+                transaction.produk.nama,
+              ).tampilkanNamaProduk && (
+                <span className="text-sm font-medium text-gray-900">
+                  {transaction.produk.nama}
+                </span>
+              )}
             </div>
           </div>
 
@@ -269,9 +283,12 @@ function TransactionDetailModal({
           {transaction.detailTambahan?.raw_text_history && (
             <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl">
               <p className="text-xs font-medium text-gray-600 mb-1">
-                Riwayat Notifikasi ({(
-                  transaction.detailTambahan.raw_text_history as string[]
-                ).length})
+                Riwayat Notifikasi (
+                {
+                  (transaction.detailTambahan.raw_text_history as string[])
+                    .length
+                }
+                )
               </p>
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {(transaction.detailTambahan.raw_text_history as string[]).map(
@@ -566,7 +583,8 @@ export default function TransaksiPendingPage() {
             </Badge>
           </div>
           <p className="text-text-secondary mt-1 text-sm">
-            Transaksi dengan status pending atau gagal — belum masuk laporan omzet utama
+            Transaksi dengan status pending atau gagal — belum masuk laporan
+            omzet utama
           </p>
         </div>
 
@@ -784,7 +802,10 @@ export default function TransaksiPendingPage() {
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="text-sm text-text-primary">
-                              {trx.produk.nama || (tampilan.tampilkanNamaProduk ? "-" : trx.produk.nama)}
+                              {trx.produk.nama ||
+                                (tampilan.tampilkanNamaProduk
+                                  ? "-"
+                                  : trx.produk.nama)}
                             </span>
                             {tampilan.tampilkanProviderSeluler &&
                               trx.providerSeluler && (
@@ -805,8 +826,8 @@ export default function TransaksiPendingPage() {
                               trx.status === "sukses"
                                 ? "success"
                                 : trx.status === "gagal"
-                                ? "error"
-                                : "warning"
+                                  ? "error"
+                                  : "warning"
                             }
                             size="sm"
                             dot

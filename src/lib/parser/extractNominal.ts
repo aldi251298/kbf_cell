@@ -49,8 +49,8 @@ export function extractNominal(
         const isExact = exactEwallet.some((name) => firstSeg === name);
         if (isExact) {
           for (const seg of segments) {
-            if (/^\d{3,6}$/.test(seg) && !/^0\d{9,12}$/.test(seg)) {
-              const val = parseInt(seg, 10);
+            if (/^[\d.,]{3,6}$/.test(seg) && !/^0\d{9,12}$/.test(seg)) {
+              const val = parseAngkaIndonesia(seg);
               if (val > 0) return val;
             }
           }
@@ -99,9 +99,13 @@ export function extractNominalForAlpines(text: string): {
 /**
  * Parse Indonesian-formatted number string to integer.
  * Handles: "20000", "20.000", "20,000", "11950", "50.650"
+ * Indonesian format uses dot (.) as thousands separator and comma (,) as decimal separator.
+ * For rupiah (whole numbers), we remove dots only.
  */
-function parseAngkaIndonesia(raw: string): number {
-  const cleaned = raw.replace(/\./g, "").replace(/,/g, "");
-  const parsed = parseInt(cleaned, 10);
-  return isNaN(parsed) ? 0 : parsed;
+export function parseAngkaIndonesia(raw: string): number {
+  // Remove dots (thousands separator) but keep commas for potential decimals
+  // Then replace comma with dot for parseFloat, or just remove if we want integer
+  const cleaned = raw.replace(/\./g, "").replace(/,/g, ".");
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.round(parsed);
 }
