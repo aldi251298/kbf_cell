@@ -8,10 +8,10 @@
 import type { RingkasanHarian } from "@/types";
 
 /**
- * WIB = UTC+7 — helper to get start of today in WIB, expressed as UTC timestamp
- * This ensures "today" matches Indonesia local date, not UTC date.
+ * Get WIB date string (YYYY-MM-DD) for today.
+ * This avoids the UTC date extraction bug when converting to ISO string.
  */
-function getTodayStartWIB(): Date {
+function getTodayWIBDateString(): string {
   const now = new Date();
   const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -20,25 +20,18 @@ function getTodayStartWIB(): Date {
   const wibMs = utcMs + WIB_OFFSET_MS;
   const wibDate = new Date(wibMs);
 
-  // Get start of day in WIB (00:00:00 WIB)
-  const startOfDayWIB = new Date(
-    Date.UTC(
-      wibDate.getUTCFullYear(),
-      wibDate.getUTCMonth(),
-      wibDate.getUTCDate(),
-    ),
-  );
-
-  // Convert back to UTC timestamp
-  return new Date(startOfDayWIB.getTime() - WIB_OFFSET_MS);
+  // Return WIB date as YYYY-MM-DD string
+  const year = wibDate.getUTCFullYear();
+  const month = String(wibDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(wibDate.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
  * Get today's summary (WIB timezone).
  */
 export async function getRingkasanHariIni(): Promise<RingkasanHarian> {
-  const todayStart = getTodayStartWIB();
-  const dateStr = todayStart.toISOString().slice(0, 10);
+  const dateStr = getTodayWIBDateString();
   const res = await fetch(`/api/ringkasan?tanggal=${dateStr}`, {
     cache: "no-store",
   });
@@ -53,7 +46,11 @@ export async function getRingkasanHariIni(): Promise<RingkasanHarian> {
 export async function getRingkasanByTanggal(
   tanggal: Date,
 ): Promise<RingkasanHarian> {
-  const dateStr = tanggal.toISOString().slice(0, 10);
+  // Use WIB date components to avoid UTC date extraction bug
+  const year = tanggal.getUTCFullYear();
+  const month = String(tanggal.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(tanggal.getUTCDate()).padStart(2, "0");
+  const dateStr = `${year}-${month}-${day}`;
   const res = await fetch(`/api/ringkasan?tanggal=${dateStr}`, {
     cache: "no-store",
   });

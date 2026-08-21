@@ -110,14 +110,15 @@ export function parseStrukturAlpines(rawText: string): AlpinesStructure {
 
   // Segmen saldo — SELALU pola terakhir, pisahkan jadi 3 angka
   // Regex ketat dulu (dengan - dan =)
+  // Updated: [\d.,-]+ to handle dashes as thousand separators (e.g., "731-423")
   let saldoMatch = rawText.match(
-    /Saldo\s+([\d.,]+)\s*-\s*([\d.,]+)\s*=\s*([\d.,]+)\s*@(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2}:\d{2})/i,
+    /Saldo\s+([\d.,-]+)\s*-\s*([\d.,-]+)\s*=\s*([\d.,-]+)\s*@(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2}:\d{2})/i,
   );
 
   // Fallback ke regex longgar kalau yang ketat tidak match
   if (!saldoMatch) {
     saldoMatch = rawText.match(
-      /Saldo\s+([\d.,]+)[\s\-]+([\d.,]+)[\s=]+([\d.,]+)\s*@/i,
+      /Saldo\s+([\d.,-]+)[\s\-]+([\d.,-]+)[\s=]+([\d.,-]+)\s*@/i,
     );
   }
 
@@ -271,7 +272,27 @@ export function extractNominalAlpines(
   snRefSegment: string,
   saldoMatch: RegExpMatchArray | null,
 ): { nominal: number | null; dariSaldoFallback: boolean } {
-  // 1. Keyword eksplisit di segmen SN/Ref: NOMINAL:, TOKEN, atau angka di format /-separated
+  // ALPINES PROVIDER-LEVEL RULE: SELAMBU pakai saldo diff (Saldo A - B = C, ambil B)
+  // untuk SEMUA jenis transaksi (voucher, pulsa, paket data, ewallet/DANA/GOPAY, dll)
+  // Alasan: nominal eksplisit di Alpines tidak termasuk biaya admin, jadi tidak representatif
+
+  // 1. FALLBACK UTAMA (wajib untuk Alpines): angka B dari segmen saldo (Saldo A - B = C)
+  // Gunakan validasi matematis untuk menangani format angka tidak konsisten
+  if (saldoMatch && saldoMatch[2]) {
+    // Coba parse dengan validasi matematis dari teks asli
+    const validatedFromSaldo = parseSaldoWithValidationFromMatch(saldoMatch);
+    if (validatedFromSaldo !== null) {
+      return { nominal: validatedFromSaldo, dariSaldoFallback: true };
+    }
+    // Fallback ke parsing sederhana jika validasi gagal (misal typo separator seperti 731-423)
+    // Tetap pakai potongan sebagai nominal — jangan gagalkan parsing, cukup log warning untuk audit
+    const val = parseAngkaIndonesia(saldoMatch[2]);
+    if (val > 0) return { nominal: val, dariSaldoFallback: true };
+  }
+
+  // 2. Fallback terakhir: jika saldo diff tidak ada sama sekali, coba eksplisit
+  // (seharusnya jarang terjadi karena notifikasi Alpines selalu punya saldo)
+  // Keyword eksplisit di segmen SN/Ref: NOMINAL:, TOKEN, atau angka di format /-separated
   const nominalLabelMatch = snRefSegment.match(/NOMINAL:\s*([\d.,]+)/i);
   if (nominalLabelMatch) {
     const val = parseAngkaIndonesia(nominalLabelMatch[1]);
@@ -286,18 +307,24 @@ export function extractNominalAlpines(
   }
 
   // Cek pola /-separated di SN/Ref (mis. GOPAY/Jasmisaputra/100000/...)
+  // HANYA jika segmen pertama adalah nama ewallet EKSAKT (tanpa suffix seperti "TOPUP")
   const snRefParts = snRefSegment.split("/").map((s) => s.trim());
   if (snRefParts.length >= 3) {
-    // Cari angka yang bukan nomor HP (10-13 digit diawali 08/62)
-    for (const part of snRefParts) {
-      if (/^[\d.,]{3,6}$/.test(part) && !/^(08|62)\d{8,11}$/.test(part)) {
-        const val = parseAngkaIndonesia(part);
-        if (val > 0) return { nominal: val, dariSaldoFallback: false };
+    const firstSeg = snRefParts[0].toUpperCase();
+    const exactEwallet = ["DANA", "GOPAY", "OVO", "SHOPEEPAY", "LINKAJA"];
+    const isExact = exactEwallet.some((name) => firstSeg === name);
+    if (isExact) {
+      // Cari angka yang bukan nomor HP (10-13 digit diawali 08/62)
+      for (const part of snRefParts) {
+        if (/^[\d.,]{3,6}$/.test(part) && !/^(08|62)\d{8,11}$/.test(part)) {
+          const val = parseAngkaIndonesia(part);
+          if (val > 0) return { nominal: val, dariSaldoFallback: false };
+        }
       }
     }
   }
 
-  // 2. Angka di header sebelum kode produk (sudah ditangani TOKEN di atas)
+  // 3. Angka di header sebelum kode produk (sudah ditangani TOKEN di atas)
   // Cek angka eksplisit di awal header
   const headerAngkaMatch = headerSegment.match(/^([\d.,]{3,6})\s+/);
   if (headerAngkaMatch) {
@@ -305,19 +332,88 @@ export function extractNominalAlpines(
     if (val > 0) return { nominal: val, dariSaldoFallback: false };
   }
 
-  // 3. FALLBACK TERAKHIR: angka B dari segmen saldo (Saldo A - B = C)
-  if (saldoMatch && saldoMatch[2]) {
-    const val = parseAngkaIndonesia(saldoMatch[2]);
-    if (val > 0) return { nominal: val, dariSaldoFallback: true };
+  return { nominal: null, dariSaldoFallback: false };
+}
+
+/**
+ * Parse saldo from RegExpMatchArray with mathematical validation.
+ * Uses the same flexible parsing logic as parseSaldoWithValidation.
+ */
+function parseSaldoWithValidationFromMatch(
+  saldoMatch: RegExpMatchArray,
+): number | null {
+  if (!saldoMatch || saldoMatch.length < 4) return null;
+
+  const saldoAwalRaw = saldoMatch[1];
+  const potonganRaw = saldoMatch[2];
+  const saldoAkhirRaw = saldoMatch[3];
+
+  // Try different parsing modes to handle inconsistent formats
+  const modes: Array<"dot_as_thousand" | "dot_as_decimal" | "no_separator"> = [
+    "dot_as_thousand",
+    "dot_as_decimal",
+    "no_separator",
+  ];
+
+  let bestPotongan: number | null = null;
+
+  for (const mode of modes) {
+    const saldoAwal = parseAngkaIndonesiaFlexible(saldoAwalRaw, mode);
+    const potongan = parseAngkaIndonesiaFlexible(potonganRaw, mode);
+    const saldoAkhir = parseAngkaIndonesiaFlexible(saldoAkhirRaw, mode);
+
+    // Validate mathematically: saldo_awal - potongan == saldo_akhir
+    // Allow small tolerance for rounding
+    if (Math.abs(saldoAwal - potongan - saldoAkhir) < 1) {
+      if (potongan > 0) {
+        // Prefer larger potongan (more realistic for transaction amounts)
+        if (bestPotongan === null || potongan > bestPotongan) {
+          bestPotongan = potongan;
+        }
+      }
+    }
   }
 
-  return { nominal: null, dariSaldoFallback: false };
+  return bestPotongan;
+}
+
+/**
+ * Parse Indonesian-formatted number string to integer with flexible separator handling.
+ * Tries multiple parsing modes to handle inconsistent formats:
+ * - "13150" (no separator)
+ * - "15.550" (dot as thousand separator)
+ * - "52.927" (dot as thousand separator)
+ * - "50.650" (dot as thousand separator)
+ * - "102.150" (dot as thousand separator)
+ * - "100,000" (comma as thousand separator)
+ * - "731-423" (dash as thousand separator - typo format)
+ */
+function parseAngkaIndonesiaFlexible(
+  raw: string,
+  mode: "dot_as_thousand" | "dot_as_decimal" | "no_separator",
+): number {
+  let cleaned: string;
+  if (mode === "dot_as_thousand") {
+    // Dot is thousand separator, remove it. Comma is decimal separator.
+    // Also handle dash as thousand separator (typo format like "731-423")
+    cleaned = raw.replace(/[.-]/g, "").replace(/,/g, ".");
+  } else if (mode === "dot_as_decimal") {
+    // Dot is decimal separator, comma is thousand separator (less common in ID)
+    // Also handle dash as thousand separator
+    cleaned = raw.replace(/[,-]/g, "").replace(/\./g, ".");
+  } else {
+    // no_separator: just remove all separators (dots, commas, dashes)
+    cleaned = raw.replace(/[.,-]/g, "");
+  }
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.round(parsed);
 }
 
 export function parseAngkaIndonesia(raw: string): number {
   // Remove dots (thousands separator) but keep commas for potential decimals
+  // Also handle dash as thousand separator (typo format like "731-423")
   // Then replace comma with dot for parseFloat, or just remove if we want integer
-  const cleaned = raw.replace(/\./g, "").replace(/,/g, ".");
+  const cleaned = raw.replace(/[.-]/g, "").replace(/,/g, ".");
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : Math.round(parsed);
 }

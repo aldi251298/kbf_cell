@@ -1,19 +1,72 @@
-﻿/**
- * extractNominal — extract nominal from notification text (Bagian 3.4).
- * Priority order:
- *  1. Rp\s?[\d.,]+
- *  2. NOMINAL:\s*[\d.,]+  (eksplisit, prioritas atas saldo untuk ewallet)
- *  3. Pola SN/Ref: X/Y/angka/nomor_hp/... (untuk ewallet Alpines)
- *  4. Saldo\s*[\d.,]+\s*-\s*[\d.,]+\s*=\s*[\d.,]+  → ambil angka kedua
- *  5. Fallback: angka besar terdekat keyword nominal/senilai/sebesar/Rp
- *
- * For Alpines: uses extractNominalAlpines from universal.ts with priority:
- *  1. Keyword eksplisit di segmen SN/Ref: NOMINAL:, TOKEN, atau angka di format /-separated
- *  2. Angka di header sebelum kode produk
- *  3. FALLBACK TERAKHIR: angka B dari segmen saldo (Saldo A - B = C) — tandai perlu_review
- */
+﻿import { parseStrukturAlpines, extractNominalAlpines } from "./universal";
 
-import { parseStrukturAlpines, extractNominalAlpines } from "./universal";
+/**
+ * Parse Indonesian-formatted number string to integer with flexible separator handling.
+ * Tries multiple parsing modes to handle inconsistent formats:
+ * - "13150" (no separator)
+ * - "15.550" (dot as thousand separator)
+ * - "52.927" (dot as thousand separator)
+ * - "50.650" (dot as thousand separator)
+ * - "102.150" (dot as thousand separator)
+ * - "100,000" (comma as thousand separator)
+ * - "731-423" (dash as thousand separator - typo format)
+ */
+export function parseAngkaIndonesiaFlexible(
+  raw: string,
+  mode: "dot_as_thousand" | "dot_as_decimal" | "no_separator",
+): number {
+  let cleaned: string;
+  if (mode === "dot_as_thousand") {
+    // Dot is thousand separator, remove it. Comma is decimal separator.
+    // Also handle dash as thousand separator (typo format like "731-423")
+    cleaned = raw.replace(/[.-]/g, "").replace(/,/g, ".");
+  } else if (mode === "dot_as_decimal") {
+    // Dot is decimal separator, comma is thousand separator (less common in ID)
+    // Also handle dash as thousand separator
+    cleaned = raw.replace(/[,-]/g, "").replace(/\./g, ".");
+  } else {
+    // no_separator: just remove all separators (dots, commas, dashes)
+    cleaned = raw.replace(/[.,-]/g, "");
+  }
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.round(parsed);
+}
+
+/**
+ * Try to parse saldo pattern with mathematical validation.
+ * Returns the validated potongan (middle number) or null if validation fails.
+ */
+export function parseSaldoWithValidation(text: string): number | null {
+  // Match: Saldo <awal> - <potongan> = <akhir>
+  // Updated: [\d.,-]+ to handle dashes as thousand separators (e.g., "731-423")
+  const match = text.match(
+    /saldo\s*([\d.,-]+)\s*-\s*([\d.,-]+)\s*=\s*([\d.,-]+)/i,
+  );
+  if (!match) return null;
+
+  const [, saldoAwalRaw, potonganRaw, saldoAkhirRaw] = match;
+
+  // Try different parsing modes to handle inconsistent formats
+  const modes: Array<"dot_as_thousand" | "dot_as_decimal" | "no_separator"> = [
+    "dot_as_thousand",
+    "dot_as_decimal",
+    "no_separator",
+  ];
+
+  for (const mode of modes) {
+    const saldoAwal = parseAngkaIndonesiaFlexible(saldoAwalRaw, mode);
+    const potongan = parseAngkaIndonesiaFlexible(potonganRaw, mode);
+    const saldoAkhir = parseAngkaIndonesiaFlexible(saldoAkhirRaw, mode);
+
+    // Validate mathematically: saldo_awal - potongan == saldo_akhir
+    // Allow small tolerance for rounding
+    if (Math.abs(saldoAwal - potongan - saldoAkhir) < 1) {
+      if (potongan > 0) return potongan;
+    }
+  }
+
+  return null;
+}
 
 export function extractNominal(
   text: string,
@@ -59,11 +112,44 @@ export function extractNominal(
     }
   }
 
-  // 4. Pola Saldo X - Y = Z → ambil Y (kedua) — fallback untuk ewallet
-  const saldoCalcMatch = text.match(/saldo\s*([\d.,]+)\s*-\s*([\d.,]+)\s*=/i);
-  if (saldoCalcMatch) {
-    const val = parseAngkaIndonesia(saldoCalcMatch[2]);
-    if (val > 0) return val;
+  // 3b. Pola nominal eksplisit di header (untuk Digipos pulsa/paket_data/voucher)
+  // Format: "Telkomsel 25000 KODE..." atau "Voucher Three 50000 KODE..."
+  // Hanya untuk jenis transaksi yang biasanya punya nominal eksplisit di header
+  // TIDAK untuk format "Telkomsel BYU 15000 KODE..." di mana 15000 adalah denom produk, bukan nominal transaksi
+  if (["pulsa", "paket_data", "voucher"].includes(jenisTransaksi)) {
+    // Cari angka 3-6 digit di header sebelum kode transaksi (alfanumerik + titik + angka)
+    // Pola: ... angka 3-6 digit -> kode transaksi (contoh: TSBYU15.085198025507, VTR10.0895)
+    // Match: "Telkomsel 25000 TSBYU15..." atau "Voucher Three 50000 VTR10..."
+    // TIDAK match: "Telkomsel BYU 15000 TSBYU15..." karena "BYU" adalah kode produk (2-4 huruf besar)
+    // sebelum nominal, yang menandakan ini adalah denomination, bukan nominal transaksi
+    const headerNominalMatch = text.match(
+      /([\d.,]{3,6})\s+[A-Z0-9]{3,15}\.\d{4,13}/i,
+    );
+    if (headerNominalMatch) {
+      // Cek apakah kata sebelum nominal adalah kode produk pendek (2-4 huruf besar seperti BYU, VTR, dll)
+      // Jika ya, ini adalah denomination produk, bukan nominal transaksi
+      const beforeNominal = text.slice(0, headerNominalMatch.index);
+      const lastWordBeforeNominal =
+        beforeNominal.trim().split(/\s+/).pop() || "";
+      const isProductCode = /^[A-Z]{2,4}$/.test(lastWordBeforeNominal);
+      if (!isProductCode) {
+        const val = parseAngkaIndonesia(headerNominalMatch[1]);
+        if (val > 0) return val;
+      }
+    }
+    // Fallback: angka 3-6 digit di awal teks (sebelum spasi dan kata berikutnya)
+    // Hanya jika teks dimulai dengan angka (bukan nama produk)
+    const headerNominalMatch2 = text.match(/^([\d.,]{3,6})\s+/);
+    if (headerNominalMatch2) {
+      const val = parseAngkaIndonesia(headerNominalMatch2[1]);
+      if (val > 0) return val;
+    }
+  }
+
+  // 4. Pola Saldo X - Y = Z → ambil Y (kedua) — fallback dengan validasi matematis
+  const saldoValidated = parseSaldoWithValidation(text);
+  if (saldoValidated !== null) {
+    return saldoValidated;
   }
 
   // 5. Fallback: angka besar (≥4 digit) terdekat keyword nominal/senilai/sebesar/rp
@@ -98,14 +184,16 @@ export function extractNominalForAlpines(text: string): {
 
 /**
  * Parse Indonesian-formatted number string to integer.
- * Handles: "20000", "20.000", "20,000", "11950", "50.650"
+ * Handles: "20000", "20.000", "20,000", "11950", "50.650", "731-423"
  * Indonesian format uses dot (.) as thousands separator and comma (,) as decimal separator.
- * For rupiah (whole numbers), we remove dots only.
+ * For rupiah (whole numbers), we remove dots and dashes only.
+ * Also handles dash as thousand separator (typo format like "731-423")
  */
 export function parseAngkaIndonesia(raw: string): number {
-  // Remove dots (thousands separator) but keep commas for potential decimals
+  // Remove dots and dashes (thousands separator) but keep commas for potential decimals
+  // Also handle dash as thousand separator (typo format like "731-423")
   // Then replace comma with dot for parseFloat, or just remove if we want integer
-  const cleaned = raw.replace(/\./g, "").replace(/,/g, ".");
+  const cleaned = raw.replace(/[.-]/g, "").replace(/,/g, ".");
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : Math.round(parsed);
 }

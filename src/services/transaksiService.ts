@@ -122,7 +122,11 @@ export async function getTransaksiHariIniService(): Promise<Transaksi[]> {
   const start = new Date(startOfDayWIB.getTime() - WIB_OFFSET_MS);
 
   const params = new URLSearchParams();
-  params.set("startDate", start.toISOString());
+  // Use UTC date components to avoid timezone conversion bug
+  const year = start.getUTCFullYear();
+  const month = String(start.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(start.getUTCDate()).padStart(2, "0");
+  params.set("startDate", `${year}-${month}-${day}T00:00:00.000Z`);
   params.set("limit", "1000");
 
   const res = await fetch(`/api/transaksi?${params.toString()}`, {
