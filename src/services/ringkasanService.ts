@@ -15,9 +15,9 @@ function getTodayWIBDateString(): string {
   const now = new Date();
   const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-  // Convert to WIB timezone
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  const wibMs = utcMs + WIB_OFFSET_MS;
+  // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
+  // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
+  const wibMs = now.getTime() + WIB_OFFSET_MS;
   const wibDate = new Date(wibMs);
 
   // Return WIB date as YYYY-MM-DD string

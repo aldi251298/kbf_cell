@@ -249,8 +249,9 @@ export default function DashboardPage() {
   const [currentDateKey, setCurrentDateKey] = useState<string>(() => {
     const now = new Date();
     const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-    const wibMs = utcMs + WIB_OFFSET_MS;
+    // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
+    // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
+    const wibMs = now.getTime() + WIB_OFFSET_MS;
     const wibDate = new Date(wibMs);
     return `${wibDate.getUTCFullYear()}-${wibDate.getUTCMonth()}-${wibDate.getUTCDate()}`;
   });
@@ -344,8 +345,9 @@ export default function DashboardPage() {
         // Check if the new transaction falls within today's WIB range
         const now = new Date();
         const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-        const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-        const wibMs = utcMs + WIB_OFFSET_MS;
+        // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
+        // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
+        const wibMs = now.getTime() + WIB_OFFSET_MS;
         const wibDate = new Date(wibMs);
         const todayStart = new Date(
           Date.UTC(
@@ -448,8 +450,9 @@ export default function DashboardPage() {
     const checkDayChange = () => {
       const now = new Date();
       const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-      const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-      const wibMs = utcMs + WIB_OFFSET_MS;
+      // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
+      // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
+      const wibMs = now.getTime() + WIB_OFFSET_MS;
       const wibDate = new Date(wibMs);
       const newDateKey = `${wibDate.getUTCFullYear()}-${wibDate.getUTCMonth()}-${wibDate.getUTCDate()}`;
 
