@@ -227,6 +227,13 @@ export function getTampilanTransaksi(
       tampilkanNamaProduk = true;
       labelJenisTransaksi = "Voucher";
       break;
+    case "voucher_fisik":
+      labelNomorTujuan = "";
+      tampilkanNomorTujuan = false;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Voucher Fisik Internet";
+      tampilkanProviderSeluler = true;
+      break;
     case "pulsa_op":
       labelNomorTujuan = "Nomor HP";
       tampilkanNomorTujuan = true;
@@ -388,6 +395,7 @@ export function getKategoriLabel(kategori: string): string {
     ewallet: "E-Wallet",
     ewallet_dana: "E-Wallet",
     voucher: "Voucher",
+    voucher_fisik: "Voucher Fisik Internet",
     game_topup: "Top Up Game",
     gametopup: "Top Up Game",
     wifi: "Internet / WiFi",

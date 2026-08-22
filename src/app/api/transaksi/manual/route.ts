@@ -1,115 +1,100 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { mapTransaksi } from "@/lib/mappers";
-import type { TransaksiRow } from "@/types/database";
-import type { TransaksiInputData } from "@/services/transaksiService";
 
 /**
- * POST /api/transaksi/manual
- *
- * Lets the authenticated owner add a transaction manually from the dashboard
- * "Transaksi Baru" page. Unlike the Android ingest endpoint (which uses the
- * INGEST_API_KEY), this route authenticates via the owner's Supabase Auth
- * session and writes using the service-role client (bypassing RLS, since the
- * owner is allowed to insert).
+ * Map form jenis_transaksi to valid database enum values.
+ * Database CHECK constraint allows: pulsa, paket_data, pln, ewallet_dana, voucher, pulsa_op
  */
-export async function POST(req: NextRequest) {
-  // Parse & validate
-  let body: TransaksiInputData;
-  try {
-    body = (await req.json()) as TransaksiInputData;
-  } catch {
-    return NextResponse.json(
-      { error: "Body bukan JSON valid." },
-      { status: 400 },
-    );
-  }
+function mapJenisTransaksi(formJenis: string): string {
+  const map: Record<string, string> = {
+    pulsa: "pulsa",
+    paket_data: "paket_data",
+    paket_nelpon: "paket_data", // map to closest valid enum
+    pln: "pln",
+    ewallet: "ewallet_dana", // map to valid enum
+    voucher_fisik: "voucher", // map to voucher
+  };
+  return map[formJenis] ?? "pulsa"; // fallback to pulsa
+}
 
-  const errors: string[] = [];
-  if (!body.konterId) errors.push("konterId wajib diisi.");
-  if (!body.produk?.nama) errors.push("produk.nama wajib diisi.");
-  if (typeof body.nominal !== "number" || body.nominal < 0)
-    errors.push("nominal harus angka >= 0.");
-  if (!body.status || !["sukses", "gagal", "pending"].includes(body.status))
-    errors.push("status tidak valid.");
+/**
+ * Map form jenis_transaksi to valid provider enum.
+ * Database CHECK constraint allows: digipos, alpines
+ */
+function mapProvider(formJenis: string): "digipos" | "alpines" {
+  // ewallet uses alpines provider, others use digipos
+  return formJenis === "ewallet" ? "alpines" : "digipos";
+}
 
-  if (errors.length > 0) {
-    return NextResponse.json(
-      { error: "Validasi gagal.", details: errors },
-      { status: 400 },
-    );
-  }
-
-  // 3. Resolve device from konter
+export async function POST(request: Request) {
   const supabase = createServiceRoleClient();
-  const { data: konter, error: konterErr } = await supabase
+  const body = await request.json();
+  const {
+    jenis_transaksi,
+    konter_id,
+    nominal,
+    nomor_tujuan,
+    nama_produk,
+    nama_pemilik,
+    tipe_pln,
+    provider_seluler,
+  } = body;
+
+  // Validasi minimal — hanya field generik wajib, konsisten dengan prinsip validasi longgar di ingest
+  if (!jenis_transaksi || !konter_id) {
+    return NextResponse.json(
+      { success: false, error: "jenis_transaksi dan konter_id wajib diisi" },
+      { status: 400 },
+    );
+  }
+
+  // Ambil nama konter untuk kolom konter_nama (not null)
+  const { data: konter, error: konterError } = await supabase
     .from("konter")
-    .select("id, nama, perangkat_id")
-    .eq("id", body.konterId)
+    .select("nama")
+    .eq("id", konter_id)
     .single();
 
-  if (konterErr || !konter) {
+  if (konterError || !konter) {
     return NextResponse.json(
-      { error: "Konter tidak ditemukan." },
+      { success: false, error: "Konter tidak ditemukan" },
       { status: 404 },
     );
   }
-  if (!konter.perangkat_id) {
-    return NextResponse.json(
-      { error: "Konter tidak terhubung ke perangkat." },
-      { status: 400 },
-    );
-  }
 
-  // 4. Build insert row (map old input format to new schema)
-  const now = new Date().toISOString();
-  const sn = `SN-${Date.now().toString(36).toUpperCase()}`;
-  // Derive provider + jenis_transaksi from kategori
-  const kategori = body.produk.kategori;
-  const provider: "digipos" | "alpines" =
-    kategori === "ewallet" ? "alpines" : "digipos";
-  const jenisTransaksi: "pulsa" | "paket_data" | "ewallet_dana" =
-    kategori === "pulsa"
-      ? "pulsa"
-      : kategori === "data"
-        ? "paket_data"
-        : kategori === "ewallet"
-          ? "ewallet_dana"
-          : "pulsa"; // fallback
+  const dbJenisTransaksi = mapJenisTransaksi(jenis_transaksi);
+  const dbProvider = mapProvider(jenis_transaksi);
+
   const idTransaksiProvider = `MANUAL-${Date.now().toString(36).toUpperCase()}`;
-  const rawNotificationText = `[Manual Input] ${body.produk.nama} - ${body.nomorTujuan || "-"} - Rp${body.nominal}`;
 
-  const insertRow = {
-    waktu: now,
-    device_id: konter.perangkat_id,
-    konter_id: konter.id,
-    konter_nama: body.konterNama || konter.nama,
-    provider,
+  const payload = {
+    konter_nama: konter.nama,
+    provider: dbProvider,
+    konter_id,
     id_transaksi_provider: idTransaksiProvider,
-    jenis_transaksi: jenisTransaksi,
-    nominal: body.nominal,
-    nomor_tujuan: body.nomorTujuan || null,
-    status: body.status,
-    sn,
-    nama_produk: body.produk.nama,
-    raw_notification_text: rawNotificationText,
+    jenis_transaksi: dbJenisTransaksi,
+    nominal: nominal != null ? Number(nominal) : null,
+    nomor_tujuan: nomor_tujuan ?? null,
+    nama_produk: nama_produk ?? null,
+    nama_pemilik: nama_pemilik ?? null,
+    provider_seluler: provider_seluler ?? null,
+    status: "sukses",
+    waktu: new Date().toISOString(),
+    raw_notification_text: "(input manual oleh kasir)",
+    detail_tambahan: tipe_pln
+      ? { tipe_pln, jenis_transaksi_asli: jenis_transaksi }
+      : { jenis_transaksi_asli: jenis_transaksi },
+    perlu_review: false,
   };
 
-  const { data, error } = await supabase
-    .from("transaksi")
-    .insert(insertRow)
-    .select("*")
-    .single();
+  const { error } = await supabase.from("transaksi").insert(payload);
 
   if (error) {
-    console.error("[api/transaksi/manual] insert error:", error.message);
     return NextResponse.json(
-      { error: "Gagal menyimpan transaksi.", detail: error.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
 
-  return NextResponse.json(mapTransaksi(data as unknown as TransaksiRow), {
-    status: 201,
-  });
+  return NextResponse.json({ success: true });
 }

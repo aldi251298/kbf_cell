@@ -938,6 +938,11 @@
   100% { background-position: 200% 0; }
 }
 
+@keyframes progressBar {
+  0% { width: 100%; }
+  100% { width: 0%; }
+}
+
 /* Skeleton shimmer effect */
 .skeleton-shimmer {
   background: linear-gradient(90deg,
