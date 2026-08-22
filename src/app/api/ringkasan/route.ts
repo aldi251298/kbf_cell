@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceRoleClient();
   const url = req.nextUrl;
   const tanggalParam = url.searchParams.get("tanggal");
+  const startDateParam = url.searchParams.get("startDate");
+  const endDateParam = url.searchParams.get("endDate");
   const hariKembali = Number(url.searchParams.get("hariKembali") ?? "0");
   const perbandingan = url.searchParams.get("perbandingan") === "true";
 
@@ -148,10 +150,20 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // --- Mode: single tanggal ---
-  if (tanggalParam) {
-    const dayStart = startOfDayWIB(new Date(tanggalParam));
-    const dayEnd = new Date(dayStart.getTime() + 86400000);
+  // --- Mode: single tanggal or date range (startDate/endDate) ---
+  if (tanggalParam || (startDateParam && endDateParam)) {
+    let dayStart: Date;
+    let dayEnd: Date;
+
+    if (startDateParam && endDateParam) {
+      // Use provided UTC boundaries directly
+      dayStart = new Date(startDateParam);
+      dayEnd = new Date(endDateParam);
+    } else {
+      // Single date mode
+      dayStart = startOfDayWIB(new Date(tanggalParam!));
+      dayEnd = new Date(dayStart.getTime() + 86400000);
+    }
 
     const { data } = await supabase
       .from("transaksi")

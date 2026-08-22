@@ -17,6 +17,9 @@ import {
   getTampilanTransaksi,
   getTodayWIBDateString,
   getRentangWaktuWIB,
+  formatWaktu,
+  formatJam,
+  formatTanggal,
 } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -131,13 +134,7 @@ function TransactionDetailModal({
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Waktu Transaksi</span>
             <span className="text-sm font-medium text-gray-900">
-              {new Date(transaction.waktu).toLocaleString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatWaktu(transaction.waktu)}
             </span>
           </div>
 
@@ -787,22 +784,10 @@ export default function DashboardPage() {
                           <TableCell className="whitespace-nowrap">
                             <div>
                               <p className="text-sm font-medium text-gray-900">
-                                {new Date(trx.waktu).toLocaleTimeString(
-                                  "id-ID",
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )}
+                                {formatJam(trx.waktu)}
                               </p>
                               <p className="text-[11px] text-gray-400">
-                                {new Date(trx.waktu).toLocaleDateString(
-                                  "id-ID",
-                                  {
-                                    day: "2-digit",
-                                    month: "short",
-                                  },
-                                )}
+                                {formatTanggal(trx.waktu)}
                               </p>
                             </div>
                           </TableCell>

@@ -27,7 +27,7 @@ export function formatPersen(nilai: number): string {
   return `${sign}${new Intl.NumberFormat("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(nilai)}%`;
 }
 
-// Format date/time
+// Format date/time with explicit timezone (Asia/Jakarta) to avoid hydration mismatch
 export function formatWaktu(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("id-ID", {
@@ -37,25 +37,28 @@ export function formatWaktu(date: Date | string): string {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    timeZone: "Asia/Jakarta",
   }).format(d);
 }
 
-// Format time only
+// Format time only with explicit timezone (Asia/Jakarta) to avoid hydration mismatch
 export function formatJam(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Jakarta",
   }).format(d);
 }
 
-// Format date only
+// Format date only with explicit timezone (Asia/Jakarta) to avoid hydration mismatch
 export function formatTanggal(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("id-ID", {
     day: "2-digit",
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   }).format(d);
 }
 

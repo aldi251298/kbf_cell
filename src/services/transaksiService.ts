@@ -128,18 +128,29 @@ export async function getTransaksiHariIniService(): Promise<Transaksi[]> {
 /**
  * Get transactions for a specific date range (WIB timezone).
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
- * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB)
- * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB)
+ * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB), optional
+ * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB), optional
  */
 export async function getTransaksiByDateRange(
   tanggalMulai: string,
   tanggalAkhir: string,
 ): Promise<Transaksi[]> {
-  const { awalUTC, akhirUTC } = getRentangWaktuWIB(tanggalMulai, tanggalAkhir);
+  // If dates are not provided, don't apply date filter (show all transactions)
+  let startDate: Date | undefined;
+  let endDate: Date | undefined;
+
+  if (tanggalMulai && tanggalAkhir) {
+    const { awalUTC, akhirUTC } = getRentangWaktuWIB(
+      tanggalMulai,
+      tanggalAkhir,
+    );
+    startDate = awalUTC;
+    endDate = akhirUTC;
+  }
 
   const params = new URLSearchParams();
-  params.set("startDate", awalUTC.toISOString());
-  params.set("endDate", akhirUTC.toISOString());
+  if (startDate) params.set("startDate", startDate.toISOString());
+  if (endDate) params.set("endDate", endDate.toISOString());
   params.set("limit", "10000");
 
   const res = await fetch(`/api/transaksi?${params.toString()}`, {
@@ -175,14 +186,25 @@ export async function getTransaksiPaginatedByDateRange(
   page: number;
   totalPages: number;
 }> {
-  const { awalUTC, akhirUTC } = getRentangWaktuWIB(tanggalMulai, tanggalAkhir);
+  // If dates are not provided, don't apply date filter (show all transactions)
+  let startDate: Date | undefined;
+  let endDate: Date | undefined;
+
+  if (tanggalMulai && tanggalAkhir) {
+    const { awalUTC, akhirUTC } = getRentangWaktuWIB(
+      tanggalMulai,
+      tanggalAkhir,
+    );
+    startDate = awalUTC;
+    endDate = akhirUTC;
+  }
 
   const filters: TransaksiFilters & {
     sortBy?: "waktu" | "nominal";
     sortOrder?: "asc" | "desc";
   } = {
-    startDate: awalUTC,
-    endDate: akhirUTC,
+    ...(startDate && { startDate }),
+    ...(endDate && { endDate }),
     ...additionalFilters,
   };
 
@@ -248,8 +270,8 @@ export async function getTransaksiPaginated(
  * Export transactions to Excel (.xlsx) format with professional styling.
  * Uses ExcelJS for native Excel formatting support.
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
- * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB)
- * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB)
+ * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB), optional
+ * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB), optional
  * @param additionalFilters - Additional filters (konterId, status, search, sortBy, sortOrder)
  */
 export async function exportTransaksiExcel(
@@ -263,14 +285,25 @@ export async function exportTransaksiExcel(
   // Dynamic import to avoid SSR issues
   const ExcelJS = await import("exceljs");
 
-  const { awalUTC, akhirUTC } = getRentangWaktuWIB(tanggalMulai, tanggalAkhir);
+  // If dates are not provided, don't apply date filter (export all transactions)
+  let startDate: Date | undefined;
+  let endDate: Date | undefined;
+
+  if (tanggalMulai && tanggalAkhir) {
+    const { awalUTC, akhirUTC } = getRentangWaktuWIB(
+      tanggalMulai,
+      tanggalAkhir,
+    );
+    startDate = awalUTC;
+    endDate = akhirUTC;
+  }
 
   const filters: TransaksiFilters & {
     sortBy?: "waktu" | "nominal";
     sortOrder?: "asc" | "desc";
   } = {
-    startDate: awalUTC,
-    endDate: akhirUTC,
+    ...(startDate && { startDate }),
+    ...(endDate && { endDate }),
     ...additionalFilters,
   };
 
@@ -596,10 +629,12 @@ export async function exportTransaksiExcel(
  * Generate descriptive filename for export
  * Accepts both Date objects and YYYY-MM-DD strings for startDate/endDate
  */
-export function generateExportFilename(filters?: TransaksiFilters & {
-  startDate?: Date | string;
-  endDate?: Date | string;
-}): string {
+export function generateExportFilename(
+  filters?: TransaksiFilters & {
+    startDate?: Date | string;
+    endDate?: Date | string;
+  },
+): string {
   const konterNames = filters?.konterId ? [filters.konterId] : ["Semua-Konter"];
   const konterPart =
     konterNames[0] === "Semua-Konter" ? "Semua-Konter" : konterNames[0];
