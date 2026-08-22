@@ -208,7 +208,6 @@ export async function parseNotifikasiUniversal(
 
   // 5. Ekstraksi field independen (menggunakan teksTanpaSaldo sebagai basis)
   let nominal: number | null = null;
-  let dariSaldoFallback = false;
 
   if (provider === "alpines" && alpinesStructure) {
     const nominalResult = extractNominalAlpines(
@@ -218,7 +217,6 @@ export async function parseNotifikasiUniversal(
       alpinesStructure.saldoMatch,
     );
     nominal = nominalResult.nominal;
-    dariSaldoFallback = nominalResult.dariSaldoFallback;
   } else {
     nominal = extractNominal(teksTanpaSaldo, jenisTransaksi);
   }
@@ -257,10 +255,7 @@ export async function parseNotifikasiUniversal(
     nomorTujuan,
     status,
   });
-  const perluReview =
-    perluReviewKategori ||
-    perluReviewStatus ||
-    alasanReview !== null;
+  const perluReview = perluReviewKategori || perluReviewStatus || alasanReview !== null;
   // dariSaldoFallback TIDAK lagi memicu perlu_review — ini normal untuk Alpines
 
   // 8. ID transaksi
