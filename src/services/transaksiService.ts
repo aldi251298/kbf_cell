@@ -12,6 +12,7 @@ import type {
   TransaksiDetail,
   KategoriTransaksi,
 } from "@/types";
+import { getRentangWaktuWIB } from "@/lib/utils";
 
 /** Input form data for manual transaction. */
 export interface TransaksiInputData {
@@ -105,29 +106,15 @@ export async function getTransaksi(
 
 /**
  * Get today's transactions only (WIB timezone).
+ * Uses centralized getRentangWaktuWIB utility for correct date range handling.
  */
 export async function getTransaksiHariIniService(): Promise<Transaksi[]> {
-  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-  const now = new Date();
-  // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
-  // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
-  const wibMs = now.getTime() + WIB_OFFSET_MS;
-  const wibDate = new Date(wibMs);
-  const startOfDayWIB = new Date(
-    Date.UTC(
-      wibDate.getUTCFullYear(),
-      wibDate.getUTCMonth(),
-      wibDate.getUTCDate(),
-    ),
-  );
-  const start = new Date(startOfDayWIB.getTime() - WIB_OFFSET_MS);
+  const todayWIB = getTodayWIBDateString();
+  const { awalUTC, akhirUTC } = getRentangWaktuWIB(todayWIB, todayWIB);
 
   const params = new URLSearchParams();
-  // Use UTC date components to avoid timezone conversion bug
-  const year = start.getUTCFullYear();
-  const month = String(start.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(start.getUTCDate()).padStart(2, "0");
-  params.set("startDate", `${year}-${month}-${day}T00:00:00.000Z`);
+  params.set("startDate", awalUTC.toISOString());
+  params.set("endDate", akhirUTC.toISOString());
   params.set("limit", "1000");
 
   const res = await fetch(`/api/transaksi?${params.toString()}`, {
@@ -136,6 +123,98 @@ export async function getTransaksiHariIniService(): Promise<Transaksi[]> {
   if (!res.ok) throw new Error("Gagal mengambil transaksi hari ini.");
   const json = await res.json();
   return json.data as Transaksi[];
+}
+
+/**
+ * Get transactions for a specific date range (WIB timezone).
+ * Uses centralized getRentangWaktuWIB utility for correct date range handling.
+ * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB)
+ * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB)
+ */
+export async function getTransaksiByDateRange(
+  tanggalMulai: string,
+  tanggalAkhir: string,
+): Promise<Transaksi[]> {
+  const { awalUTC, akhirUTC } = getRentangWaktuWIB(tanggalMulai, tanggalAkhir);
+
+  const params = new URLSearchParams();
+  params.set("startDate", awalUTC.toISOString());
+  params.set("endDate", akhirUTC.toISOString());
+  params.set("limit", "10000");
+
+  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+    cache: "no-store",
+  });
+  if (!res.ok)
+    throw new Error("Gagal mengambil transaksi untuk rentang tanggal.");
+  const json = await res.json();
+  return json.data as Transaksi[];
+}
+
+/**
+ * Get paginated transactions for a specific date range (WIB timezone).
+ * Uses centralized getRentangWaktuWIB utility for correct date range handling.
+ * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB)
+ * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB)
+ * @param page - Page number (default: 1)
+ * @param limit - Items per page (default: 20)
+ * @param additionalFilters - Additional filters (konterId, status, search, sortBy, sortOrder)
+ */
+export async function getTransaksiPaginatedByDateRange(
+  tanggalMulai: string,
+  tanggalAkhir: string,
+  page: number = 1,
+  limit: number = 20,
+  additionalFilters?: Omit<TransaksiFilters, "startDate" | "endDate"> & {
+    sortBy?: "waktu" | "nominal";
+    sortOrder?: "asc" | "desc";
+  },
+): Promise<{
+  data: Transaksi[];
+  total: number;
+  page: number;
+  totalPages: number;
+}> {
+  const { awalUTC, akhirUTC } = getRentangWaktuWIB(tanggalMulai, tanggalAkhir);
+
+  const filters: TransaksiFilters & {
+    sortBy?: "waktu" | "nominal";
+    sortOrder?: "asc" | "desc";
+  } = {
+    startDate: awalUTC,
+    endDate: akhirUTC,
+    ...additionalFilters,
+  };
+
+  const params = filtersToParams(filters);
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+
+  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Gagal mengambil data transaksi.");
+  return res.json();
+}
+
+/**
+ * Get WIB date string (YYYY-MM-DD) for today.
+ * This avoids the UTC date extraction bug when converting to ISO string.
+ */
+function getTodayWIBDateString(): string {
+  const now = new Date();
+  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+  // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
+  // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
+  const wibMs = now.getTime() + WIB_OFFSET_MS;
+  const wibDate = new Date(wibMs);
+
+  // Return WIB date as YYYY-MM-DD string
+  const year = wibDate.getUTCFullYear();
+  const month = String(wibDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(wibDate.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -168,12 +247,32 @@ export async function getTransaksiPaginated(
 /**
  * Export transactions to Excel (.xlsx) format with professional styling.
  * Uses ExcelJS for native Excel formatting support.
+ * Uses centralized getRentangWaktuWIB utility for correct date range handling.
+ * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB)
+ * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB)
+ * @param additionalFilters - Additional filters (konterId, status, search, sortBy, sortOrder)
  */
 export async function exportTransaksiExcel(
-  filters?: TransaksiFilters,
+  tanggalMulai: string,
+  tanggalAkhir: string,
+  additionalFilters?: Omit<TransaksiFilters, "startDate" | "endDate"> & {
+    sortBy?: "waktu" | "nominal";
+    sortOrder?: "asc" | "desc";
+  },
 ): Promise<Blob> {
   // Dynamic import to avoid SSR issues
   const ExcelJS = await import("exceljs");
+
+  const { awalUTC, akhirUTC } = getRentangWaktuWIB(tanggalMulai, tanggalAkhir);
+
+  const filters: TransaksiFilters & {
+    sortBy?: "waktu" | "nominal";
+    sortOrder?: "asc" | "desc";
+  } = {
+    startDate: awalUTC,
+    endDate: akhirUTC,
+    ...additionalFilters,
+  };
 
   const params = filtersToParams(filters);
   params.set("limit", "10000");
@@ -495,20 +594,26 @@ export async function exportTransaksiExcel(
 
 /**
  * Generate descriptive filename for export
+ * Accepts both Date objects and YYYY-MM-DD strings for startDate/endDate
  */
-export function generateExportFilename(filters?: TransaksiFilters): string {
+export function generateExportFilename(filters?: TransaksiFilters & {
+  startDate?: Date | string;
+  endDate?: Date | string;
+}): string {
   const konterNames = filters?.konterId ? [filters.konterId] : ["Semua-Konter"];
   const konterPart =
     konterNames[0] === "Semua-Konter" ? "Semua-Konter" : konterNames[0];
 
+  const formatDate = (d: Date | string | undefined): string => {
+    if (!d) return "";
+    const date = typeof d === "string" ? new Date(d) : d;
+    return date.toISOString().split("T")[0].replace(/-/g, "");
+  };
+
   let datePart = "";
   if (filters?.startDate && filters?.endDate) {
-    const formatDate = (d: Date) =>
-      d.toISOString().split("T")[0].replace(/-/g, "");
     datePart = `-${formatDate(filters.startDate)}_sd_${formatDate(filters.endDate)}`;
   } else if (filters?.startDate) {
-    const formatDate = (d: Date) =>
-      d.toISOString().split("T")[0].replace(/-/g, "");
     datePart = `-${formatDate(filters.startDate)}`;
   } else {
     const today = new Date().toISOString().split("T")[0].replace(/-/g, "");

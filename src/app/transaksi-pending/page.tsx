@@ -447,6 +447,7 @@ export default function TransaksiPendingPage() {
     dateTo,
     selectedKonter,
     selectedStatus,
+    selectedJenisTransaksi,
     searchTerm,
     sortField,
     sortDirection,
@@ -466,26 +467,9 @@ export default function TransaksiPendingPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      // WIB = UTC+7 — adjust date inputs so they match Indonesia local date
-      const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-      const toWIBStart = (dateStr: string) => {
-        const d = new Date(dateStr);
-        const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
-        const wibMs = utcMs + WIB_OFFSET_MS;
-        const wibDate = new Date(wibMs);
-        const result = new Date(
-          Date.UTC(
-            wibDate.getUTCFullYear(),
-            wibDate.getUTCMonth(),
-            wibDate.getUTCDate(),
-          ),
-        );
-        return new Date(result.getTime() - WIB_OFFSET_MS);
-      };
-
-      const filters = {
-        ...(dateFrom && { startDate: toWIBStart(dateFrom) }),
-        ...(dateTo && { endDate: toWIBStart(dateTo) }),
+      // Use centralized getRentangWaktuWIB utility for correct date range handling
+      // Export uses the active date range from the filter
+      const additionalFilters = {
         ...(selectedKonter && { konterId: selectedKonter }),
         ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
         ...(selectedJenisTransaksi && {
@@ -494,8 +478,16 @@ export default function TransaksiPendingPage() {
         ...(searchTerm && { search: searchTerm }),
       };
 
-      const blob = await exportTransaksiExcel(filters);
-      const filename = generateExportFilename(filters);
+      const blob = await exportTransaksiExcel(
+        dateFrom || "",
+        dateTo || "",
+        additionalFilters,
+      );
+      const filename = generateExportFilename({
+        ...additionalFilters,
+        startDate: dateFrom ? new Date(dateFrom) : undefined,
+        endDate: dateTo ? new Date(dateTo) : undefined,
+      });
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");

@@ -10,9 +10,25 @@ import type { IngestTransaksiPayload } from "@/types/database";
  * - Saldo aplikasi separation (both providers)
  * - Non-transaction filter (promo, info, top-up saldo sendiri)
  * - Universal parsing with dynamic category detection
- * - Deduplication based on SN/REFF/ID Transaksi within 15-minute window
  * - Data TIDAK PERNAH ditolak — minimal tersimpan dengan perlu_review=true
+ *
+ * Fase 2.3.3: Alpines pending notifications are ignored at ingestion (Bug 2 fix)
+ * - Detect "akan diproses", "tunggu sms notifikasi", "mohon tunggu sebentar" for Alpines
+ * - Archive to notifikasi_diabaikan, never insert to transaksi
+ * - Deduplication removed (pending→success flow no longer needed)
  */
+
+// Keyword untuk deteksi notifikasi pending Alpines
+const keywordAlpinesPending =
+  /\b(akan\s*diproses|tunggu\s*sms\s*notifikasi|mohon\s*tunggu\s*sebentar)\b/i;
+
+function apakahNotifikasiPendingAlpines(
+  rawText: string,
+  provider: string,
+): boolean {
+  return provider === "alpines" && keywordAlpinesPending.test(rawText);
+}
+
 export async function POST(req: NextRequest) {
   // 1. Parse & validate body (minimal)
   let body: IngestTransaksiPayload;
@@ -64,7 +80,25 @@ export async function POST(req: NextRequest) {
   const provider = body.provider;
   const rawNotificationText = body.raw_notification_text;
 
-  // 3. Universal parsing with full Fase 2.3.1 flow
+  // 3. DETEKSI AWAL: Alpines notifikasi pending — skip total, jangan insert ke transaksi
+  // Letakkan PALING AWAL, SEBELUM pisahkanSaldoAplikasi() dan SEBELUM apakahTransaksiPelanggan()
+  if (apakahNotifikasiPendingAlpines(rawNotificationText, provider)) {
+    // Cukup arsipkan untuk jejak, TIDAK PERNAH masuk tabel transaksi
+    await supabase.from("notifikasi_diabaikan").insert({
+      provider,
+      konter_id: konterId,
+      raw_notification_text: rawNotificationText,
+      alasan: "alpines_notifikasi_pending_diabaikan",
+      waktu_capture: waktuCapture,
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: { diabaikan: true, alasan: "notifikasi_pending_diabaikan" },
+    });
+  }
+
+  // 4. Universal parsing with full Fase 2.3.1 flow
   let parseResult;
   try {
     parseResult = await parseNotifikasiUniversal({
@@ -94,7 +128,7 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  // 4. Handle filtered notifications (non-transaction)
+  // 5. Handle filtered notifications (non-transaction)
   if (parseResult.filtered) {
     // Simpan ke notifikasi_diabaikan
     await supabase.from("notifikasi_diabaikan").insert({
@@ -113,7 +147,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = parseResult.parsed!;
 
-  // 5. Tambah biaya admin Rp 2.000 untuk pulsa & paket data
+  // 6. Tambah biaya admin Rp 2.000 untuk pulsa & paket data
   const BIAYA_ADMIN = 2000;
   const jenisTransaksi = parsed.jenis_transaksi.toLowerCase();
   const nominalFinal =
@@ -121,7 +155,7 @@ export async function POST(req: NextRequest) {
       ? (parsed.nominal ?? 0) + BIAYA_ADMIN
       : parsed.nominal;
 
-  // 6. Prepare base insert row
+  // 7. Prepare base insert row
   const baseInsertRow = {
     waktu: waktuCapture,
     device_id: null,
@@ -148,116 +182,9 @@ export async function POST(req: NextRequest) {
     perlu_review: parsed.perlu_review,
   };
 
-  // 7. DEDUPLICATION: Cek transaksi duplikat berdasarkan kode_transaksi_header (prioritas 1),
-  // lalu REFF, SN, ID Transaksi dalam 15 menit (Fase 2.3.2 Bug 3 fix)
-  // Ekstrak identifier dari detail_tambahan
-  const detailTambahan = parsed.detail_tambahan as Record<
-    string,
-    unknown
-  > | null;
-  const kodeHeader = detailTambahan?.kode_transaksi_header as string | null;
-  const reff = detailTambahan?.reff as string | null;
-  const sn = detailTambahan?.sn as string | null;
-  const idTransaksi = detailTambahan?.id_transaksi as string | null;
-
-  // Build OR query with priority: kode_transaksi_header first, then reff, sn, id_transaksi
-  const orConditions: string[] = [];
-  if (kodeHeader)
-    orConditions.push(
-      `detail_tambahan->>kode_transaksi_header.eq.${kodeHeader}`,
-    );
-  if (reff) orConditions.push(`detail_tambahan->>reff.eq.${reff}`);
-  if (sn) orConditions.push(`detail_tambahan->>sn.eq.${sn}`);
-  if (idTransaksi)
-    orConditions.push(`detail_tambahan->>id_transaksi.eq.${idTransaksi}`);
-
-  if (orConditions.length > 0) {
-    const limaBelasMenitLalu = new Date(
-      Date.now() - 15 * 60 * 1000,
-    ).toISOString();
-
-    const { data: existing } = await supabase
-      .from("transaksi")
-      .select("*")
-      .eq("konter_id", konterId)
-      .gte("waktu_transaksi", limaBelasMenitLalu)
-      .or(orConditions.join(","))
-      .limit(1)
-      .maybeSingle();
-
-    if (existing) {
-      // DUPLIKAT DITEMUKAN - UPDATE baris yang sudah ada
-
-      // Gabungkan raw_text_history
-      const existingHistory = (existing.detail_tambahan
-        ?.raw_text_history as string[]) ?? [existing.raw_notification_text];
-      const newHistory = [...existingHistory, rawNotificationText];
-
-      // Update: timpa status, nominal, nomor_tujuan, nama_produk, raw_notification_text, detail_tambahan
-      // Pertahankan nilai lama kalau yang baru kosong/null
-      const updateRow = {
-        status: parsed.status,
-        nominal: parsed.nominal ?? existing.nominal,
-        nomor_tujuan: parsed.nomor_tujuan ?? existing.nomor_tujuan,
-        nama_produk: parsed.nama_produk ?? existing.nama_produk,
-        raw_notification_text: rawNotificationText, // pakai versi terbaru
-        detail_tambahan: {
-          ...existing.detail_tambahan,
-          ...parsed.detail_tambahan,
-          raw_text_history: newHistory,
-          nominal_asli:
-            parsed.nominal ?? existing.detail_tambahan?.nominal_asli,
-          // Pastikan kode_transaksi_header tetap konsisten
-          kode_transaksi_header:
-            parsed.detail_tambahan?.kode_transaksi_header ??
-            existing.detail_tambahan?.kode_transaksi_header,
-        },
-        perlu_review: parsed.perlu_review,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error: updateErr } = await supabase
-        .from("transaksi")
-        .update(updateRow)
-        .eq("id", existing.id);
-
-      if (updateErr) {
-        console.error("[ingest] gagal update duplikat:", updateErr.message);
-        return NextResponse.json(
-          {
-            error: "Gagal update transaksi duplikat.",
-            detail: updateErr.message,
-          },
-          { status: 500 },
-        );
-      }
-
-      const matchedKey = kodeHeader
-        ? "kode_transaksi_header"
-        : reff
-          ? "reff"
-          : sn
-            ? "sn"
-            : "id_transaksi";
-      console.log(
-        `[ingest] transaksi duplikat di-update: id=${existing.id} provider=${provider} jenis=${parsed.jenis_transaksi} matched_by=${matchedKey}`,
-      );
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          id: existing.id,
-          jenis_transaksi: parsed.jenis_transaksi,
-          nominal: parsed.nominal,
-          status: parsed.status,
-          perlu_review: parsed.perlu_review,
-          duplicated: true,
-        },
-      });
-    }
-  }
-
-  // 8. TIDAK ADA DUPLIKAT - INSERT baris baru
+  // 8. INSERT baris baru (deduplication removed in Fase 2.3.3 - Alpines pending notifications
+  // are now filtered at ingestion, so pending->success dedup is no longer needed.
+  // Other duplicate cases are rare and can be handled manually if needed.)
   const { data, error: insertErr } = await supabase
     .from("transaksi")
     .insert(baseInsertRow)

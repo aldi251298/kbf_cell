@@ -312,6 +312,65 @@ export function getTampilanTransaksi(
 }
 
 // ---------------------------------------------------------------------------
+// getRentangWaktuWIB — centralized date range conversion for WIB timezone
+// Used by ALL date filtering logic (Home, Riwayat Transaksi, Export Excel)
+// ---------------------------------------------------------------------------
+/**
+ * Convert date range strings to proper UTC boundaries for WIB (UTC+7) queries.
+ *
+ * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB)
+ * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB)
+ * @returns Object with awalUTC (start of day 00:00:00.000 WIB in UTC) and akhirUTC (end of day 23:59:59.999 WIB in UTC)
+ *
+ * Logic:
+ * - tanggalMulai → start of day (00:00:00.000) in WIB → converted to UTC
+ * - tanggalAkhir → END of day (23:59:59.999) in WIB → converted to UTC
+ * - If same date, returns full 24-hour range for that day
+ */
+export function getRentangWaktuWIB(
+  tanggalMulai: string,
+  tanggalAkhir: string,
+): { awalUTC: Date; akhirUTC: Date } {
+  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000; // UTC+7
+
+  // Parse start date as WIB midnight (00:00:00.000)
+  const [startYear, startMonth, startDay] = tanggalMulai.split("-").map(Number);
+  const startWIB = new Date(
+    Date.UTC(startYear, startMonth - 1, startDay, 0, 0, 0, 0),
+  );
+  const awalUTC = new Date(startWIB.getTime() - WIB_OFFSET_MS);
+
+  // Parse end date as WIB end of day (23:59:59.999)
+  const [endYear, endMonth, endDay] = tanggalAkhir.split("-").map(Number);
+  const endWIB = new Date(
+    Date.UTC(endYear, endMonth - 1, endDay, 23, 59, 59, 999),
+  );
+  const akhirUTC = new Date(endWIB.getTime() - WIB_OFFSET_MS);
+
+  return { awalUTC, akhirUTC };
+}
+
+/**
+ * Get WIB date string (YYYY-MM-DD) for today.
+ * This avoids the UTC date extraction bug when converting to ISO string.
+ */
+export function getTodayWIBDateString(): string {
+  const now = new Date();
+  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+  // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
+  // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
+  const wibMs = now.getTime() + WIB_OFFSET_MS;
+  const wibDate = new Date(wibMs);
+
+  // Return WIB date as YYYY-MM-DD string
+  const year = wibDate.getUTCFullYear();
+  const month = String(wibDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(wibDate.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// ---------------------------------------------------------------------------
 // getKategoriLabel — centralized mapping from internal kategori code
 // to human-readable label for display/export.
 // Single source of truth used by dashboard components and export logic.

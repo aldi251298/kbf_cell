@@ -1,6 +1,7 @@
 ﻿/**
  * extractDetailTambahan — extract SN, REFF, ID Transaksi, saldo, alasan review (Bagian 3.8e, 3.7).
- * Updated for Fase 2.3: stores saldo_konter and supports raw_text_history for deduplication.
+ * Updated for Fase 2.3: stores saldo_konter.
+ * Updated for Fase 2.3.3: removed kode_transaksi_header and raw_text_history (deduplication removed).
  */
 
 import { parseStrukturAlpines } from "./universal";
@@ -50,11 +51,6 @@ export function extractDetailTambahan(
       terpakai: structure.saldoMatch[2],
       sesudah: structure.saldoMatch[3],
     };
-  }
-
-  // Kode transaksi header (Fase 2.3.2 Bug 3 fix) - kunci dedup utama untuk Alpines
-  if (structure.kodeTransaksiHeader) {
-    detail.kode_transaksi_header = structure.kodeTransaksiHeader;
   }
 
   // Alasan review (jika ada)

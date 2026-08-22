@@ -13,6 +13,8 @@
 export {
   getTransaksi,
   getTransaksiHariIniService,
+  getTransaksiByDateRange,
+  getTransaksiPaginatedByDateRange,
   getTransaksiPaginated,
   exportTransaksiExcel,
   generateExportFilename,
@@ -35,6 +37,7 @@ export { getLaporan, getPerbandinganKonter } from "./laporanService";
 export {
   getRingkasanHariIni,
   getRingkasanByTanggal,
+  getRingkasanByDateRange,
   getRingkasanPeriodeService,
   getPerbandinganRingkasan,
 } from "./ringkasanService";

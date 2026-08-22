@@ -5,7 +5,8 @@ import Link from "next/link";
 import {
   getRingkasanHariIni,
   getPerbandinganRingkasan,
-  getTransaksiPaginated,
+  getTransaksiPaginatedByDateRange,
+  getTransaksiHariIniService,
 } from "@/services";
 import { useTransaksiRealtime } from "@/hooks/useTransaksiRealtime";
 import type { RingkasanHarian, Transaksi } from "@/types";
@@ -14,6 +15,8 @@ import {
   formatAngka,
   hitungPerubahanPersen,
   getTampilanTransaksi,
+  getTodayWIBDateString,
+  getRentangWaktuWIB,
 } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -247,13 +250,7 @@ export default function DashboardPage() {
 
   // Track current date for day change detection
   const [currentDateKey, setCurrentDateKey] = useState<string>(() => {
-    const now = new Date();
-    const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-    // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
-    // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
-    const wibMs = now.getTime() + WIB_OFFSET_MS;
-    const wibDate = new Date(wibMs);
-    return `${wibDate.getUTCFullYear()}-${wibDate.getUTCMonth()}-${wibDate.getUTCDate()}`;
+    return getTodayWIBDateString();
   });
 
   // Refs for realtime handling
@@ -278,13 +275,17 @@ export default function DashboardPage() {
     let mounted = true;
     const initFetch = async () => {
       try {
-        const [ringkasanData, perbandinganData] = await Promise.all([
+        const [ringkasanData, perbandinganData, riwayatData] = await Promise.all([
           getRingkasanHariIni(),
           getPerbandinganRingkasan(),
+          getTransaksiHariIniService(),
         ]);
         if (mounted) {
           setRingkasan(ringkasanData);
           setPerbandingan(perbandinganData);
+          setRiwayatTransactions(riwayatData);
+          setTotalRiwayatItems(riwayatData.length);
+          setTotalRiwayatPages(Math.ceil(riwayatData.length / ITEMS_PER_PAGE) || 1);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -304,12 +305,17 @@ export default function DashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [ringkasanData, perbandinganData] = await Promise.all([
+      const [ringkasanData, perbandinganData, riwayatData] = await Promise.all([
         getRingkasanHariIni(),
         getPerbandinganRingkasan(),
+        getTransaksiHariIniService(),
       ]);
       setRingkasan(ringkasanData);
       setPerbandingan(perbandinganData);
+      setRiwayatTransactions(riwayatData);
+      setTotalRiwayatItems(riwayatData.length);
+      setTotalRiwayatPages(Math.ceil(riwayatData.length / ITEMS_PER_PAGE) || 1);
+      setRiwayatPage(1);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -317,12 +323,18 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // Fetch riwayat transaksi when page changes
+  // Fetch riwayat transaksi when page changes (for today's transactions only)
   useEffect(() => {
     let cancelled = false;
     const fetchRiwayat = async () => {
       try {
-        const result = await getTransaksiPaginated(riwayatPage, ITEMS_PER_PAGE);
+        const todayWIB = getTodayWIBDateString();
+        const result = await getTransaksiPaginatedByDateRange(
+          todayWIB,
+          todayWIB,
+          riwayatPage,
+          ITEMS_PER_PAGE,
+        );
         if (!cancelled) {
           setRiwayatTransactions(result.data);
           setTotalRiwayatPages(result.totalPages);
@@ -343,27 +355,12 @@ export default function DashboardPage() {
     useCallback(
       (newTrx: Transaksi) => {
         // Check if the new transaction falls within today's WIB range
-        const now = new Date();
-        const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-        // now.getTime() returns UTC milliseconds. Add WIB offset (UTC+7) directly.
-        // Do NOT use getTimezoneOffset() - it causes double-conversion if server isn't UTC.
-        const wibMs = now.getTime() + WIB_OFFSET_MS;
-        const wibDate = new Date(wibMs);
-        const todayStart = new Date(
-          Date.UTC(
-            wibDate.getUTCFullYear(),
-            wibDate.getUTCMonth(),
-            wibDate.getUTCDate(),
-          ),
-        );
-        const todayStartUTC = new Date(todayStart.getTime() - WIB_OFFSET_MS);
-        const todayEndUTC = new Date(todayStartUTC.getTime() + 86400000);
+        // Use centralized getRentangWaktuWIB utility
+        const todayWIB = getTodayWIBDateString();
+        const { awalUTC, akhirUTC } = getRentangWaktuWIB(todayWIB, todayWIB);
 
         const trxTime = new Date(newTrx.waktu).getTime();
-        if (
-          trxTime >= todayStartUTC.getTime() &&
-          trxTime < todayEndUTC.getTime()
-        ) {
+        if (trxTime >= awalUTC.getTime() && trxTime <= akhirUTC.getTime()) {
           // Update ringkasan (summary) - increment counts
           setRingkasan((prev) => {
             if (!prev) return prev;

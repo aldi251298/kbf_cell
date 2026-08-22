@@ -38,6 +38,7 @@ export {
   tebakJenisTransaksiUniversal,
   parseStrukturAlpines,
   normalisasiWhitespace,
+  apakahNotifikasiPendingAlpines,
 } from "./universal";
 
 export interface ParseNotifikasiOptions {

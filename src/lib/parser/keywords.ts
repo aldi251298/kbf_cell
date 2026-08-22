@@ -7,7 +7,7 @@
 // Jenis transaksi keywords (Bagian 3.3 + Fase 2.3 expansions)
 // ---------------------------------------------------------------------------
 export const JENIS_TRANSAKSI_KEYWORDS: Record<string, string[]> = {
-  pulsa: ["isi ulang pulsa", "isi ulang", "pulsa"],
+  pulsa: ["isi ulang pulsa", "isi ulang", "pulsa", "reguler"],
   paket_nelpon: [
     "nelpon",
     "telepon",

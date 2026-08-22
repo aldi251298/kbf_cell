@@ -91,7 +91,6 @@ export interface AlpinesStructure {
   statusKeyword: string | null;
   snRefSegment: string;
   saldoMatch: RegExpMatchArray | null;
-  kodeTransaksiHeader: string | null;
 }
 
 export function parseStrukturAlpines(rawText: string): AlpinesStructure {
@@ -122,29 +121,11 @@ export function parseStrukturAlpines(rawText: string): AlpinesStructure {
     );
   }
 
-  // Ekstrak kode transaksi header (Fase 2.3.2 Bug 3 fix + Bug 4 fix)
-  // Pola umum: [KODE_ALFANUMERIK].[nomor HP 10-13 digit]
-  // Cocok untuk: "TSBYU15.085198025507", "VTR10.0895", "GO100.081372331339", dst
-  // Juga menangkap pola lama: "nomor sn# VTR10.0895", "nomor voucher#VA5.0838"
-  const kodeHeaderMatch = rawText.match(
-    /(?:nomor\s*sn#|nomor\s*voucher#)\s*([A-Z0-9.]+)|\b([A-Z0-9]{3,15})\.(\d{4,13})\b/i,
-  );
-  let kodeTransaksiHeader = null;
-  if (kodeHeaderMatch) {
-    // Prioritaskan match dari pola lama (group 1), fallback ke pola baru (group 2 + 3)
-    if (kodeHeaderMatch[1]) {
-      kodeTransaksiHeader = kodeHeaderMatch[1].trim();
-    } else if (kodeHeaderMatch[2] && kodeHeaderMatch[3]) {
-      kodeTransaksiHeader = `${kodeHeaderMatch[2]}.${kodeHeaderMatch[3]}`;
-    }
-  }
-
   return {
     headerSegment,
     statusKeyword,
     snRefSegment,
     saldoMatch,
-    kodeTransaksiHeader,
   };
 }
 
@@ -470,4 +451,18 @@ export function extractNamaProdukPaketData(text: string): string | null {
   // Nama paket selalu berada di antara keyword "paket data" dan keyword "pada" (penanda tanggal)
   const paketDataMatch = text.match(/paket data\s+(.+?)\s+pada\s+\d/i);
   return paketDataMatch?.[1]?.trim() ?? null;
+}
+
+// ============================================================================
+// 8. DETEKSI NOTIFIKASI PENDING ALPINES (harus diabaikan total)
+// ============================================================================
+
+const keywordAlpinesPending =
+  /\b(akan\s*diproses|tunggu\s*sms\s*notifikasi|mohon\s*tunggu\s*sebentar)\b/i;
+
+export function apakahNotifikasiPendingAlpines(
+  rawText: string,
+  provider: string,
+): boolean {
+  return provider === "alpines" && keywordAlpinesPending.test(rawText);
 }

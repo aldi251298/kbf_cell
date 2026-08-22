@@ -2,10 +2,36 @@
  * extractNamaProduk — extract nama_produk based on jenis_transaksi (Bagian 3.8b, 3.8c).
  * Updated for Fase 2.3: paket_data uses structural keyword approach.
  * Updated for Fase 2.3.2: handle Alpines voucher format for paket_data.
+ * Updated for Fase 2.3.3: Digipos voucher uses string slicing approach (Bug 1 fix).
  */
 
 import { EWALLET_NORMALIZATION } from "./keywords";
 import { extractNamaProdukPaketData } from "./universal";
+
+/**
+ * Extract nama produk for Digipos voucher format using string slicing approach.
+ * More robust than regex because it doesn't depend on text after phone number.
+ *
+ * Example: "Isi ulang paket Combo Sakti 6281266562888 pd..."
+ * -> finds "paket " -> slices after it -> "Combo Sakti 6281266562888 pd..."
+ * -> finds phone number -> slices before it -> "Combo Sakti"
+ */
+export function extractNamaProdukVoucherDigipos(
+  rawText: string,
+): string | null {
+  const startMarker = rawText.match(/isi ulang paket\s+/i);
+  if (!startMarker) return null;
+
+  const startIdx = startMarker.index! + startMarker[0].length;
+  const sisaTeks = rawText.slice(startIdx);
+
+  // Cari nomor HP (08xxx atau 62xxx, 10-13 digit) sebagai penanda AKHIR nama produk
+  const phoneMatch = sisaTeks.match(/\b(?:62|08)\d{8,11}\b/);
+  if (!phoneMatch) return null;
+
+  const endIdx = startIdx + phoneMatch.index!;
+  return rawText.slice(startIdx, endIdx).trim();
+}
 
 export function extractNamaProduk(
   text: string,
@@ -17,6 +43,10 @@ export function extractNamaProduk(
       // First try structural keyword approach: between "paket data" and "pada"
       const paketDataResult = extractNamaProdukPaketData(text);
       if (paketDataResult) return paketDataResult;
+
+      // Fallback for Digipos voucher format: "Isi ulang paket <nama> <nomor> pd..."
+      const digiposResult = extractNamaProdukVoucherDigipos(text);
+      if (digiposResult) return digiposResult;
 
       // Fallback for Alpines voucher format: "VOUCHER <nama> <specs>"
       // Clean the text from voucher code patterns (with or without asterisks) and then extract after VOUCHER
@@ -65,13 +95,12 @@ export function extractNamaProduk(
     }
 
     case "paket_nelpon": {
-      // Pattern for Talkmania-like paket nelpon: "isi ulang paket <nama> <nomor> pd"
-      const polaPaketNelponVoucher =
-        /isi ulang paket\s+(.+?)\s+(?:62\d{8,11}|08\d{8,11})\s+pd/i;
-      const namaProdukAlt = text.match(polaPaketNelponVoucher)?.[1]?.trim();
-      if (namaProdukAlt) {
-        return namaProdukAlt;
-      }
+      // Use string slicing approach for Digipos voucher format (Bug 1 fix)
+      // This handles: "Isi ulang paket Combo Sakti 6281266562888 pd..."
+      // and "Isi ulang paket Super Seru Internet 6282382402102 pd..."
+      const digiposResult = extractNamaProdukVoucherDigipos(text);
+      if (digiposResult) return digiposResult;
+
       return null;
     }
 
