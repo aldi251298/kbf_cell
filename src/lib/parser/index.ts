@@ -180,11 +180,17 @@ export async function parseNotifikasiUniversal(
   // tapi raw_notification_text yang disimpan ke DB tetap versi ASLI
   const teksTernormalisasi = normalisasiWhitespace(rawText);
 
-  // 1. Pisahkan saldo aplikasi (universal untuk kedua provider)
+  // 1. Parse struktur Alpines DULU (sebelum pisahkan saldo) agar saldoMatch tidak hilang
+  let alpinesStructure = null;
+  if (provider === "alpines") {
+    alpinesStructure = parseStrukturAlpines(teksTernormalisasi);
+  }
+
+  // 2. Pisahkan saldo aplikasi (universal untuk kedua provider)
   const { teksTanpaSaldo, saldoInfo } =
     pisahkanSaldoAplikasi(teksTernormalisasi);
 
-  // 2. Klasifikasi apakah ini transaksi pelanggan
+  // 3. Klasifikasi apakah ini transaksi pelanggan
   const klasifikasi = apakahTransaksiPelanggan(teksTanpaSaldo);
   if (!klasifikasi.valid) {
     return {
@@ -193,12 +199,6 @@ export async function parseNotifikasiUniversal(
       filterReason: klasifikasi.alasan,
       saldoInfo,
     };
-  }
-
-  // 3. Parse struktur Alpines (khusus Alpines)
-  let alpinesStructure = null;
-  if (provider === "alpines") {
-    alpinesStructure = parseStrukturAlpines(teksTanpaSaldo);
   }
 
   // 4. Deteksi jenis transaksi universal (dengan sistem kategori dinamis)
@@ -260,8 +260,8 @@ export async function parseNotifikasiUniversal(
   const perluReview =
     perluReviewKategori ||
     perluReviewStatus ||
-    alasanReview !== null ||
-    dariSaldoFallback;
+    alasanReview !== null;
+  // dariSaldoFallback TIDAK lagi memicu perlu_review — ini normal untuk Alpines
 
   // 8. ID transaksi
   const id_transaksi_provider = computeStableId(provider, teksTanpaSaldo);
@@ -354,11 +354,10 @@ function computeAlasanReview(params: {
     return "jenis_transaksi tidak dikenali";
   if (nominal === null || nominal <= 0)
     return "nominal tidak ditemukan atau nol";
-  if (
-    nomorTujuan === null &&
-    ["pulsa", "paket_data", "ewallet"].includes(jenisTransaksi)
-  ) {
-    return `nomor_tujuan tidak ditemukan untuk ${jenisTransaksi}`;
+  // Nomor tujuan HANYA wajib untuk transaksi pulsa (isi ulang pulsa)
+  // paket_data, ewallet, voucher, dll tidak selalu punya nomor tujuan
+  if (nomorTujuan === null && jenisTransaksi === "pulsa") {
+    return "nomor_tujuan tidak ditemukan untuk pulsa";
   }
   if (jenisTransaksi === "pln" && nomorTujuan === null) {
     return "nomor meter/token PLN tidak ditemukan";
