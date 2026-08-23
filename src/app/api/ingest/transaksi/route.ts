@@ -22,36 +22,12 @@ import type { IngestTransaksiPayload } from "@/types/database";
  * - Archive to notifikasi_diabaikan, never insert to transaksi
  * - Deduplication removed (pending→success flow no longer needed)
  *
- * Fase 2.3.4: Alpines exact duplicate detection (Bug fix for Android/WorkManager double-send)
- * - Check for exact raw_notification_text match within last 5 minutes for Alpines only
- * - Archive to notifikasi_diabaikan, never insert to transaksi
- * - Digipos excluded (no double-send issue)
+ * Fase 2.3.4: Alpines duplicate handling via unique constraint (idx_transaksi_dedup_alpines)
+ * - Unique index on (konter_id, raw_notification_text) WHERE provider = 'alpines'
+ * - Database rejects duplicates atomically (no race condition)
+ * - Application handles 23505 error gracefully, archives to notifikasi_diabaikan
+ * - Digipos excluded (no double-send issue, no constraint)
  */
-
-// Cek duplikat persis untuk Alpines (hanya raw_notification_text identik dalam 5 menit terakhir)
-async function apakahDuplikatPersisBaruSaja(
-  rawText: string,
-  konterId: string,
-): Promise<boolean> {
-  const limaMenitLalu = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-  const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from("transaksi")
-    .select("id")
-    .eq("konter_id", konterId)
-    .eq("raw_notification_text", rawText)
-    .gte("waktu", limaMenitLalu)
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("Gagal cek duplikat:", error);
-    return false; // kalau query gagal, JANGAN blokir insert — lebih aman insert daripada kehilangan data
-  }
-
-  return data != null;
-}
 
 export async function POST(req: NextRequest) {
   // 1. Parse & validate body (minimal)
@@ -140,26 +116,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 5. CEK 3 (BARU): Duplikat persis — KHUSUS provider Alpines
-  // Digipos TIDAK dicek di sini karena tidak pernah mengalami masalah pengiriman ganda
-  if (provider === "alpines") {
-    const duplikat = await apakahDuplikatPersisBaruSaja(rawNotificationText, konterId);
-    if (duplikat) {
-      await supabase.from("notifikasi_diabaikan").insert({
-        provider,
-        konter_id: konterId,
-        raw_notification_text: rawNotificationText,
-        alasan: "alpines_duplikat_persis_terdeteksi",
-        waktu_capture: waktuCapture,
-      });
-      return NextResponse.json({
-        success: true,
-        data: { diabaikan: true, alasan: "duplikat_persis" },
-      });
-    }
-  }
-
-  // 6. Kalau lolos KETIGA cek di atas, baru lanjut ke parser jenis transaksi seperti biasa...
+  // 5. Kalau lolos KEDUA cek di atas, baru lanjut ke parser jenis transaksi seperti biasa...
   let parseResult;
   try {
     parseResult = await parseNotifikasiUniversal({
@@ -244,16 +201,34 @@ export async function POST(req: NextRequest) {
     perlu_review: parsed.perlu_review,
   };
 
-  // 9. INSERT baris baru (deduplication removed in Fase 2.3.3 - Alpines pending notifications
-  // are now filtered at ingestion, so pending->success dedup is no longer needed.
-  // Other duplicate cases are rare and can be handled manually if needed.)
+  // 9. INSERT baris baru
+  // Unique constraint idx_transaksi_dedup_alpines (konter_id + raw_notification_text WHERE provider='alpines')
+  // will automatically reject duplicates at database level — handle 23505 gracefully.
   const { data, error: insertErr } = await supabase
     .from("transaksi")
     .insert(baseInsertRow)
-    .select("id")
-    .single();
+    .select("id");
 
   if (insertErr) {
+    // 23505 = unique_violation (PostgreSQL error code)
+    if (insertErr.code === "23505") {
+      // Ini BUKAN error sungguhan — database menolak karena memang duplikat,
+      // sesuai desain constraint yang baru dipasang. Catat sebagai jejak, bukan error.
+      await supabase.from("notifikasi_diabaikan").insert({
+        provider,
+        konter_id: konterId,
+        raw_notification_text: rawNotificationText,
+        alasan: "duplikat_ditolak_unique_constraint",
+        waktu_capture: waktuCapture,
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: { diabaikan: true, alasan: "duplikat_terdeteksi" },
+      });
+    }
+
+    // Error lain di luar duplikat — ini baru perlu dilaporkan sebagai kegagalan sungguhan
     console.error("[ingest] gagal insert:", insertErr.message);
     return NextResponse.json(
       { error: "Gagal menyimpan transaksi.", detail: insertErr.message },
@@ -262,14 +237,14 @@ export async function POST(req: NextRequest) {
   }
 
   console.log(
-    `[ingest] transaksi tersimpan: id=${data.id} provider=${provider} jenis=${parsed.jenis_transaksi} nominal=${parsed.nominal} review=${parsed.perlu_review}`,
+    `[ingest] transaksi tersimpan: id=${data[0].id} provider=${provider} jenis=${parsed.jenis_transaksi} nominal=${parsed.nominal} review=${parsed.perlu_review}`,
   );
 
   return NextResponse.json(
     {
       success: true,
       data: {
-        id: data.id,
+        id: data[0].id,
         jenis_transaksi: parsed.jenis_transaksi,
         nominal: parsed.nominal,
         status: parsed.status,
