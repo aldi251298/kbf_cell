@@ -52,10 +52,13 @@ export function pisahkanSaldoAplikasi(rawText: string): {
 // ============================================================================
 
 const keywordBukanTransaksi =
-  /\b(promo|info|pengumuman|notifikasi rutin|selamat datang|kode referral|yuk\s|cashback|event\s|maintenance|gangguan sistem sedang|pemberitahuan|reminder|newsletter)\b/i;
+  /\b(promo|info|pengumuman|notifikasi rutin|selamat datang|kode referral|yuk\s|cashback|event\s|maintenance|gangguan sistem sedang|pemberitahuan|reminder|newsletter|gebyar|raih hadiah|undian|berhadiah|hadiah\s+(utama|menarik)|program\s+(khusus|spesial)|semarak|meriahkan|kejar target|kerjar target|periode\s+\d|syarat dan ketentuan|s&k berlaku)\b/i;
 
 const keywordTopUpSaldoSendiri =
   /\b(top\s?up saldo (digipos|alpines|akun|deposit)|isi saldo aplikasi|deposit anda|saldo anda (bertambah|ditambahkan)|pengisian saldo (digipos|alpines|dompet) anda)\b/i;
+
+const keywordStatusTransaksi =
+  /\b(berhasil|sukses|gagal|pending|diproses|akan diproses)\b/i;
 
 export function apakahTransaksiPelanggan(rawText: string): {
   valid: boolean;
@@ -73,9 +76,11 @@ export function apakahTransaksiPelanggan(rawText: string): {
   const adaNominalEksplisit = /\bRp\s?[\d.,]+|\bNOMINAL:\s?[\d.,]+/i.test(
     rawText,
   );
+  const adaStatusTransaksi = keywordStatusTransaksi.test(rawText);
+  const adaNominalValid = adaNominalEksplisit && adaStatusTransaksi;
 
   // Tolak HANYA kalau ketiga sinyal transaksi sama sekali tidak ada
-  if (!adaNomorTujuan && !adaReferensi && !adaNominalEksplisit) {
+  if (!adaNomorTujuan && !adaReferensi && !adaNominalValid) {
     return { valid: false, alasan: "tidak_ada_elemen_transaksi" };
   }
 

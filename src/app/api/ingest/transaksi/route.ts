@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { parseNotifikasiUniversal } from "@/lib/parser";
+import {
+  pisahkanSaldoAplikasi,
+  apakahTransaksiPelanggan,
+  apakahNotifikasiPendingAlpines,
+} from "@/lib/parser/universal";
 import type { IngestTransaksiPayload } from "@/types/database";
 
 /**
@@ -16,17 +21,36 @@ import type { IngestTransaksiPayload } from "@/types/database";
  * - Detect "akan diproses", "tunggu sms notifikasi", "mohon tunggu sebentar" for Alpines
  * - Archive to notifikasi_diabaikan, never insert to transaksi
  * - Deduplication removed (pending→success flow no longer needed)
+ *
+ * Fase 2.3.4: Alpines exact duplicate detection (Bug fix for Android/WorkManager double-send)
+ * - Check for exact raw_notification_text match within last 5 minutes for Alpines only
+ * - Archive to notifikasi_diabaikan, never insert to transaksi
+ * - Digipos excluded (no double-send issue)
  */
 
-// Keyword untuk deteksi notifikasi pending Alpines
-const keywordAlpinesPending =
-  /\b(akan\s*diproses|tunggu\s*sms\s*notifikasi|mohon\s*tunggu\s*sebentar)\b/i;
-
-function apakahNotifikasiPendingAlpines(
+// Cek duplikat persis untuk Alpines (hanya raw_notification_text identik dalam 5 menit terakhir)
+async function apakahDuplikatPersisBaruSaja(
   rawText: string,
-  provider: string,
-): boolean {
-  return provider === "alpines" && keywordAlpinesPending.test(rawText);
+  konterId: string,
+): Promise<boolean> {
+  const limaMenitLalu = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("transaksi")
+    .select("id")
+    .eq("konter_id", konterId)
+    .eq("raw_notification_text", rawText)
+    .gte("waktu", limaMenitLalu)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Gagal cek duplikat:", error);
+    return false; // kalau query gagal, JANGAN blokir insert — lebih aman insert daripada kehilangan data
+  }
+
+  return data != null;
 }
 
 export async function POST(req: NextRequest) {
@@ -80,7 +104,7 @@ export async function POST(req: NextRequest) {
   const provider = body.provider;
   const rawNotificationText = body.raw_notification_text;
 
-  // 3. DETEKSI AWAL: Alpines notifikasi pending — skip total, jangan insert ke transaksi
+  // 3. CEK 1: Khusus Alpines pending — kalau true, STOP total, jangan proses apa pun lagi
   // Letakkan PALING AWAL, SEBELUM pisahkanSaldoAplikasi() dan SEBELUM apakahTransaksiPelanggan()
   if (apakahNotifikasiPendingAlpines(rawNotificationText, provider)) {
     // Cukup arsipkan untuk jejak, TIDAK PERNAH masuk tabel transaksi
@@ -94,11 +118,48 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { diabaikan: true, alasan: "notifikasi_pending_diabaikan" },
+      data: { diabaikan: true, alasan: "pending_alpines" },
     });
   }
 
-  // 4. Universal parsing with full Fase 2.3.1 flow
+  // 4. CEK 2: promo/info/top-up saldo sendiri — berlaku untuk KEDUA provider, independen dari cek 1 di atas
+  const { teksTanpaSaldo } = pisahkanSaldoAplikasi(rawNotificationText);
+  const klasifikasi = apakahTransaksiPelanggan(teksTanpaSaldo);
+  if (!klasifikasi.valid) {
+    await supabase.from("notifikasi_diabaikan").insert({
+      provider,
+      konter_id: konterId,
+      raw_notification_text: rawNotificationText,
+      alasan: klasifikasi.alasan,
+      waktu_capture: waktuCapture,
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: { diabaikan: true, alasan: klasifikasi.alasan },
+    });
+  }
+
+  // 5. CEK 3 (BARU): Duplikat persis — KHUSUS provider Alpines
+  // Digipos TIDAK dicek di sini karena tidak pernah mengalami masalah pengiriman ganda
+  if (provider === "alpines") {
+    const duplikat = await apakahDuplikatPersisBaruSaja(rawNotificationText, konterId);
+    if (duplikat) {
+      await supabase.from("notifikasi_diabaikan").insert({
+        provider,
+        konter_id: konterId,
+        raw_notification_text: rawNotificationText,
+        alasan: "alpines_duplikat_persis_terdeteksi",
+        waktu_capture: waktuCapture,
+      });
+      return NextResponse.json({
+        success: true,
+        data: { diabaikan: true, alasan: "duplikat_persis" },
+      });
+    }
+  }
+
+  // 6. Kalau lolos KETIGA cek di atas, baru lanjut ke parser jenis transaksi seperti biasa...
   let parseResult;
   try {
     parseResult = await parseNotifikasiUniversal({
@@ -128,7 +189,8 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  // 5. Handle filtered notifications (non-transaction)
+  // 6. Handle filtered notifications (non-transaction) - should not happen since we already filtered above
+  // but keep as safety net
   if (parseResult.filtered) {
     // Simpan ke notifikasi_diabaikan
     await supabase.from("notifikasi_diabaikan").insert({
@@ -147,7 +209,7 @@ export async function POST(req: NextRequest) {
 
   const parsed = parseResult.parsed!;
 
-  // 6. Tambah biaya admin Rp 2.000 untuk pulsa & paket data
+  // 7. Tambah biaya admin Rp 2.000 untuk pulsa & paket data
   const BIAYA_ADMIN = 2000;
   const jenisTransaksi = parsed.jenis_transaksi.toLowerCase();
   const nominalFinal =
@@ -155,7 +217,7 @@ export async function POST(req: NextRequest) {
       ? (parsed.nominal ?? 0) + BIAYA_ADMIN
       : parsed.nominal;
 
-  // 7. Prepare base insert row
+  // 8. Prepare base insert row
   const baseInsertRow = {
     waktu: waktuCapture,
     device_id: null,
@@ -182,7 +244,7 @@ export async function POST(req: NextRequest) {
     perlu_review: parsed.perlu_review,
   };
 
-  // 8. INSERT baris baru (deduplication removed in Fase 2.3.3 - Alpines pending notifications
+  // 9. INSERT baris baru (deduplication removed in Fase 2.3.3 - Alpines pending notifications
   // are now filtered at ingestion, so pending->success dedup is no longer needed.
   // Other duplicate cases are rare and can be handled manually if needed.)
   const { data, error: insertErr } = await supabase
