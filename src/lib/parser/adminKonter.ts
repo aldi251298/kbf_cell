@@ -11,6 +11,7 @@
 export interface TierAdmin {
   batasAtas: number;
   admin: number;
+  bulatkanKeRibuan?: boolean; // Flag untuk pembulatan ke kelipatan 1000 setelah admin ditambahkan
 }
 
 export interface AturanAdminKonter {
@@ -54,6 +55,10 @@ export const ATURAN_ADMIN_KONTER: AturanAdminKonter[] = [
     jenisTransaksi: "paket_data",
     tierList: [{ batasAtas: Infinity, admin: 2000 }],
   },
+  {
+    jenisTransaksi: "voucher_data_alpines",
+    tierList: [{ batasAtas: Infinity, admin: 1000, bulatkanKeRibuan: true }],
+  },
   // paket_nelpon, game_topup, voucher_fisik, dan kategori "lainnya_*"
   // SENGAJA TIDAK didaftarkan — admin default 0 sampai ada info tarif pasti
   // JANGAN menebak tarif untuk kategori ini.
@@ -90,8 +95,15 @@ export function terapkanAdminKonter(
 
   const tier = aturan.tierList.find((t) => nominalDasar <= t.batasAtas);
   const admin = tier?.admin ?? 0;
+  const bulatkanKeRibuan = tier?.bulatkanKeRibuan ?? false;
+
+  let nominalFinal = nominalDasar + admin;
+  if (bulatkanKeRibuan) {
+    nominalFinal = Math.ceil(nominalFinal / 1000) * 1000;
+  }
+
   return {
-    nominalFinal: nominalDasar + admin,
+    nominalFinal,
     adminKonter: admin,
     adaAturan: true,
   };

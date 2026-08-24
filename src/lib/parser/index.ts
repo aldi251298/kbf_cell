@@ -66,8 +66,15 @@ export function parseNotifikasi(
   // tapi raw_notification_text yang disimpan ke DB tetap versi ASLI
   const text = normalisasiWhitespace(rawText);
 
+  // Langkah 1 (revisi): Deteksi Voucher Data Alpines berdasarkan keyword di awal teks
+  // Cek pada teks asli (rawText) sebelum normalisasi untuk deteksi paling murni
+  const isVoucherDataAlpines =
+    provider === "alpines" && /^\s*Voucher\b/i.test(rawText);
+
   // 1. Deteksi jenis transaksi (synchronous, known categories only)
-  const jenisTransaksi = detectJenisTransaksi(text);
+  const jenisTransaksi = isVoucherDataAlpines
+    ? "voucher_data_alpines"
+    : detectJenisTransaksi(text);
 
   // 2. Extract detailTambahan (without alasanReview) for status extraction
   const detailTambahanForStatus = extractDetailTambahan(
@@ -112,7 +119,7 @@ export function parseNotifikasi(
     nominalDasar = nominalResult.nominalDasar;
     sumberDasar = nominalResult.sumberDasar;
 
-    // Apply admin konter fee
+    // Apply admin konter fee (jenisTransaksi sudah ditentukan di awal, termasuk voucher_data_alpines)
     const adminResult = terapkanAdminKonter(
       nominalDasar,
       jenisTransaksi,
@@ -244,8 +251,14 @@ export async function parseNotifikasiUniversal(
 
   // 4. Deteksi jenis transaksi universal (dengan sistem kategori dinamis)
   const headerSegment = alpinesStructure?.headerSegment ?? teksTanpaSaldo;
-  const { jenis: jenisTransaksi, perluReview: perluReviewKategori } =
+  const { jenis: jenisTransaksiUniversal, perluReview: perluReviewKategori } =
     await tebakJenisTransaksiUniversal(teksTanpaSaldo, headerSegment);
+
+  // Langkah 1 (revisi): Override untuk Voucher Data Alpines berdasarkan keyword di awal teks asli
+  let jenisTransaksi = jenisTransaksiUniversal;
+  if (provider === "alpines" && /^\s*Voucher\b/i.test(rawText)) {
+    jenisTransaksi = "voucher_data_alpines";
+  }
 
   // 5. Extract nomor tujuan
   const nomorTujuan = extractNomorTujuan(teksTanpaSaldo, jenisTransaksi);
@@ -287,7 +300,10 @@ export async function parseNotifikasiUniversal(
 
   if (provider === "alpines" && alpinesStructure) {
     // Pass pre-parsed structure to avoid re-parsing after saldo removal
-    const nominalResult = extractNominalForAlpines(teksTanpaSaldo, alpinesStructure);
+    const nominalResult = extractNominalForAlpines(
+      teksTanpaSaldo,
+      alpinesStructure,
+    );
     nominalDasar = nominalResult.nominalDasar;
     sumberDasar = nominalResult.sumberDasar;
 

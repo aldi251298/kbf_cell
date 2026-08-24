@@ -207,6 +207,12 @@ export function getTampilanTransaksi(
       tampilkanNamaProduk = true;
       labelJenisTransaksi = "Paket Data";
       break;
+    case "voucher_data_alpines":
+      labelNomorTujuan = "Nomor HP";
+      tampilkanNomorTujuan = true;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Voucher Data";
+      break;
     case "pln":
       labelNomorTujuan = "Nomor Meter / Token";
       tampilkanNomorTujuan = true;
@@ -408,6 +414,7 @@ export function getKategoriLabel(kategori: string): string {
     paket_nelpon: "Paket Nelpon/SMS",
     paket_data: "Paket Data",
     data: "Paket Data",
+    voucher_data_alpines: "Voucher Data",
     pln: "PLN",
     ewallet: "E-Wallet",
     ewallet_dana: "E-Wallet",
