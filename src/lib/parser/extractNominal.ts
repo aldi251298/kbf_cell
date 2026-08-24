@@ -1,4 +1,4 @@
-﻿import { parseStrukturAlpines } from "./universal";
+﻿import { parseStrukturAlpines, type AlpinesStructure } from "./universal";
 
 /**
  * Parse Indonesian-formatted number string to integer with flexible separator handling.
@@ -287,7 +287,10 @@ export function ekstraksiNominalDasarAlpines(
  * Extract nominal for Alpines using the new priority order from Fase 2.7
  * Returns { nominalDasar, sumberDasar, nominalFinal, adminKonter }
  */
-export function extractNominalForAlpines(text: string): {
+export function extractNominalForAlpines(
+  text: string,
+  preParsedStructure?: AlpinesStructure,
+): {
   nominalDasar: number | null;
   sumberDasar:
     | "eksplisit_nominal"
@@ -299,7 +302,9 @@ export function extractNominalForAlpines(text: string): {
   adminKonter: number;
   adaAturan: boolean;
 } {
-  const structure = parseStrukturAlpines(text);
+  // Use pre-parsed structure if provided (for async parser where saldo was already removed)
+  // Otherwise parse it ourselves (for sync parser)
+  const structure = preParsedStructure ?? parseStrukturAlpines(text);
 
   // Extract saldo to get potonganSaldo for fallback
   let potonganSaldo = 0;

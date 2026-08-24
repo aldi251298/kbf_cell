@@ -286,7 +286,8 @@ export async function parseNotifikasiUniversal(
   let adminKonter = 0;
 
   if (provider === "alpines" && alpinesStructure) {
-    const nominalResult = extractNominalForAlpines(teksTanpaSaldo);
+    // Pass pre-parsed structure to avoid re-parsing after saldo removal
+    const nominalResult = extractNominalForAlpines(teksTanpaSaldo, alpinesStructure);
     nominalDasar = nominalResult.nominalDasar;
     sumberDasar = nominalResult.sumberDasar;
 

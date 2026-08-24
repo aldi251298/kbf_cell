@@ -51,6 +51,7 @@ export function mapTransaksi(row: TransaksiRow): Transaksi {
     pln: "pln",
     ewallet_dana: "ewallet",
     voucher: "voucher",
+    voucher_fisik: "voucher_fisik",
     pulsa_op: "pulsa",
     ewallet: "ewallet",
     game_topup: "game_topup",
@@ -113,6 +114,8 @@ function getDefaultProdukNama(jenis: string): string {
       return "Top Up DANA";
     case "voucher":
       return "Voucher";
+    case "voucher_fisik":
+      return "Voucher Fisik Internet";
     case "pulsa_op":
       return "Pulsa Operator";
     case "ewallet":

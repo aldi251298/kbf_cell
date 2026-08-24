@@ -69,6 +69,8 @@ function getCategoryBadgeColor(kategori: string): string {
       return "bg-purple-50 text-purple-700";
     case "voucher":
       return "bg-amber-50 text-amber-700";
+    case "voucher_fisik":
+      return "bg-amber-50 text-amber-700";
     case "p2p":
       return "bg-green-50 text-green-700";
     case "ewallet":
@@ -466,6 +468,7 @@ export default function TransaksiPage() {
     { value: "pln", label: "PLN / Token Listrik" },
     { value: "ewallet", label: "E-Wallet" },
     { value: "voucher", label: "Voucher" },
+    { value: "voucher_fisik", label: "Voucher Fisik Internet" },
     { value: "pulsa_op", label: "Pulsa Operator" },
     { value: "game_topup", label: "Top Up Game" },
     { value: "wifi", label: "Internet / WiFi" },

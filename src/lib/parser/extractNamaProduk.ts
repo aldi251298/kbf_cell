@@ -115,6 +115,12 @@ export function extractNamaProduk(
       return null;
     }
 
+    case "pln": {
+      // For PLN token format: "TOKEN <nominal> PH..." -> return "PLN"
+      // For other PLN formats, return "PLN" as default
+      return "PLN";
+    }
+
     default:
       return null;
   }

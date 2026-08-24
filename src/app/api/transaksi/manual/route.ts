@@ -3,7 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 
 /**
  * Map form jenis_transaksi to valid database enum values.
- * Database CHECK constraint allows: pulsa, paket_data, pln, ewallet_dana, voucher, pulsa_op
+ * Database CHECK constraint allows: pulsa, paket_data, pln, ewallet_dana, voucher, voucher_fisik, pulsa_op
  */
 function mapJenisTransaksi(formJenis: string): string {
   const map: Record<string, string> = {
@@ -12,7 +12,7 @@ function mapJenisTransaksi(formJenis: string): string {
     paket_nelpon: "paket_data", // map to closest valid enum
     pln: "pln",
     ewallet: "ewallet_dana", // map to valid enum
-    voucher_fisik: "voucher", // map to voucher
+    voucher_fisik: "voucher_fisik", // keep as voucher_fisik
   };
   return map[formJenis] ?? "pulsa"; // fallback to pulsa
 }

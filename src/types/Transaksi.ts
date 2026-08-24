@@ -7,6 +7,7 @@ export type KategoriTransaksi =
   | "ewallet"
   | "ewallet_dana"
   | "voucher"
+  | "voucher_fisik"
   | "game_topup"
   | "wifi"
   | "tv_kabel"
