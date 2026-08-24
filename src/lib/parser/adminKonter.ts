@@ -24,8 +24,8 @@ export const ATURAN_ADMIN_KONTER: AturanAdminKonter[] = [
     jenisTransaksi: "ewallet",
     namaProdukFilter: /^DANA$/i,
     tierList: [
-      { batasAtas: 100000, admin: 3000 }, // <= 100.000
-      { batasAtas: Infinity, admin: 5000 }, // > 100.000
+      { batasAtas: 99000, admin: 3000 }, // <= 99.000
+      { batasAtas: Infinity, admin: 5000 }, // > 99.000
     ],
   },
   {

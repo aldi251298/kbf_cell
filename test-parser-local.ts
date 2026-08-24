@@ -239,6 +239,18 @@ const nominalTestCases: NominalTestCase[] = [
     adminKonter: 2000,
     nominalFinal: 17150,
   },
+  {
+    nama: "Voucher Three (serial number format, fallback saldo)",
+    provider: "alpines",
+    rawText:
+      "Voucher Three 5.5 gb 3 hr *888*Nomor Sn# VTR10.0895 Berhasil. SN/Ref:  :8963 3812 8213 8164. Saldo 347827 - 13150 = 334677 @24/08 11:42:56",
+    jenisTransaksi: "paket_data",
+    namaProduk: null,
+    nominalDasar: 13150,
+    sumberDasar: "fallback_saldo",
+    adminKonter: 2000,
+    nominalFinal: 15150,
+  },
 
   // PLN
   {
@@ -280,7 +292,7 @@ const nominalTestCases: NominalTestCase[] = [
 
   // E-WALLET
   {
-    nama: "DANA format 1 (nominal_dasar 50000, <=100rb)",
+    nama: "DANA format 1 (nominal_dasar 50000, <=99rb)",
     provider: "alpines",
     rawText:
       "DANA TOPUP/MXX INDXXXXXX/50000/081234567890/REFF:12345 berhasil. Saldo 1000000 - 53000 = 947000 @15/08 10:30:00",
@@ -292,7 +304,7 @@ const nominalTestCases: NominalTestCase[] = [
     nominalFinal: 53000,
   },
   {
-    nama: "DANA format 2 (NOMINAL:200000, >100rb)",
+    nama: "DANA format 2 (NOMINAL:200000, >99rb)",
     provider: "alpines",
     rawText:
       "DANA 200000 berhasil. NOMINAL:200000. SN/Ref: DANA/John/081234567890/REFF:12345. Saldo 1000000 - 205000 = 795000 @15/08 10:30:00",
@@ -302,6 +314,30 @@ const nominalTestCases: NominalTestCase[] = [
     sumberDasar: "eksplisit_nominal",
     adminKonter: 5000,
     nominalFinal: 205000,
+  },
+  {
+    nama: "DANA 99000 (batas admin 3000)",
+    provider: "alpines",
+    rawText:
+      "DANA TOPUP/MXX INDXXXXXX/99000/081234567890/REFF:12345 berhasil. Saldo 1000000 - 102000 = 898000 @15/08 10:30:00",
+    jenisTransaksi: "ewallet",
+    namaProduk: "DANA",
+    nominalDasar: 99000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 3000,
+    nominalFinal: 102000,
+  },
+  {
+    nama: "DANA 100000 (batas admin 5000)",
+    provider: "alpines",
+    rawText:
+      "DANA TOPUP/MXX INDXXXXXX/100000/081234567890/REFF:12345 berhasil. Saldo 1000000 - 105000 = 895000 @15/08 10:30:00",
+    jenisTransaksi: "ewallet",
+    namaProduk: "DANA",
+    nominalDasar: 100000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 5000,
+    nominalFinal: 105000,
   },
   {
     nama: "GoPay (nominal_dasar 100000, e-wallet selain DANA flat)",

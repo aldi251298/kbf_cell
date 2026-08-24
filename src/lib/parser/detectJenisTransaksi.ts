@@ -8,6 +8,24 @@
 import { JENIS_TRANSAKSI_KEYWORDS, JENIS_TRANSAKSI_PRIORITY } from "./keywords";
 
 /**
+ * Special scoring for PLN token format: "TOKEN <nominal> PH..."
+ * This is a common PLN prepaid electricity token format.
+ * Example: "TOKEN 20000 PH20.86019352730 Berhasil..."
+ */
+function scoringPlnToken(rawText: string): {
+  kategori: string;
+  skor: number;
+} {
+  // Pattern: TOKEN <number> PH<alphanumeric> (case insensitive)
+  // The PH prefix is typical for PLN token codes
+  const plnTokenPattern = /^TOKEN\s+[\d.,]+\s+PH\w+/i;
+  if (plnTokenPattern.test(rawText.trim())) {
+    return { kategori: "pln", skor: 3 }; // High score to override other categories
+  }
+  return { kategori: "", skor: 0 };
+}
+
+/**
  * Special scoring for paket_nelpon vs paket_data vs pulsa (Fase 2.3.2 Bug 1 fix + new category)
  * - paket_nelpon checked FIRST (higher priority) for nelpon/telepon/talkmania keywords
  * - paket_data no longer requires GB+Hari combination
@@ -75,6 +93,13 @@ export function detectJenisTransaksi(text: string): string {
     scores[kategori] = score;
   }
 
+  // Special handling for PLN token format: "TOKEN <nominal> PH..."
+  const plnTokenScore = scoringPlnToken(text);
+  if (plnTokenScore.kategori) {
+    scores[plnTokenScore.kategori] =
+      (scores[plnTokenScore.kategori] ?? 0) + plnTokenScore.skor;
+  }
+
   // Special handling for paket_data vs pulsa (Fase 2.3.2)
   const paketPulsaScore = scoringPaketAtauPulsa(text);
   if (paketPulsaScore.kategori) {
@@ -118,6 +143,13 @@ export async function scoringKeywordKategori(
       if (matches) score += matches.length;
     }
     scores[kategori] = score;
+  }
+
+  // Special handling for PLN token format: "TOKEN <nominal> PH..."
+  const plnTokenScore = scoringPlnToken(rawText);
+  if (plnTokenScore.kategori) {
+    scores[plnTokenScore.kategori] =
+      (scores[plnTokenScore.kategori] ?? 0) + plnTokenScore.skor;
   }
 
   // Special handling for paket_data vs pulsa (Fase 2.3.2)

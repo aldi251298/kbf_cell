@@ -200,10 +200,37 @@ function ekstrakDariSegmenSnRef(rawText: string): number | null {
 
   if (!segmenText) return null;
 
-  const segmen = segmenText.split("/").map((s) => s.trim());
+  // Coba split dengan "/" dulu (format standar)
+  let segmen = segmenText.split("/").map((s) => s.trim());
+
+  // Jika hanya 1 segmen setelah split "/", coba split dengan whitespace
+  // Format: "SN/Ref:  :8963 3812 8213 8164" -> split by whitespace
+  if (segmen.length === 1) {
+    const wsSegments = segmenText
+      .split(/\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (wsSegments.length > 1) {
+      segmen = wsSegments;
+    }
+  }
+
+  // Validasi: cari angka 4-7 digit yang BUKAN nomor HP (bukan 10-13 digit diawali 08)
+  // DAN bukan serial number pendek (4 digit yang berulang seperti 8963 3812 8213 8164)
   for (const s of segmen) {
     const angka = s.replace(/\./g, "");
     if (/^\d{4,7}$/.test(angka) && !/^0[0-9]{9,12}$/.test(angka)) {
+      // Cek apakah ini kemungkinan serial number (4 digit, dan segmen lain juga 4 digit)
+      // Jika semua segmen numerik adalah 4 digit, ini kemungkinan serial number, bukan nominal
+      const numericSegments = segmen
+        .map((s) => s.replace(/\./g, ""))
+        .filter((s) => /^\d+$/.test(s));
+      const allFourDigit =
+        numericSegments.length >= 3 &&
+        numericSegments.every((s) => s.length === 4);
+      if (allFourDigit) {
+        continue; // Skip, ini serial number
+      }
       return parseInt(angka, 10);
     }
   }

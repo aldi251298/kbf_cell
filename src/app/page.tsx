@@ -16,6 +16,7 @@ import {
   formatAngka,
   hitungPerubahanPersen,
   getTampilanTransaksi,
+  getDisplayProductName,
   getTodayWIBDateString,
   getRentangWaktuWIB,
   formatWaktu,
@@ -172,7 +173,11 @@ function TransactionDetailModal({
                 transaction.produk.nama,
               ).tampilkanNamaProduk && (
                 <span className="text-sm font-medium text-gray-900">
-                  {transaction.produk.nama}
+                  {getDisplayProductName(
+                    transaction.produk.kategori,
+                    transaction.produk.nama,
+                    transaction.providerSeluler,
+                  )}
                 </span>
               )}
             </div>
@@ -625,8 +630,8 @@ export default function DashboardPage() {
                           omzetDelta > 0
                             ? "text-green-600"
                             : omzetDelta < 0
-                              ? "text-red-600"
-                              : "text-gray-500"
+                            ? "text-red-600"
+                            : "text-gray-500"
                         }`}
                       >
                         {hitungPerubahanPersen(
@@ -735,8 +740,8 @@ export default function DashboardPage() {
                           transaksiDelta > 0
                             ? "text-green-600"
                             : transaksiDelta < 0
-                              ? "text-red-600"
-                              : "text-gray-500"
+                            ? "text-red-600"
+                            : "text-gray-500"
                         }`}
                       >
                         {hitungPerubahanPersen(
@@ -906,7 +911,11 @@ export default function DashboardPage() {
                               <div>
                                 {tampilan.tampilkanNamaProduk && (
                                   <p className="text-sm font-medium text-gray-900">
-                                    {trx.produk.nama}
+                                    {getDisplayProductName(
+                                      trx.produk.kategori,
+                                      trx.produk.nama,
+                                      trx.providerSeluler,
+                                    )}
                                   </p>
                                 )}
                                 <Badge

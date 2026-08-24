@@ -161,6 +161,12 @@ async function scoringKeywordKategori(
     scores[kategori] = score;
   }
 
+  // Special handling for PLN token format: "TOKEN <nominal> PH..."
+  const plnTokenPattern = /^TOKEN\s+[\d.,]+\s+PH\w+/i;
+  if (plnTokenPattern.test(rawText.trim())) {
+    scores["pln"] = (scores["pln"] ?? 0) + 3;
+  }
+
   // Bug 2 fix: Deteksi eksplisit nama operator seluler + angka tanpa "paket"/"data" = pulsa
   const adaAngkaSetelahOperator =
     /\b(telkomsel|byu|axis|tri|indosat|im3|xl|smartfren)\s+\d{3,6}\b/i;

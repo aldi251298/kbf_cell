@@ -12,6 +12,7 @@ import {
   formatWaktu,
   potongTeks,
   getTampilanTransaksi,
+  getDisplayProductName,
 } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -187,7 +188,11 @@ function TransactionDetailModal({
                 transaction.produk.nama,
               ).tampilkanNamaProduk && (
                 <span className="text-sm font-medium text-gray-900">
-                  {transaction.produk.nama}
+                  {getDisplayProductName(
+                    transaction.produk.kategori,
+                    transaction.produk.nama,
+                    transaction.providerSeluler,
+                  )}
                 </span>
               )}
             </div>
@@ -724,10 +729,11 @@ export default function TransaksiPage() {
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="text-sm text-text-primary">
-                              {trx.produk.nama ||
-                                (tampilan.tampilkanNamaProduk
-                                  ? "-"
-                                  : trx.produk.nama)}
+                              {getDisplayProductName(
+                                trx.produk.kategori,
+                                trx.produk.nama,
+                                trx.providerSeluler,
+                              )}
                             </span>
                             {tampilan.tampilkanProviderSeluler &&
                               trx.providerSeluler && (
@@ -748,8 +754,8 @@ export default function TransaksiPage() {
                               trx.status === "sukses"
                                 ? "success"
                                 : trx.status === "gagal"
-                                  ? "error"
-                                  : "warning"
+                                ? "error"
+                                : "warning"
                             }
                             size="sm"
                             dot

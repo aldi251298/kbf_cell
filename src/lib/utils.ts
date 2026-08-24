@@ -381,6 +381,23 @@ export function getTodayWIBDateString(): string {
 }
 
 // ---------------------------------------------------------------------------
+// getDisplayProductName — returns the display name for a product,
+// combining provider and product name for voucher_fisik transactions.
+// ---------------------------------------------------------------------------
+export function getDisplayProductName(
+  kategori: string,
+  namaProduk: string | null | undefined,
+  providerSeluler?: string | null,
+): string {
+  // For voucher_fisik, combine provider and product name
+  if (kategori === "voucher_fisik" && providerSeluler) {
+    const produkPart = namaProduk?.trim() ? ` - ${namaProduk.trim()}` : "";
+    return `${providerSeluler}${produkPart}`;
+  }
+  return namaProduk ?? "-";
+}
+
+// ---------------------------------------------------------------------------
 // getKategoriLabel — centralized mapping from internal kategori code
 // to human-readable label for display/export.
 // Single source of truth used by dashboard components and export logic.
