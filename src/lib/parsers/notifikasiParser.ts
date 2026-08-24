@@ -247,6 +247,19 @@ function tryParseAlpinesGeneric(text: string): ParsedNotifikasi | null {
     snRefBlock ??
     `ALP-UNKNOWN-${Date.now()}`;
 
+  // --- Ekstraksi SALDO (Saldo A - B = C, ambil semua: sebelum, terpakai, sesudah) ---
+  const saldoMatch = text.match(
+    /Saldo\s+([\d.,-]+)\s*-\s*([\d.,-]+)\s*=\s*([\d.,-]+)/i,
+  );
+  const saldoAkhir = saldoMatch ? parseAngkaIndonesia(saldoMatch[3]) : null;
+  const saldoKonter = saldoMatch
+    ? {
+        sebelum: parseAngkaIndonesia(saldoMatch[1]),
+        terpakai: parseAngkaIndonesia(saldoMatch[2]),
+        sesudah: parseAngkaIndonesia(saldoMatch[3]),
+      }
+    : null;
+
   return {
     provider: "alpines",
     id_transaksi_provider: idTransaksi.replace(/\.$/, ""),
@@ -257,7 +270,12 @@ function tryParseAlpinesGeneric(text: string): ParsedNotifikasi | null {
     sn: null,
     status,
     raw_notification_text: text,
-    detail_tambahan: { sn_ref_raw: snRefBlock, deskripsi_awal: description },
+    detail_tambahan: {
+      sn_ref_raw: snRefBlock,
+      deskripsi_awal: description,
+      saldo_akhir: saldoAkhir,
+      saldo_konter: saldoKonter,
+    },
   };
 }
 

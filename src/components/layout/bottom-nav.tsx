@@ -1,7 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { BarChart3, LayoutDashboard, Monitor, Receipt } from "lucide-react";
+import {
+  BarChart3,
+  LayoutDashboard,
+  Monitor,
+  Receipt,
+  Terminal,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/transaksi", icon: Receipt, label: "Transaksi" },
   { href: "/laporan", icon: BarChart3, label: "Laporan" },
   { href: "/perangkat", icon: Monitor, label: "Perangkat" },
+  { href: "/simulator", icon: Terminal, label: "Simulator" },
 ];
 
 export function BottomNav() {

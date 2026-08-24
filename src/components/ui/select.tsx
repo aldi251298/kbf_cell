@@ -142,17 +142,17 @@ export function SelectFloating({
       const dropdownHeight = Math.min(options.length * 48 + 8, 480); // Estimate height, max 480px
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
-      
+
       // Determine if dropdown should open upward
       const openUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
-      
+
       let top: number;
       if (openUpward) {
         top = rect.top - dropdownHeight - 4;
       } else {
         top = rect.bottom + 4;
       }
-      
+
       // Ensure dropdown stays within viewport horizontally
       let left = rect.left;
       const dropdownWidth = rect.width;
@@ -257,7 +257,7 @@ export function SelectFloating({
           />
           {renderDropdownContent()}
         </>,
-        document.body
+        document.body,
       )
     : null;
 

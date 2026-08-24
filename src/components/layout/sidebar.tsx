@@ -10,6 +10,7 @@ import {
   Minimize2,
   Maximize2,
   AlertTriangle,
+  Terminal,
 } from "lucide-react";
 import { NavItem } from "./nav-item";
 import { useState } from "react";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/transaksi-pending", icon: AlertTriangle, label: "Pending & Gagal" },
   { href: "/laporan", icon: BarChart3, label: "Laporan" },
   { href: "/perangkat", icon: Monitor, label: "Perangkat" },
+  { href: "/simulator", icon: Terminal, label: "Transaction Simulator" },
 ];
 
 export function Sidebar() {

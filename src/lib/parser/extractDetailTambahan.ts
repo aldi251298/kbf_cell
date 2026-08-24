@@ -2,14 +2,20 @@
  * extractDetailTambahan — extract SN, REFF, ID Transaksi, saldo, alasan review (Bagian 3.8e, 3.7).
  * Updated for Fase 2.3: stores saldo_konter.
  * Updated for Fase 2.3.3: removed kode_transaksi_header and raw_text_history (deduplication removed).
+ * Updated for Fase 2.3.4: saldo_akhir single number instead of saldo_konter object.
+ * Updated for Fase 2.7: added nominal_dasar, sumber_nominal_dasar, admin_konter, saldo_konter object.
  */
-
-import { parseStrukturAlpines } from "./universal";
 
 export function extractDetailTambahan(
   text: string,
   jenisTransaksi: string,
   alasanReview: string | null,
+  extraFields?: {
+    nominalDasar?: number | null;
+    sumberDasar?: string | null;
+    adminKonter?: number;
+    saldoKonter?: { sebelum: number; terpakai: number; sesudah: number } | null;
+  },
 ): Record<string, unknown> | null {
   const detail: Record<string, unknown> = {};
 
@@ -43,14 +49,12 @@ export function extractDetailTambahan(
     detail.id_transaksi = reffMatchDetail[1].trim();
   }
 
-  // Saldo konter (untuk Alpines) - SELALU di detail_tambahan, JANGAN PERNAH ditampilkan sebagai nominal
-  const structure = parseStrukturAlpines(text);
-  if (structure.saldoMatch) {
-    detail.saldo_konter = {
-      sebelum: structure.saldoMatch[1],
-      terpakai: structure.saldoMatch[2],
-      sesudah: structure.saldoMatch[3],
-    };
+  // Saldo akhir (untuk Alpines) - single number, bukan object saldo_konter
+  const saldoMatch = text.match(
+    /Saldo\s+[\d.,-]+\s*-\s*[\d.,-]+\s*=\s*([\d.,-]+)/i,
+  );
+  if (saldoMatch) {
+    detail.saldo_akhir = parseInt(saldoMatch[1].replace(/\./g, ""), 10);
   }
 
   // Alasan review (jika ada)
@@ -71,6 +75,25 @@ export function extractDetailTambahan(
 
     const kwhMatch = text.match(/([\d,]+)\s*kWh/i);
     if (kwhMatch) detail.kwh = kwhMatch[1].trim();
+  }
+
+  // Fase 2.7: New fields for nominal dasar and admin konter
+  if (extraFields) {
+    if (
+      extraFields.nominalDasar !== undefined &&
+      extraFields.nominalDasar !== null
+    ) {
+      detail.nominal_dasar = extraFields.nominalDasar;
+    }
+    if (extraFields.sumberDasar) {
+      detail.sumber_nominal_dasar = extraFields.sumberDasar;
+    }
+    if (extraFields.adminKonter !== undefined && extraFields.adminKonter > 0) {
+      detail.admin_konter = extraFields.adminKonter;
+    }
+    if (extraFields.saldoKonter) {
+      detail.saldo_konter = extraFields.saldoKonter;
+    }
   }
 
   return Object.keys(detail).length > 0 ? detail : null;

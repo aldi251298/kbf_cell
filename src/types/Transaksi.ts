@@ -48,10 +48,11 @@ export interface Transaksi {
   providerSeluler?: string; // operator seluler (untuk pulsa)
   namaPemilik?: string; // nama pemilik e-wallet (untuk ewallet)
   perluReview?: boolean; // perlu review manual
-  detail?: TransaksiDetail; // detail tambahan tergantung jenis transaksi
+  detail?: TransaksiDetail & { saldo_akhir?: number }; // detail tambahan tergantung jenis transaksi
   errorMessage?: string; // jika gagal/pending
   detailTambahan?: {
     alasan_review?: string;
     raw_text_history?: string[];
   };
+  provider?: string; // provider transaksi (digipos, alpines, dll)
 }

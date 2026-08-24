@@ -1,4 +1,4 @@
-﻿import { parseStrukturAlpines, extractNominalAlpines } from "./universal";
+﻿import { parseStrukturAlpines } from "./universal";
 
 /**
  * Parse Indonesian-formatted number string to integer with flexible separator handling.
@@ -165,21 +165,131 @@ export function extractNominal(
 }
 
 /**
- * Extract nominal for Alpines using the priority order from Fase 2.3
- * Returns { nominal, dariSaldoFallback } where dariSaldoFallback indicates
- * if the nominal came from saldo fallback (should trigger perlu_review)
+ * Bersihkan angka dari format Indonesia (hapus titik dan koma)
+ */
+function bersihkanAngka(str: string): number {
+  return parseInt(str.replace(/\./g, "").replace(/,/g, ""), 10);
+}
+
+// Pola 1: keyword NOMINAL: eksplisit
+const polaNominalEksplisit = /NOMINAL:\s*([\d.,]+)/i;
+
+// Pola 2 (BARU, PENTING): angka 4-7 digit yang muncul TEPAT SEBELUM pola KODE.NOMOR
+// Menangkap format seperti: "15000 TSBYU15.085198025507", "30000 AX30.083877750811",
+// "TOKEN 20000 PH20.50160790239"
+const polaAngkaSebelumKode = /(\d{4,7})\s+[A-Z0-9]{2,15}\.\d{8,13}/i;
+
+function ekstrakDariSegmenSnRef(rawText: string): number | null {
+  // Pola 3: segmen posisional di SN/Ref, format X/Y/angka/nomorHP/...
+  // mis. "GOPAY/Jasmisaputra/100000/081372331339/REFF:..." -> ambil komponen numerik
+  //      yang BUKAN nomor HP (bukan 10-13 digit diawali 08)
+  // Coba cari di SN/Ref segment dulu (format dengan prefix "SN/Ref:")
+  const snRefMatch = rawText.match(
+    /SN\/Ref:?\s*([\s\S]*?)(?=\s*Saldo\s+[\d.,]+)/i,
+  );
+  let segmenText = snRefMatch ? snRefMatch[1] : null;
+
+  // Jika tidak ada SN/Ref prefix, coba ambil dari header (sebelum "berhasil"/"GAGAL")
+  // Format: "DANA TOPUP/MXX INDXXXXXX/50000/081234567890/REFF:12345 berhasil..."
+  if (!segmenText) {
+    const headerMatch = rawText.match(/^(.*?)\s*(?:Berhasil|GAGAL)\b/i);
+    if (headerMatch) {
+      segmenText = headerMatch[1].trim();
+    }
+  }
+
+  if (!segmenText) return null;
+
+  const segmen = segmenText.split("/").map((s) => s.trim());
+  for (const s of segmen) {
+    const angka = s.replace(/\./g, "");
+    if (/^\d{4,7}$/.test(angka) && !/^0[0-9]{9,12}$/.test(angka)) {
+      return parseInt(angka, 10);
+    }
+  }
+  return null;
+}
+
+export interface HasilNominalDasarAlpines {
+  nominalDasar: number;
+  sumberDasar:
+    | "eksplisit_nominal"
+    | "eksplisit_header"
+    | "eksplisit_segmen"
+    | "fallback_saldo";
+}
+
+/**
+ * Ekstraksi nominal dasar Alpines dengan urutan prioritas final (Fase 2.7):
+ * 1. NOMINAL: eksplisit
+ * 2. Angka 4-7 digit sebelum kode transaksi (header)
+ * 3. Segmen posisional di SN/Ref
+ * 4. Fallback ke potongan saldo (HANYA kalau benar-benar tidak ada sumber eksplisit)
+ */
+export function ekstraksiNominalDasarAlpines(
+  rawText: string,
+  potonganSaldo: number,
+): HasilNominalDasarAlpines {
+  const nominalEksplisit = rawText.match(polaNominalEksplisit);
+  if (nominalEksplisit) {
+    return {
+      nominalDasar: bersihkanAngka(nominalEksplisit[1]),
+      sumberDasar: "eksplisit_nominal",
+    };
+  }
+
+  const angkaSebelumKode = rawText.match(polaAngkaSebelumKode);
+  if (angkaSebelumKode) {
+    return {
+      nominalDasar: bersihkanAngka(angkaSebelumKode[1]),
+      sumberDasar: "eksplisit_header",
+    };
+  }
+
+  const segmenAngka = ekstrakDariSegmenSnRef(rawText);
+  if (segmenAngka != null) {
+    return { nominalDasar: segmenAngka, sumberDasar: "eksplisit_segmen" };
+  }
+
+  // FALLBACK TERAKHIR — hanya kalau benar-benar tidak ada sumber eksplisit
+  // (kasus ini terjadi untuk voucher/game top-up yang SN/Ref-nya berupa kode/UUID, bukan angka)
+  return { nominalDasar: potonganSaldo, sumberDasar: "fallback_saldo" };
+}
+
+/**
+ * Extract nominal for Alpines using the new priority order from Fase 2.7
+ * Returns { nominalDasar, sumberDasar, nominalFinal, adminKonter }
  */
 export function extractNominalForAlpines(text: string): {
-  nominal: number | null;
-  dariSaldoFallback: boolean;
+  nominalDasar: number | null;
+  sumberDasar:
+    | "eksplisit_nominal"
+    | "eksplisit_header"
+    | "eksplisit_segmen"
+    | "fallback_saldo"
+    | null;
+  nominalFinal: number | null;
+  adminKonter: number;
+  adaAturan: boolean;
 } {
   const structure = parseStrukturAlpines(text);
-  return extractNominalAlpines(
-    text,
-    structure.headerSegment,
-    structure.snRefSegment,
-    structure.saldoMatch,
-  );
+
+  // Extract saldo to get potonganSaldo for fallback
+  let potonganSaldo = 0;
+  if (structure.saldoMatch && structure.saldoMatch[2]) {
+    potonganSaldo = parseAngkaIndonesia(structure.saldoMatch[2]);
+  }
+
+  const hasil = ekstraksiNominalDasarAlpines(text, potonganSaldo);
+
+  // For now, return nominalDasar as nominalFinal (admin konter will be applied later in parser/index.ts)
+  return {
+    nominalDasar: hasil.nominalDasar,
+    sumberDasar: hasil.sumberDasar,
+    nominalFinal: hasil.nominalDasar,
+    adminKonter: 0,
+    adaAturan: false,
+  };
 }
 
 /**

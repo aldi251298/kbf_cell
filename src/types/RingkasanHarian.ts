@@ -14,4 +14,6 @@ export interface RingkasanHarian {
     omzet: number;
     jumlahTransaksi: number;
   }[];
+  // Fase 2.7: Pendapatan bersih dari biaya admin konter
+  pendapatanBersih: number;
 }

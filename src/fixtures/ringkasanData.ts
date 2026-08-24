@@ -90,6 +90,7 @@ export async function getRingkasanHarian(
     rataRataNilaiTransaksi: Math.round(rataRataNilaiTransaksi),
     transaksiPerStatus,
     kontribusiPerKonter,
+    pendapatanBersih: 0,
   };
 }
 
@@ -158,6 +159,7 @@ export async function getRingkasanPeriode(
       rataRataNilaiTransaksi: Math.round(rataRataNilaiTransaksi),
       transaksiPerStatus,
       kontribusiPerKonter,
+      pendapatanBersih: 0,
     });
   }
 

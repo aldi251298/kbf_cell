@@ -167,14 +167,20 @@
 
   /* Shadows */
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-base: 0 4px 6px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 6px 10px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 18px rgba(15, 23, 42, 0.06), 0 4px 6px rgba(15, 23, 42, 0.04);
-  --shadow-xl: 0 16px 24px rgba(15, 23, 42, 0.07), 0 6px 8px rgba(15, 23, 42, 0.04);
+  --shadow-sm:
+    0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-base:
+    0 4px 6px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-md:
+    0 6px 10px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg:
+    0 10px 18px rgba(15, 23, 42, 0.06), 0 4px 6px rgba(15, 23, 42, 0.04);
+  --shadow-xl:
+    0 16px 24px rgba(15, 23, 42, 0.07), 0 6px 8px rgba(15, 23, 42, 0.04);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0;
   --shadow-card-hover: 0 4px 10px rgba(15, 23, 42, 0.08), 0 0 0 1px #e2e8f0;
-  --shadow-elevated: 0 20px 25px rgba(15, 23, 42, 0.08), 0 8px 10px rgba(15, 23, 42, 0.04);
+  --shadow-elevated:
+    0 20px 25px rgba(15, 23, 42, 0.08), 0 8px 10px rgba(15, 23, 42, 0.04);
   --shadow-dropdown-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
   --shadow-dropdown-md: 0 8px 20px rgba(15, 23, 42, 0.1);
   --shadow-button-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
@@ -278,8 +284,10 @@
   --shadow-lg: 0 10px 18px rgba(0, 0, 0, 0.35), 0 4px 6px rgba(0, 0, 0, 0.2);
   --shadow-xl: 0 16px 24px rgba(0, 0, 0, 0.4), 0 6px 8px rgba(0, 0, 0, 0.25);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--card-border);
-  --shadow-card-hover: 0 4px 10px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--card-border);
-  --shadow-elevated: 0 20px 25px rgba(0, 0, 0, 0.4), 0 8px 10px rgba(0, 0, 0, 0.25);
+  --shadow-card-hover:
+    0 4px 10px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--card-border);
+  --shadow-elevated:
+    0 20px 25px rgba(0, 0, 0, 0.4), 0 8px 10px rgba(0, 0, 0, 0.25);
   --shadow-dropdown-sm: 0 4px 12px rgba(0, 0, 0, 0.35);
   --shadow-dropdown-md: 0 8px 20px rgba(0, 0, 0, 0.4);
   --shadow-button-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -387,14 +395,20 @@
 
   /* Shadows — use literal values to avoid circular reference */
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-base: 0 4px 6px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 6px 10px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 18px rgba(15, 23, 42, 0.06), 0 4px 6px rgba(15, 23, 42, 0.04);
-  --shadow-xl: 0 16px 24px rgba(15, 23, 42, 0.07), 0 6px 8px rgba(15, 23, 42, 0.04);
+  --shadow-sm:
+    0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-base:
+    0 4px 6px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-md:
+    0 6px 10px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg:
+    0 10px 18px rgba(15, 23, 42, 0.06), 0 4px 6px rgba(15, 23, 42, 0.04);
+  --shadow-xl:
+    0 16px 24px rgba(15, 23, 42, 0.07), 0 6px 8px rgba(15, 23, 42, 0.04);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0;
   --shadow-card-hover: 0 4px 10px rgba(15, 23, 42, 0.08), 0 0 0 1px #e2e8f0;
-  --shadow-elevated: 0 20px 25px rgba(15, 23, 42, 0.08), 0 8px 10px rgba(15, 23, 42, 0.04);
+  --shadow-elevated:
+    0 20px 25px rgba(15, 23, 42, 0.08), 0 8px 10px rgba(15, 23, 42, 0.04);
   --shadow-dropdown-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
   --shadow-dropdown-md: 0 8px 20px rgba(15, 23, 42, 0.1);
   --shadow-button-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
@@ -576,11 +590,21 @@
     flex-shrink: 0;
   }
 
-  .status-dot--success { background-color: hsl(var(--success)); }
-  .status-dot--warning { background-color: hsl(var(--warning)); }
-  .status-dot--error { background-color: hsl(var(--error)); }
-  .status-dot--info { background-color: hsl(var(--info)); }
-  .status-dot--offline { background-color: hsl(var(--offline)); }
+  .status-dot--success {
+    background-color: hsl(var(--success));
+  }
+  .status-dot--warning {
+    background-color: hsl(var(--warning));
+  }
+  .status-dot--error {
+    background-color: hsl(var(--error));
+  }
+  .status-dot--info {
+    background-color: hsl(var(--info));
+  }
+  .status-dot--offline {
+    background-color: hsl(var(--offline));
+  }
 
   /* ---------- Button Base ---------- */
   .btn {
@@ -896,8 +920,12 @@
    ANIMATIONS
    ============================================================================ */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeInUp {
@@ -934,18 +962,27 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes progressBar {
-  0% { width: 100%; }
-  100% { width: 0%; }
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
 }
 
 /* Skeleton shimmer effect */
 .skeleton-shimmer {
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     hsl(var(--muted)) 25%,
     hsl(var(--gray-100)) 50%,
     hsl(var(--muted)) 75%
@@ -955,7 +992,8 @@
 }
 
 .dark .skeleton-shimmer {
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     hsl(var(--muted)) 25%,
     hsl(var(--gray-200)) 50%,
     hsl(var(--muted)) 75%

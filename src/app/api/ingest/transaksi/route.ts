@@ -166,13 +166,15 @@ export async function POST(req: NextRequest) {
 
   const parsed = parseResult.parsed!;
 
-  // 7. Tambah biaya admin Rp 2.000 untuk pulsa & paket data
-  const BIAYA_ADMIN = 2000;
-  const jenisTransaksi = parsed.jenis_transaksi.toLowerCase();
-  const nominalFinal =
-    jenisTransaksi === "pulsa" || jenisTransaksi === "paket_data"
-      ? (parsed.nominal ?? 0) + BIAYA_ADMIN
-      : parsed.nominal;
+  // 7. Gunakan admin_konter dari parser (sudah dihitung benar per tier di adminKonter.ts)
+  const detailTambahan = parsed.detail_tambahan as Record<
+    string,
+    unknown
+  > | null;
+  const adminKonter = (detailTambahan?.admin_konter as number) ?? 0;
+  const nominalDasar =
+    (detailTambahan?.nominal_dasar as number) ?? parsed.nominal;
+  const nominalFinal = (nominalDasar ?? 0) + adminKonter;
 
   // 8. Prepare base insert row
   const baseInsertRow = {
@@ -192,11 +194,8 @@ export async function POST(req: NextRequest) {
     raw_notification_text: parsed.raw_notification_text, // SELALU rawText ASLI UTUH
     detail_tambahan: {
       ...parsed.detail_tambahan,
-      nominal_asli: parsed.nominal,
-      biaya_admin:
-        jenisTransaksi === "pulsa" || jenisTransaksi === "paket_data"
-          ? BIAYA_ADMIN
-          : 0,
+      nominal_asli: nominalDasar,
+      biaya_admin: adminKonter,
     },
     perlu_review: parsed.perlu_review,
   };

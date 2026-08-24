@@ -3,7 +3,7 @@
  *
  * parseNotifikasi(provider, rawText) mengembalikan ParsedTransaksi lengkap.
  * Prinsip: setiap field diekstrak independen, transaksi tidak pernah ditolak.
- * Updated for Fase 2.3 & 2.3.1: Universal parser, dynamic categories, non-transaction filter.
+ * Updated for Fase 2.7: Nominal dasar Alpines + Admin Konter system.
  */
 
 import type { ParsedTransaksi } from "./types";
@@ -20,9 +20,11 @@ import {
   parseStrukturAlpines,
   tebakJenisTransaksiUniversal,
   extractStatusUniversal,
-  extractNominalAlpines,
   normalisasiWhitespace,
 } from "./universal";
+import { parseAngkaIndonesia } from "./extractNominal";
+import { extractNominalForAlpines } from "./extractNominal";
+import { terapkanAdminKonter } from "./adminKonter";
 
 export { detectJenisTransaksi } from "./detectJenisTransaksi";
 export { extractNominal } from "./extractNominal";
@@ -40,6 +42,8 @@ export {
   normalisasiWhitespace,
   apakahNotifikasiPendingAlpines,
 } from "./universal";
+export { extractNominalForAlpines } from "./extractNominal";
+export { terapkanAdminKonter } from "./adminKonter";
 
 export interface ParseNotifikasiOptions {
   /** Provider dari client (digipos / alpines) — digunakan untuk konteks, bukan untuk deteksi */
@@ -79,40 +83,54 @@ export function parseNotifikasi(
     detailTambahanForStatus ?? {},
   );
 
-  // 4. Extract nominal
-  let nominal: number | null = null;
-  let nominalFromSaldoFallback = false;
-  if (provider === "alpines") {
-    const structure = parseStrukturAlpines(text);
-    const nominalResult = extractNominalAlpines(
-      text,
-      structure.headerSegment,
-      structure.snRefSegment,
-      structure.saldoMatch,
-    );
-    nominal = nominalResult.nominal;
-    nominalFromSaldoFallback = nominalResult.dariSaldoFallback;
-  } else {
-    nominal = extractNominal(text, jenisTransaksi);
-  }
-
-  // 5. Extract nomor tujuan
+  // 4. Extract nomor tujuan
   const nomorTujuan = extractNomorTujuan(text, jenisTransaksi);
 
-  // 6. Extract provider seluler (only for pulsa)
+  // 5. Extract provider seluler (only for pulsa)
   const providerSeluler =
     jenisTransaksi === "pulsa"
       ? extractProviderSeluler(text, nomorTujuan)
       : null;
 
-  // 7. Detect e-wallet name for nama_produk
+  // 6. Detect e-wallet name for nama_produk
   const ewalletName = detectEwalletName(text);
 
-  // 8. Extract nama produk
+  // 7. Extract nama produk
   const namaProduk = extractNamaProduk(text, jenisTransaksi, ewalletName);
 
-  // 9. Extract nama pemilik
+  // 8. Extract nama pemilik
   const namaPemilik = extractNamaPemilik(text);
+
+  // 9. Extract nominal
+  let nominal: number | null = null;
+  let nominalDasar: number | null = null;
+  let sumberDasar: string | null = null;
+  let adminKonter = 0;
+
+  if (provider === "alpines") {
+    const nominalResult = extractNominalForAlpines(text);
+    nominalDasar = nominalResult.nominalDasar;
+    sumberDasar = nominalResult.sumberDasar;
+
+    // Apply admin konter fee
+    const adminResult = terapkanAdminKonter(
+      nominalDasar,
+      jenisTransaksi,
+      namaProduk,
+    );
+    nominal = adminResult.nominalFinal;
+    adminKonter = adminResult.adminKonter;
+  } else {
+    nominalDasar = extractNominal(text, jenisTransaksi);
+    // Apply admin konter fee for Digipos too
+    const adminResult = terapkanAdminKonter(
+      nominalDasar,
+      jenisTransaksi,
+      namaProduk,
+    );
+    nominal = adminResult.nominalFinal;
+    adminKonter = adminResult.adminKonter;
+  }
 
   // 10. Extract waktu opsional (hanya untuk referensi, tidak disimpan sebagai waktu_transaksi)
   extractWaktuOpsional(text);
@@ -130,6 +148,29 @@ export function parseNotifikasi(
   if (alasanReview && detailTambahan) {
     detailTambahan.alasan_review = alasanReview;
   }
+  // Fase 2.7: Add nominal_dasar, sumber_nominal_dasar, admin_konter
+  if (nominalDasar !== null) {
+    detailTambahan.nominal_dasar = nominalDasar;
+  }
+  if (sumberDasar) {
+    detailTambahan.sumber_nominal_dasar = sumberDasar;
+  }
+  // Always include admin_konter (even 0) for audit trail
+  detailTambahan.admin_konter = adminKonter;
+  // Add saldo_konter object for Alpines
+  if (provider === "alpines") {
+    const structure = parseStrukturAlpines(text);
+    if (structure.saldoMatch) {
+      const saldoAwal = parseAngkaIndonesia(structure.saldoMatch[1]);
+      const potongan = parseAngkaIndonesia(structure.saldoMatch[2]);
+      const saldoAkhir = parseAngkaIndonesia(structure.saldoMatch[3]);
+      detailTambahan.saldo_konter = {
+        sebelum: saldoAwal,
+        terpakai: potongan,
+        sesudah: saldoAkhir,
+      };
+    }
+  }
 
   // 13. ID transaksi — gunakan kombinasi provider + hash teks agar stabil
   const id_transaksi_provider = computeStableId(provider, text);
@@ -137,7 +178,7 @@ export function parseNotifikasi(
   // 14. Sanity check — tandai perlu_review jika ada masalah
   const perluReview =
     alasanReview !== null ||
-    (provider === "alpines" && nominalFromSaldoFallback) ||
+    (provider === "alpines" && sumberDasar === "fallback_saldo") ||
     perluReviewStatus;
 
   return {
@@ -206,29 +247,19 @@ export async function parseNotifikasiUniversal(
   const { jenis: jenisTransaksi, perluReview: perluReviewKategori } =
     await tebakJenisTransaksiUniversal(teksTanpaSaldo, headerSegment);
 
-  // 5. Ekstraksi field independen (menggunakan teksTanpaSaldo sebagai basis)
-  let nominal: number | null = null;
-
-  if (provider === "alpines" && alpinesStructure) {
-    const nominalResult = extractNominalAlpines(
-      teksTanpaSaldo,
-      alpinesStructure.headerSegment,
-      alpinesStructure.snRefSegment,
-      alpinesStructure.saldoMatch,
-    );
-    nominal = nominalResult.nominal;
-  } else {
-    nominal = extractNominal(teksTanpaSaldo, jenisTransaksi);
-  }
-
+  // 5. Extract nomor tujuan
   const nomorTujuan = extractNomorTujuan(teksTanpaSaldo, jenisTransaksi);
+
+  // 6. Extract provider seluler (only for pulsa)
   const providerSeluler =
     jenisTransaksi === "pulsa"
       ? extractProviderSeluler(teksTanpaSaldo, nomorTujuan)
       : null;
 
-  // Deteksi nama e-wallet untuk nama_produk
+  // 7. Detect e-wallet name for nama_produk
   const ewalletName = detectEwalletName(teksTanpaSaldo);
+
+  // 8. Extract nama produk
   const namaProduk = extractNamaProduk(
     teksTanpaSaldo,
     jenisTransaksi,
@@ -236,7 +267,7 @@ export async function parseNotifikasiUniversal(
   );
   const namaPemilik = extractNamaPemilik(teksTanpaSaldo);
 
-  // 6. Status universal (dengan keyword expanded)
+  // 9. Status universal (dengan keyword expanded) - need status for nominal extraction
   const detailTambahanTemp = extractDetailTambahan(
     teksTanpaSaldo,
     jenisTransaksi,
@@ -248,20 +279,52 @@ export async function parseNotifikasiUniversal(
     detailTambahanTemp ?? {},
   );
 
-  // 7. Sanity check — tandai perlu_review jika ada masalah
+  // 10. Ekstraksi field independen (menggunakan teksTanpaSaldo sebagai basis)
+  let nominal: number | null = null;
+  let nominalDasar: number | null = null;
+  let sumberDasar: string | null = null;
+  let adminKonter = 0;
+
+  if (provider === "alpines" && alpinesStructure) {
+    const nominalResult = extractNominalForAlpines(teksTanpaSaldo);
+    nominalDasar = nominalResult.nominalDasar;
+    sumberDasar = nominalResult.sumberDasar;
+
+    // Apply admin konter fee
+    const adminResult = terapkanAdminKonter(
+      nominalDasar,
+      jenisTransaksi,
+      namaProduk,
+    );
+    nominal = adminResult.nominalFinal;
+    adminKonter = adminResult.adminKonter;
+  } else {
+    nominalDasar = extractNominal(teksTanpaSaldo, jenisTransaksi);
+    // Apply admin konter fee for Digipos too
+    const adminResult = terapkanAdminKonter(
+      nominalDasar,
+      jenisTransaksi,
+      namaProduk,
+    );
+    nominal = adminResult.nominalFinal;
+    adminKonter = adminResult.adminKonter;
+  }
+
+  // 11. Sanity check — tandai perlu_review jika ada masalah
   const alasanReview = computeAlasanReview({
     jenisTransaksi,
     nominal,
     nomorTujuan,
     status,
   });
-  const perluReview = perluReviewKategori || perluReviewStatus || alasanReview !== null;
+  const perluReview =
+    perluReviewKategori || perluReviewStatus || alasanReview !== null;
   // dariSaldoFallback TIDAK lagi memicu perlu_review — ini normal untuk Alpines
 
-  // 8. ID transaksi
+  // 12. ID transaksi
   const id_transaksi_provider = computeStableId(provider, teksTanpaSaldo);
 
-  // 9. Detail tambahan lengkap
+  // 13. Detail tambahan lengkap - include Fase 2.7 fields
   const detailTambahan = { ...detailTambahanTemp };
   if (alasanReview && detailTambahan) {
     detailTambahan.alasan_review = alasanReview;
@@ -270,8 +333,28 @@ export async function parseNotifikasiUniversal(
   if (saldoInfo && detailTambahan) {
     detailTambahan.saldo_aplikasi_terdeteksi = saldoInfo;
   }
+  // Fase 2.7: Add nominal_dasar, sumber_nominal_dasar, admin_konter, saldo_konter
+  if (nominalDasar !== null) {
+    detailTambahan.nominal_dasar = nominalDasar;
+  }
+  if (sumberDasar) {
+    detailTambahan.sumber_nominal_dasar = sumberDasar;
+  }
+  // Always include admin_konter (even 0) for audit trail
+  detailTambahan.admin_konter = adminKonter;
+  // Add saldo_konter object for Alpines
+  if (provider === "alpines" && alpinesStructure?.saldoMatch) {
+    const saldoAwal = parseAngkaIndonesia(alpinesStructure.saldoMatch[1]);
+    const potongan = parseAngkaIndonesia(alpinesStructure.saldoMatch[2]);
+    const saldoAkhir = parseAngkaIndonesia(alpinesStructure.saldoMatch[3]);
+    detailTambahan.saldo_konter = {
+      sebelum: saldoAwal,
+      terpakai: potongan,
+      sesudah: saldoAkhir,
+    };
+  }
 
-  // 10. Waktu opsional
+  // 14. Waktu opsional
   extractWaktuOpsional(teksTanpaSaldo);
 
   const parsed: ParsedTransaksi = {

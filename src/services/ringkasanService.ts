@@ -9,6 +9,14 @@ import type { RingkasanHarian } from "@/types";
 import { getRentangWaktuWIB } from "@/lib/utils";
 
 /**
+ * Extended RingkasanHarian with Alpines balance fields
+ */
+export interface RingkasanHarianWithSaldo extends RingkasanHarian {
+  saldoAlpinesTerkini: number | null;
+  waktuSaldoAlpinesTerkini: string | null;
+}
+
+/**
  * Get WIB date string (YYYY-MM-DD) for today.
  * This avoids the UTC date extraction bug when converting to ISO string.
  */
@@ -32,7 +40,7 @@ function getTodayWIBDateString(): string {
  * Get today's summary (WIB timezone).
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
  */
-export async function getRingkasanHariIni(): Promise<RingkasanHarian> {
+export async function getRingkasanHariIni(): Promise<RingkasanHarianWithSaldo> {
   const todayWIB = getTodayWIBDateString();
   const { awalUTC, akhirUTC } = getRentangWaktuWIB(todayWIB, todayWIB);
 
@@ -54,7 +62,7 @@ export async function getRingkasanHariIni(): Promise<RingkasanHarian> {
  */
 export async function getRingkasanByTanggal(
   tanggal: Date,
-): Promise<RingkasanHarian> {
+): Promise<RingkasanHarianWithSaldo> {
   // Use WIB date components to avoid UTC date extraction bug
   const year = tanggal.getUTCFullYear();
   const month = String(tanggal.getUTCMonth() + 1).padStart(2, "0");
@@ -122,8 +130,8 @@ export async function getRingkasanPeriodeService(
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
  */
 export async function getPerbandinganRingkasan(): Promise<{
-  today: RingkasanHarian;
-  yesterday: RingkasanHarian;
+  today: RingkasanHarianWithSaldo;
+  yesterday: RingkasanHarianWithSaldo;
   perubahan: {
     omzet: number;
     transaksi: number;

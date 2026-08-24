@@ -52,6 +52,8 @@ export function useTransaksiRealtime(
             status: row.status as Transaksi["status"],
             sn: (row.sn as string) ?? "",
             errorMessage: (row.error_message as string) ?? undefined,
+            provider: row.provider as string,
+            detail: row.detail_tambahan as Transaksi["detail"],
           };
           callbackRef.current(trx);
         },

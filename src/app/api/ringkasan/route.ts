@@ -42,7 +42,10 @@ export async function GET(req: NextRequest) {
     konters.find((k) => k.id === id)?.nama ?? "Unknown";
 
   // Helper: compute a RingkasanHarian from a set of transaction rows for a day
-  function buildSummary(dayStart: Date, rows: TransaksiRow[]): RingkasanHarian {
+  function buildSummary(
+    dayStart: Date,
+    rows: TransaksiRow[],
+  ): RingkasanHarian & { pendapatanBersih: number } {
     const totalOmzet = rows.reduce((s, r) => s + Number(r.nominal), 0);
     const totalTransaksi = rows.length;
     const rataRataNilaiTransaksi =
@@ -78,6 +81,14 @@ export async function GET(req: NextRequest) {
       }),
     );
 
+    // Fase 2.7: Calculate pendapatan bersih (sum of admin_konter from successful transactions)
+    const pendapatanBersih = rows
+      .filter((r) => r.status === "sukses")
+      .reduce((sum, r) => {
+        const adminKonter = r.detail_tambahan?.admin_konter ?? 0;
+        return sum + Number(adminKonter);
+      }, 0);
+
     return {
       tanggal: dayStart,
       totalOmzet,
@@ -85,6 +96,7 @@ export async function GET(req: NextRequest) {
       rataRataNilaiTransaksi,
       transaksiPerStatus,
       kontribusiPerKonter,
+      pendapatanBersih,
     };
   }
 
@@ -115,18 +127,26 @@ export async function GET(req: NextRequest) {
     const todayEnd = new Date(todayStart.getTime() + 86400000);
     const yesterdayEnd = new Date(yesterdayStart.getTime() + 86400000);
 
-    const [{ data: todayRows }, { data: yesterdayRows }] = await Promise.all([
-      supabase
-        .from("transaksi")
-        .select("*", { count: "exact" })
-        .gte("waktu", todayStart.toISOString())
-        .lt("waktu", todayEnd.toISOString()),
-      supabase
-        .from("transaksi")
-        .select("*", { count: "exact" })
-        .gte("waktu", yesterdayStart.toISOString())
-        .lt("waktu", yesterdayEnd.toISOString()),
-    ]);
+    const [{ data: todayRows }, { data: yesterdayRows }, { data: saldoData }] =
+      await Promise.all([
+        supabase
+          .from("transaksi")
+          .select("*", { count: "exact" })
+          .gte("waktu", todayStart.toISOString())
+          .lt("waktu", todayEnd.toISOString()),
+        supabase
+          .from("transaksi")
+          .select("*", { count: "exact" })
+          .gte("waktu", yesterdayStart.toISOString())
+          .lt("waktu", yesterdayEnd.toISOString()),
+        supabase
+          .from("transaksi")
+          .select("detail_tambahan, waktu")
+          .eq("provider", "alpines")
+          .order("waktu", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
     const today = buildSummary(
       todayStart,
@@ -145,6 +165,11 @@ export async function GET(req: NextRequest) {
           omzet: today.totalOmzet - yesterday.totalOmzet,
           transaksi: today.totalTransaksi - yesterday.totalTransaksi,
         },
+        saldoAlpinesTerkini:
+          saldoData?.detail_tambahan?.saldo_konter?.sesudah ??
+          saldoData?.detail_tambahan?.saldo_akhir ??
+          null,
+        waktuSaldoAlpinesTerkini: saldoData?.waktu ?? null,
       },
       { headers: NO_STORE_HEADERS },
     );
@@ -165,14 +190,30 @@ export async function GET(req: NextRequest) {
       dayEnd = new Date(dayStart.getTime() + 86400000);
     }
 
-    const { data } = await supabase
-      .from("transaksi")
-      .select("*", { count: "exact" })
-      .gte("waktu", dayStart.toISOString())
-      .lt("waktu", dayEnd.toISOString());
+    const [{ data }, { data: saldoData }] = await Promise.all([
+      supabase
+        .from("transaksi")
+        .select("*", { count: "exact" })
+        .gte("waktu", dayStart.toISOString())
+        .lt("waktu", dayEnd.toISOString()),
+      supabase
+        .from("transaksi")
+        .select("detail_tambahan, waktu")
+        .eq("provider", "alpines")
+        .order("waktu", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
     return NextResponse.json(
-      buildSummary(dayStart, (data ?? []) as unknown as TransaksiRow[]),
+      {
+        ...buildSummary(dayStart, (data ?? []) as unknown as TransaksiRow[]),
+        saldoAlpinesTerkini:
+          saldoData?.detail_tambahan?.saldo_konter?.sesudah ??
+          saldoData?.detail_tambahan?.saldo_akhir ??
+          null,
+        waktuSaldoAlpinesTerkini: saldoData?.waktu ?? null,
+      },
       { headers: NO_STORE_HEADERS },
     );
   }
@@ -185,12 +226,21 @@ export async function GET(req: NextRequest) {
   );
   const endDate = startOfDayWIB(new Date(now.getTime() + 86400000));
 
-  const { data } = await supabase
-    .from("transaksi")
-    .select("*")
-    .gte("waktu", startDate.toISOString())
-    .lt("waktu", endDate.toISOString())
-    .order("waktu", { ascending: true });
+  const [{ data }, { data: saldoData }] = await Promise.all([
+    supabase
+      .from("transaksi")
+      .select("*")
+      .gte("waktu", startDate.toISOString())
+      .lt("waktu", endDate.toISOString())
+      .order("waktu", { ascending: true }),
+    supabase
+      .from("transaksi")
+      .select("detail_tambahan, waktu")
+      .eq("provider", "alpines")
+      .order("waktu", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const allRows = (data ?? []) as unknown as TransaksiRow[];
 
@@ -214,5 +264,15 @@ export async function GET(req: NextRequest) {
   // ascending by date
   summaries.sort((a, b) => a.tanggal.getTime() - b.tanggal.getTime());
 
-  return NextResponse.json(summaries, { headers: NO_STORE_HEADERS });
+  return NextResponse.json(
+    {
+      summaries,
+      saldoAlpinesTerkini:
+        saldoData?.detail_tambahan?.saldo_konter?.sesudah ??
+        saldoData?.detail_tambahan?.saldo_akhir ??
+        null,
+      waktuSaldoAlpinesTerkini: saldoData?.waktu ?? null,
+    },
+    { headers: NO_STORE_HEADERS },
+  );
 }

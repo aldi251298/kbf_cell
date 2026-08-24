@@ -10,6 +10,9 @@ import {
   pisahkanSaldoAplikasi,
   apakahTransaksiPelanggan,
 } from "./src/lib/parser/universal";
+import { ekstraksiNominalDasarAlpines } from "./src/lib/parser/extractNominal";
+import { terapkanAdminKonter } from "./src/lib/parser/adminKonter";
+import { parseNotifikasi } from "./src/lib/parser/index";
 
 // ============================================================================
 // Test Types
@@ -27,6 +30,18 @@ interface NonTransaksiTestCase {
   provider: "alpines" | "digipos";
   rawText: string;
   ekspektasiValid: boolean;
+}
+
+interface NominalTestCase {
+  nama: string;
+  provider: "alpines" | "digipos";
+  rawText: string;
+  jenisTransaksi: string;
+  namaProduk: string | null;
+  nominalDasar: number;
+  sumberDasar: string | undefined;
+  adminKonter: number;
+  nominalFinal: number;
 }
 
 // ============================================================================
@@ -121,6 +136,240 @@ const nonTransaksiTestCases: NonTransaksiTestCase[] = [
 ];
 
 // ============================================================================
+// Test Cases - Nominal Dasar Alpines (Fase 2.7)
+// ============================================================================
+
+const nominalTestCases: NominalTestCase[] = [
+  // PULSA
+  {
+    nama: "Pulsa Alpines - Isi ulang pulsa Rp 20000",
+    provider: "alpines",
+    rawText:
+      "Pulsa 20000 berhasil. SN/Ref: PULSA/John/081234567890/20000/REFF:12345. Saldo 1000000 - 22000 = 978000 @15/08 10:30:00",
+    jenisTransaksi: "pulsa",
+    namaProduk: null,
+    nominalDasar: 20000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 2000,
+    nominalFinal: 22000,
+  },
+  {
+    nama: "Axis Reguler 30000 AX30...",
+    provider: "alpines",
+    rawText:
+      "Axis Reguler 30000 AX30.083877750811 berhasil. SN/Ref: AXIS/30000/081234567890/REFF:12345. Saldo 1000000 - 32000 = 968000 @15/08 10:30:00",
+    jenisTransaksi: "pulsa",
+    namaProduk: null,
+    nominalDasar: 30000,
+    sumberDasar: "eksplisit_header",
+    adminKonter: 2000,
+    nominalFinal: 32000,
+  },
+  {
+    nama: "Telkomsel BYU 15000 TSBYU15...",
+    provider: "alpines",
+    rawText:
+      "Telkomsel BYU 15000 TSBYU15.085198025507 berhasil. SN/Ref: TELKOMSEL/15000/081234567890/REFF:12345. Saldo 1000000 - 17000 = 983000 @15/08 10:30:00",
+    jenisTransaksi: "pulsa",
+    namaProduk: null,
+    nominalDasar: 15000,
+    sumberDasar: "eksplisit_header",
+    adminKonter: 2000,
+    nominalFinal: 17000,
+  },
+
+  // PAKET DATA
+  {
+    nama: "byU Kaget Rp41800",
+    provider: "alpines",
+    rawText:
+      "byU Kaget 41800 berhasil. SN/Ref: PAKET/41800/081234567890/REFF:12345. Saldo 1000000 - 43800 = 956200 @15/08 10:30:00",
+    jenisTransaksi: "paket_data",
+    namaProduk: null,
+    nominalDasar: 41800,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 2000,
+    nominalFinal: 43800,
+  },
+  {
+    nama: "Combo Sakti Rp120000",
+    provider: "alpines",
+    rawText:
+      "Combo Sakti 120000 berhasil. SN/Ref: PAKET/120000/081234567890/REFF:12345. Saldo 1000000 - 122000 = 878000 @15/08 10:30:00",
+    jenisTransaksi: "paket_data",
+    namaProduk: null,
+    nominalDasar: 120000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 2000,
+    nominalFinal: 122000,
+  },
+  {
+    nama: "Super Seru Internet Rp30000",
+    provider: "alpines",
+    rawText:
+      "Super Seru Internet 30000 berhasil. SN/Ref: PAKET/30000/081234567890/REFF:12345. Saldo 1000000 - 32000 = 968000 @15/08 10:30:00",
+    jenisTransaksi: "paket_data",
+    namaProduk: null,
+    nominalDasar: 30000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 2000,
+    nominalFinal: 32000,
+  },
+  {
+    nama: "Voucher AIGO (fallback saldo)",
+    provider: "alpines",
+    rawText:
+      "Voucher AIGO 5.5GB 3hr VTR10.0895 berhasil. SN/Ref: VTR10.0895. Saldo 1000000 - 13950 = 986050 @15/08 10:30:00",
+    jenisTransaksi: "paket_data",
+    namaProduk: null,
+    nominalDasar: 13950,
+    sumberDasar: "fallback_saldo",
+    adminKonter: 2000,
+    nominalFinal: 15950,
+  },
+  {
+    nama: "Voucher Three (fallback saldo)",
+    provider: "alpines",
+    rawText:
+      "Voucher Three 5.5GB 3hr VTR10.0895 berhasil. SN/Ref: VTR10.0895. Saldo 1000000 - 15150 = 984850 @15/08 10:30:00",
+    jenisTransaksi: "paket_data",
+    namaProduk: null,
+    nominalDasar: 15150,
+    sumberDasar: "fallback_saldo",
+    adminKonter: 2000,
+    nominalFinal: 17150,
+  },
+
+  // PLN
+  {
+    nama: "PLN senilai 100000",
+    provider: "alpines",
+    rawText:
+      "PLN 100000 berhasil. SN/Ref: PLN/100000/530000000000/REFF:12345. Saldo 1000000 - 105000 = 895000 @15/08 10:30:00",
+    jenisTransaksi: "pln",
+    namaProduk: null,
+    nominalDasar: 100000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 5000,
+    nominalFinal: 105000,
+  },
+  {
+    nama: "PLN senilai 20000",
+    provider: "alpines",
+    rawText:
+      "PLN 20000 berhasil. SN/Ref: PLN/20000/530000000000/REFF:12345. Saldo 1000000 - 24000 = 976000 @15/08 10:30:00",
+    jenisTransaksi: "pln",
+    namaProduk: null,
+    nominalDasar: 20000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 4000,
+    nominalFinal: 24000,
+  },
+  {
+    nama: "TOKEN 20000 PH20...",
+    provider: "alpines",
+    rawText:
+      "TOKEN 20000 PH20.50160790239 berhasil. SN/Ref: PLN/20000/530000000000/REFF:12345. Saldo 1000000 - 24000 = 976000 @15/08 10:30:00",
+    jenisTransaksi: "pln",
+    namaProduk: null,
+    nominalDasar: 20000,
+    sumberDasar: "eksplisit_header",
+    adminKonter: 4000,
+    nominalFinal: 24000,
+  },
+
+  // E-WALLET
+  {
+    nama: "DANA format 1 (nominal_dasar 50000, <=100rb)",
+    provider: "alpines",
+    rawText:
+      "DANA TOPUP/MXX INDXXXXXX/50000/081234567890/REFF:12345 berhasil. Saldo 1000000 - 53000 = 947000 @15/08 10:30:00",
+    jenisTransaksi: "ewallet",
+    namaProduk: "DANA",
+    nominalDasar: 50000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 3000,
+    nominalFinal: 53000,
+  },
+  {
+    nama: "DANA format 2 (NOMINAL:200000, >100rb)",
+    provider: "alpines",
+    rawText:
+      "DANA 200000 berhasil. NOMINAL:200000. SN/Ref: DANA/John/081234567890/REFF:12345. Saldo 1000000 - 205000 = 795000 @15/08 10:30:00",
+    jenisTransaksi: "ewallet",
+    namaProduk: "DANA",
+    nominalDasar: 200000,
+    sumberDasar: "eksplisit_nominal",
+    adminKonter: 5000,
+    nominalFinal: 205000,
+  },
+  {
+    nama: "GoPay (nominal_dasar 100000, e-wallet selain DANA flat)",
+    provider: "alpines",
+    rawText:
+      "GOPAY/Jasmisaputra/100000/081372331339/REFF:12345 berhasil. Saldo 1000000 - 105000 = 895000 @15/08 10:30:00",
+    jenisTransaksi: "ewallet",
+    namaProduk: "GoPay",
+    nominalDasar: 100000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 5000,
+    nominalFinal: 105000,
+  },
+
+  // GAME TOP-UP (TIDAK ada admin, tetap nominal_dasar apa adanya dari fallback saldo)
+  {
+    nama: "Free Fire (fallback saldo, nominal_dasar = 14450)",
+    provider: "alpines",
+    rawText:
+      "Free Fire 14450 berhasil. SN/Ref: FF/14450/123456789/REFF:12345. Saldo 1000000 - 14450 = 985550 @15/08 10:30:00",
+    jenisTransaksi: "game_topup",
+    namaProduk: null,
+    nominalDasar: 14450,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 0,
+    nominalFinal: 14450,
+  },
+
+  // DIGIPOS TEST CASES
+  {
+    nama: "Digipos Pulsa Rp 20000",
+    provider: "digipos",
+    rawText:
+      "Isi ulang pulsa Rp 20000 untuk no pelanggan 628123456789 telah berhasil dengan SN 12345 dan ID Transaksi DGPS260815123456",
+    jenisTransaksi: "pulsa",
+    namaProduk: null,
+    nominalDasar: 20000,
+    sumberDasar: undefined,
+    adminKonter: 2000,
+    nominalFinal: 22000,
+  },
+  {
+    nama: "Digipos Paket Data 25GB Telkomsel Rp 150000",
+    provider: "digipos",
+    rawText:
+      "Transaksi pengisian paket data 25GB Telkomsel pada 15 Agustus 2026 10:30:00 senilai Rp150000 telah berhasil. MSISDN: 081234567890. ID Transaksi: DGPS260815123456",
+    jenisTransaksi: "paket_data",
+    namaProduk: "25GB Telkomsel",
+    nominalDasar: 150000,
+    sumberDasar: undefined,
+    adminKonter: 2000,
+    nominalFinal: 152000,
+  },
+  {
+    nama: "Digipos PLN senilai 100000",
+    provider: "digipos",
+    rawText:
+      "Anda telah melakukan pembayaran PLN senilai 100000 pada 2026-08-15 10:30:00 Biaya admin 5000. ID Transaksi DGPS260815123456 Saldo LinkAja 500000. Token PLN Prabayar Anda 123456789012. Nometer 530000000000 atas nama John Doe. 10 kWh",
+    jenisTransaksi: "pln",
+    namaProduk: null,
+    nominalDasar: 100000,
+    sumberDasar: undefined,
+    adminKonter: 5000,
+    nominalFinal: 105000,
+  },
+];
+
+// ============================================================================
 // Test Runner
 // ============================================================================
 
@@ -180,6 +429,270 @@ function runNonTransaksiTests() {
   return { passed, failed };
 }
 
+function runNominalTests() {
+  console.log(
+    "\n========== TEST: Nominal Dasar + Admin Konter (Fase 2.7) ==========",
+  );
+  let passed = 0;
+  let failed = 0;
+
+  for (const tc of nominalTestCases) {
+    let result;
+    if (tc.provider === "alpines") {
+      result = parseNotifikasi({ provider: "alpines", rawText: tc.rawText });
+    } else {
+      result = parseNotifikasi({ provider: "digipos", rawText: tc.rawText });
+    }
+
+    // Test nominalDasar
+    const nominalDasarMatch =
+      result.detail_tambahan?.nominal_dasar === tc.nominalDasar;
+    // Test sumberDasar
+    const sumberDasarMatch =
+      result.detail_tambahan?.sumber_nominal_dasar === tc.sumberDasar;
+    // Test adminKonter
+    const adminKonterMatch =
+      result.detail_tambahan?.admin_konter === tc.adminKonter;
+    // Test nominalFinal
+    const nominalFinalMatch = result.nominal === tc.nominalFinal;
+
+    const success =
+      nominalDasarMatch &&
+      sumberDasarMatch &&
+      adminKonterMatch &&
+      nominalFinalMatch;
+
+    if (success) {
+      console.log(`✅ PASS: ${tc.nama}`);
+      console.log(
+        `   nominalDasar: ${result.detail_tambahan?.nominal_dasar}, sumber: ${result.detail_tambahan?.sumber_nominal_dasar}, admin: ${result.detail_tambahan?.admin_konter}, final: ${result.nominal}`,
+      );
+      passed++;
+    } else {
+      console.log(`❌ FAIL: ${tc.nama}`);
+      console.log(
+        `   Expected: nominalDasar=${tc.nominalDasar}, sumber=${tc.sumberDasar}, admin=${tc.adminKonter}, final=${tc.nominalFinal}`,
+      );
+      console.log(
+        `   Got: nominalDasar=${result.detail_tambahan?.nominal_dasar}, sumber=${result.detail_tambahan?.sumber_nominal_dasar}, admin=${result.detail_tambahan?.admin_konter}, final=${result.nominal}`,
+      );
+      console.log(
+        `   jenisTransaksi: ${result.jenis_transaksi}, namaProduk: ${result.nama_produk}`,
+      );
+      failed++;
+    }
+  }
+
+  console.log(`\nNominal Tests: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
+function runAdminKonterUnitTests() {
+  console.log("\n========== TEST: Admin Konter Unit Tests ==========");
+  let passed = 0;
+  let failed = 0;
+
+  const unitTests = [
+    {
+      nama: "DANA <= 100rb",
+      nominal: 50000,
+      jenis: "ewallet",
+      produk: "DANA",
+      expected: 3000,
+    },
+    {
+      nama: "DANA > 100rb",
+      nominal: 200000,
+      jenis: "ewallet",
+      produk: "DANA",
+      expected: 5000,
+    },
+    {
+      nama: "GoPay (non-DANA)",
+      nominal: 100000,
+      jenis: "ewallet",
+      produk: "GoPay",
+      expected: 5000,
+    },
+    {
+      nama: "PLN <= 50rb",
+      nominal: 20000,
+      jenis: "pln",
+      produk: null,
+      expected: 4000,
+    },
+    {
+      nama: "PLN > 50rb",
+      nominal: 100000,
+      jenis: "pln",
+      produk: null,
+      expected: 5000,
+    },
+    {
+      nama: "Pulsa",
+      nominal: 15000,
+      jenis: "pulsa",
+      produk: null,
+      expected: 2000,
+    },
+    {
+      nama: "Paket Data",
+      nominal: 30000,
+      jenis: "paket_data",
+      produk: null,
+      expected: 2000,
+    },
+    {
+      nama: "Tagihan <= 50rb",
+      nominal: 20000,
+      jenis: "tagihan",
+      produk: null,
+      expected: 4000,
+    },
+    {
+      nama: "Tagihan > 50rb",
+      nominal: 100000,
+      jenis: "tagihan",
+      produk: null,
+      expected: 5000,
+    },
+    {
+      nama: "Game Topup (no rule)",
+      nominal: 14450,
+      jenis: "game_topup",
+      produk: null,
+      expected: 0,
+    },
+    {
+      nama: "Voucher Fisik (no rule)",
+      nominal: 11950,
+      jenis: "voucher_fisik",
+      produk: null,
+      expected: 0,
+    },
+    {
+      nama: "Paket Nelpon (no rule)",
+      nominal: 10000,
+      jenis: "paket_nelpon",
+      produk: null,
+      expected: 0,
+    },
+  ];
+
+  for (const tc of unitTests) {
+    const result = terapkanAdminKonter(tc.nominal, tc.jenis, tc.produk);
+    const success = result.adminKonter === tc.expected;
+
+    if (success) {
+      console.log(
+        `✅ PASS: ${tc.nama} -> admin=${result.adminKonter}, final=${result.nominalFinal}`,
+      );
+      passed++;
+    } else {
+      console.log(`❌ FAIL: ${tc.nama}`);
+      console.log(
+        `   Expected admin: ${tc.expected}, Got: ${result.adminKonter}`,
+      );
+      failed++;
+    }
+  }
+
+  console.log(`\nAdmin Konter Unit Tests: ${passed} passed, ${failed} failed`);
+  return { passed, failed };
+}
+
+function runEkstraksiNominalDasarTests() {
+  console.log(
+    "\n========== TEST: Ekstraksi Nominal Dasar Alpines (Unit) ==========",
+  );
+  let passed = 0;
+  let failed = 0;
+
+  const unitTests = [
+    {
+      nama: "NOMINAL: eksplisit",
+      rawText:
+        "DANA 200000 berhasil. NOMINAL:200000. Saldo 1000000 - 205000 = 795000 @15/08 10:30:00",
+      potonganSaldo: 205000,
+      expectedNominal: 200000,
+      expectedSumber: "eksplisit_nominal",
+    },
+    {
+      nama: "Angka sebelum kode (Telkomsel BYU)",
+      rawText:
+        "Telkomsel BYU 15000 TSBYU15.085198025507 berhasil. Saldo 1000000 - 17000 = 983000 @15/08 10:30:00",
+      potonganSaldo: 17000,
+      expectedNominal: 15000,
+      expectedSumber: "eksplisit_header",
+    },
+    {
+      nama: "Angka sebelum kode (Axis Reguler)",
+      rawText:
+        "Axis Reguler 30000 AX30.083877750811 berhasil. Saldo 1000000 - 32000 = 968000 @15/08 10:30:00",
+      potonganSaldo: 32000,
+      expectedNominal: 30000,
+      expectedSumber: "eksplisit_header",
+    },
+    {
+      nama: "TOKEN di header",
+      rawText:
+        "TOKEN 20000 PH20.50160790239 berhasil. Saldo 1000000 - 24000 = 976000 @15/08 10:30:00",
+      potonganSaldo: 24000,
+      expectedNominal: 20000,
+      expectedSumber: "eksplisit_header",
+    },
+    {
+      nama: "Segmen SN/Ref (DANA)",
+      rawText:
+        "DANA TOPUP/MXX INDXXXXXX/50000/081234567890/REFF:12345 berhasil. Saldo 1000000 - 53000 = 947000 @15/08 10:30:00",
+      potonganSaldo: 53000,
+      expectedNominal: 50000,
+      expectedSumber: "eksplisit_segmen",
+    },
+    {
+      nama: "Segmen SN/Ref (GoPay)",
+      rawText:
+        "GOPAY/Jasmisaputra/100000/081372331339/REFF:12345 berhasil. Saldo 1000000 - 105000 = 895000 @15/08 10:30:00",
+      potonganSaldo: 105000,
+      expectedNominal: 100000,
+      expectedSumber: "eksplisit_segmen",
+    },
+    {
+      nama: "Fallback saldo (Voucher AIGO)",
+      rawText:
+        "Voucher AIGO 5.5GB 3hr VTR10.0895 berhasil. SN/Ref: VTR10.0895. Saldo 1000000 - 13950 = 986050 @15/08 10:30:00",
+      potonganSaldo: 13950,
+      expectedNominal: 13950,
+      expectedSumber: "fallback_saldo",
+    },
+  ];
+
+  for (const tc of unitTests) {
+    const result = ekstraksiNominalDasarAlpines(tc.rawText, tc.potonganSaldo);
+    const success =
+      result.nominalDasar === tc.expectedNominal &&
+      result.sumberDasar === tc.expectedSumber;
+
+    if (success) {
+      console.log(
+        `✅ PASS: ${tc.nama} -> ${result.nominalDasar} (${result.sumberDasar})`,
+      );
+      passed++;
+    } else {
+      console.log(`❌ FAIL: ${tc.nama}`);
+      console.log(
+        `   Expected: ${tc.expectedNominal} (${tc.expectedSumber}), Got: ${result.nominalDasar} (${result.sumberDasar})`,
+      );
+      failed++;
+    }
+  }
+
+  console.log(
+    `\nEkstraksi Nominal Dasar Tests: ${passed} passed, ${failed} failed`,
+  );
+  return { passed, failed };
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -189,9 +702,22 @@ function main() {
 
   const pendingResults = runPendingTests();
   const nonTransaksiResults = runNonTransaksiTests();
+  const nominalResults = runNominalTests();
+  const adminKonterResults = runAdminKonterUnitTests();
+  const ekstraksiResults = runEkstraksiNominalDasarTests();
 
-  const totalPassed = pendingResults.passed + nonTransaksiResults.passed;
-  const totalFailed = pendingResults.failed + nonTransaksiResults.failed;
+  const totalPassed =
+    pendingResults.passed +
+    nonTransaksiResults.passed +
+    nominalResults.passed +
+    adminKonterResults.passed +
+    ekstraksiResults.passed;
+  const totalFailed =
+    pendingResults.failed +
+    nonTransaksiResults.failed +
+    nominalResults.failed +
+    adminKonterResults.failed +
+    ekstraksiResults.failed;
 
   console.log("\n========== SUMMARY ==========");
   console.log(`Total: ${totalPassed} passed, ${totalFailed} failed`);

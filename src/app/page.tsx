@@ -9,7 +9,8 @@ import {
   getTransaksiHariIniService,
 } from "@/services";
 import { useTransaksiRealtime } from "@/hooks/useTransaksiRealtime";
-import type { RingkasanHarian, Transaksi } from "@/types";
+import type { Transaksi } from "@/types";
+import type { RingkasanHarianWithSaldo } from "@/services/ringkasanService";
 import {
   formatRupiah,
   formatAngka,
@@ -45,6 +46,8 @@ import {
   ArrowDownRight,
   Eye,
   X,
+  Wallet,
+  PiggyBank,
 } from "lucide-react";
 
 // Items per page for riwayat transaksi
@@ -227,13 +230,21 @@ function TransactionDetailModal({
 }
 
 export default function DashboardPage() {
-  const [ringkasan, setRingkasan] = useState<RingkasanHarian | null>(null);
+  const [ringkasan, setRingkasan] = useState<RingkasanHarianWithSaldo | null>(
+    null,
+  );
   const [perbandingan, setPerbandingan] = useState<{
-    today: RingkasanHarian;
-    yesterday: RingkasanHarian;
+    today: RingkasanHarianWithSaldo;
+    yesterday: RingkasanHarianWithSaldo;
     perubahan: { omzet: number; transaksi: number };
   } | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Alpines balance state (single number, no konter filter) - now from ringkasan response
+  const [saldoAlpines, setSaldoAlpines] = useState<number | null>(null);
+  const [waktuSaldoAlpines, setWaktuSaldoAlpines] = useState<string | null>(
+    null,
+  );
 
   // Pagination state for riwayat transaksi
   const [riwayatPage, setRiwayatPage] = useState(1);
@@ -272,17 +283,25 @@ export default function DashboardPage() {
     let mounted = true;
     const initFetch = async () => {
       try {
-        const [ringkasanData, perbandinganData, riwayatData] = await Promise.all([
-          getRingkasanHariIni(),
-          getPerbandinganRingkasan(),
-          getTransaksiHariIniService(),
-        ]);
+        const [ringkasanData, perbandinganData, riwayatData] =
+          await Promise.all([
+            getRingkasanHariIni(),
+            getPerbandinganRingkasan(),
+            getTransaksiHariIniService(),
+          ]);
+
         if (mounted) {
           setRingkasan(ringkasanData);
           setPerbandingan(perbandinganData);
           setRiwayatTransactions(riwayatData);
           setTotalRiwayatItems(riwayatData.length);
-          setTotalRiwayatPages(Math.ceil(riwayatData.length / ITEMS_PER_PAGE) || 1);
+          setTotalRiwayatPages(
+            Math.ceil(riwayatData.length / ITEMS_PER_PAGE) || 1,
+          );
+
+          // Set Alpines balance from ringkasan response (no separate API call needed)
+          setSaldoAlpines(ringkasanData?.saldoAlpinesTerkini ?? null);
+          setWaktuSaldoAlpines(ringkasanData?.waktuSaldoAlpinesTerkini ?? null);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -297,6 +316,9 @@ export default function DashboardPage() {
       mounted = false;
     };
   }, []);
+
+  // Also refetch Alpines balance when day changes (to catch new transactions)
+  // Now handled by fetchDashboardData which calls getRingkasanHariIni() that includes saldo
 
   // Fetch dashboard summary data (for day change refetch)
   const fetchDashboardData = useCallback(async () => {
@@ -313,6 +335,10 @@ export default function DashboardPage() {
       setTotalRiwayatItems(riwayatData.length);
       setTotalRiwayatPages(Math.ceil(riwayatData.length / ITEMS_PER_PAGE) || 1);
       setRiwayatPage(1);
+
+      // Update Alpines balance from ringkasan response
+      setSaldoAlpines(ringkasanData?.saldoAlpinesTerkini ?? null);
+      setWaktuSaldoAlpines(ringkasanData?.waktuSaldoAlpinesTerkini ?? null);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
     } finally {
@@ -420,6 +446,20 @@ export default function DashboardPage() {
               },
             };
           });
+
+          // Update Alpines balance if new transaction is from Alpines and has saldo_akhir
+          if (
+            newTrx.provider === "alpines" &&
+            newTrx.detail?.saldo_akhir !== undefined &&
+            newTrx.detail?.saldo_akhir !== null
+          ) {
+            setSaldoAlpines(newTrx.detail.saldo_akhir as number);
+            setWaktuSaldoAlpines(
+              newTrx.waktu instanceof Date
+                ? newTrx.waktu.toISOString()
+                : String(newTrx.waktu),
+            );
+          }
 
           // Update riwayat transactions (add to front if on page 1)
           setRiwayatTransactions((prev) => {
@@ -551,10 +591,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Summary Cards - Omzet, Transaksi, Status */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Summary Cards - Omzet, Pendapatan Bersih, Saldo Alpines, Transaksi, Status */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {loading ? (
           <>
+            <CardSkeleton />
+            <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
@@ -606,6 +648,66 @@ export default function DashboardPage() {
                   </div>
                   <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
                     <DollarSign className="h-5 w-5 text-blue-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pendapatan Bersih Card */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">
+                      Pendapatan Bersih Hari Ini
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-600 mt-2 tracking-tight">
+                      {formatRupiah(ringkasan.pendapatanBersih ?? 0)}
+                    </p>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <PiggyBank className="h-5 w-5 text-emerald-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Saldo Alpines Card */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">
+                      Saldo Alpines
+                    </p>
+                    {saldoAlpines !== null ? (
+                      <>
+                        <p className="text-2xl font-bold text-blue-600 mt-2 tracking-tight">
+                          {formatRupiah(saldoAlpines)}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Per{" "}
+                          {waktuSaldoAlpines
+                            ? new Date(waktuSaldoAlpines).toLocaleString(
+                                "id-ID",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )
+                            : "-"}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-2xl font-bold text-gray-400 mt-2 tracking-tight">
+                        ...
+                      </p>
+                    )}
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <Wallet className="h-5 w-5 text-blue-600" />
                   </div>
                 </div>
               </CardContent>
