@@ -216,40 +216,40 @@ const nominalTestCases: NominalTestCase[] = [
     nominalFinal: 32000,
   },
   {
-    nama: "Voucher AIGO (fallback saldo)",
+    nama: "Voucher AIGO (fallback saldo) - voucher_data_alpines with rounding",
     provider: "alpines",
     rawText:
       "Voucher AIGO 5.5GB 3hr VTR10.0895 berhasil. SN/Ref: VTR10.0895. Saldo 1000000 - 13950 = 986050 @15/08 10:30:00",
-    jenisTransaksi: "paket_data",
+    jenisTransaksi: "voucher_data_alpines",
     namaProduk: null,
     nominalDasar: 13950,
     sumberDasar: "fallback_saldo",
-    adminKonter: 2000,
-    nominalFinal: 15950,
+    adminKonter: 1050, // 13950 + 1000 = 14950 -> rounded to 15000, admin = 15000 - 13950 = 1050
+    nominalFinal: 15000,
   },
   {
-    nama: "Voucher Three (fallback saldo)",
+    nama: "Voucher Three (fallback saldo) - voucher_data_alpines with rounding",
     provider: "alpines",
     rawText:
       "Voucher Three 5.5GB 3hr VTR10.0895 berhasil. SN/Ref: VTR10.0895. Saldo 1000000 - 15150 = 984850 @15/08 10:30:00",
-    jenisTransaksi: "paket_data",
+    jenisTransaksi: "voucher_data_alpines",
     namaProduk: null,
     nominalDasar: 15150,
     sumberDasar: "fallback_saldo",
-    adminKonter: 2000,
-    nominalFinal: 17150,
+    adminKonter: 1850, // 15150 + 1000 = 16150 -> rounded to 17000, admin = 17000 - 15150 = 1850
+    nominalFinal: 17000,
   },
   {
-    nama: "Voucher Three (serial number format, fallback saldo)",
+    nama: "Voucher Three (serial number format, fallback saldo) - voucher_data_alpines with rounding",
     provider: "alpines",
     rawText:
       "Voucher Three 5.5 gb 3 hr *888*Nomor Sn# VTR10.0895 Berhasil. SN/Ref:  :8963 3812 8213 8164. Saldo 347827 - 13150 = 334677 @24/08 11:42:56",
-    jenisTransaksi: "paket_data",
+    jenisTransaksi: "voucher_data_alpines",
     namaProduk: null,
     nominalDasar: 13150,
     sumberDasar: "fallback_saldo",
-    adminKonter: 2000,
-    nominalFinal: 15150,
+    adminKonter: 1850, // 13150 + 1000 = 14150 -> rounded to 15000, admin = 15000 - 13150 = 1850
+    nominalFinal: 15000,
   },
 
   // PLN
@@ -402,6 +402,43 @@ const nominalTestCases: NominalTestCase[] = [
     sumberDasar: undefined,
     adminKonter: 5000,
     nominalFinal: 105000,
+  },
+  // Talkmania (paket_nelpon) test cases
+  {
+    nama: "Digipos Talkmania Sakti Bulanan Rp7999",
+    provider: "digipos",
+    rawText:
+      "Isi ulang paket Talkmania Sakti Bulanan 6285272325772 pd 25/08/2026 14:56:49 berhasil. Voucher senilai Rp7999. Nomor seri 04254600000279933186. Cek sisa stock di *181*1*5*2*PIN#.",
+    jenisTransaksi: "paket_nelpon",
+    namaProduk: "Talkmania Sakti Bulanan",
+    nominalDasar: 7999,
+    sumberDasar: undefined,
+    adminKonter: 2001, // 7999 -> 8000 + 2000 = 10000, margin = 2001
+    nominalFinal: 10000,
+  },
+  {
+    nama: "Digipos Talkmania Sakti Bulanan Rp17999",
+    provider: "digipos",
+    rawText:
+      "Isi ulang paket Talkmania Sakti Bulanan 6285272325772 pd 25/08/2026 14:56:49 berhasil. Voucher senilai Rp17999. Nomor seri 04254600000279933186. Cek sisa stock di *181*1*5*2*PIN#.",
+    jenisTransaksi: "paket_nelpon",
+    namaProduk: "Talkmania Sakti Bulanan",
+    nominalDasar: 17999,
+    sumberDasar: undefined,
+    adminKonter: 2001, // 17999 -> 18000 + 2000 = 20000, margin = 2001
+    nominalFinal: 20000,
+  },
+  {
+    nama: "Digipos Combo Sakti (paket_data, NOT Talkmania)",
+    provider: "digipos",
+    rawText:
+      "Isi ulang paket Combo Sakti 6281266562888 pd 25/08/2026 14:56:49 berhasil. Voucher senilai Rp15000. Nomor seri 04254600000279933186. Cek sisa stock di *181*1*5*2*PIN#.",
+    jenisTransaksi: "paket_data",
+    namaProduk: "Combo Sakti",
+    nominalDasar: 15000,
+    sumberDasar: undefined,
+    adminKonter: 2000,
+    nominalFinal: 17000,
   },
 ];
 
@@ -607,11 +644,25 @@ function runAdminKonterUnitTests() {
       expected: 0,
     },
     {
-      nama: "Paket Nelpon (no rule)",
+      nama: "Paket Nelpon (Talkmania) - round nominal first then add admin",
       nominal: 10000,
       jenis: "paket_nelpon",
       produk: null,
-      expected: 0,
+      expected: 2000, // 10000 rounded to 10000 + 2000 = 12000, admin = 2000
+    },
+    {
+      nama: "Paket Nelpon (Talkmania) - 17999 -> 18000 + 2000 = 20000",
+      nominal: 17999,
+      jenis: "paket_nelpon",
+      produk: null,
+      expected: 2001, // 17999 rounded to 18000 + 2000 = 20000, admin = 20000 - 17999 = 2001
+    },
+    {
+      nama: "Paket Nelpon (Talkmania) - 7999 -> 8000 + 2000 = 10000",
+      nominal: 7999,
+      jenis: "paket_nelpon",
+      produk: null,
+      expected: 2001, // 7999 rounded to 8000 + 2000 = 10000, admin = 10000 - 7999 = 2001
     },
   ];
 

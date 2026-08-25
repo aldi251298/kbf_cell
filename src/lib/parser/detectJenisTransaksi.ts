@@ -130,9 +130,11 @@ export function detectJenisTransaksi(text: string): string {
 }
 
 // Export scoring function for use by tebakJenisTransaksiUniversal
-export async function scoringKeywordKategori(
-  rawText: string,
-): Promise<{ kategori: string; skor: number }> {
+// Synchronous version - no actual async operations needed
+export function scoringKeywordKategori(rawText: string): {
+  kategori: string;
+  skor: number;
+} {
   const scores: Record<string, number> = {};
 
   for (const [kategori, keywords] of Object.entries(JENIS_TRANSAKSI_KEYWORDS)) {

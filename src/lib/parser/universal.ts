@@ -138,68 +138,15 @@ export function parseStrukturAlpines(rawText: string): AlpinesStructure {
 // 4. TEBAK JENIS TRANSAKSI UNIVERSAL (Dynamic Category System)
 // ============================================================================
 
-import { JENIS_TRANSAKSI_KEYWORDS, JENIS_TRANSAKSI_PRIORITY } from "./keywords";
+import { scoringKeywordKategori } from "./detectJenisTransaksi";
 
 export interface TebakJenisResult {
   jenis: string;
   perluReview: boolean;
 }
 
-async function scoringKeywordKategori(
-  rawText: string,
-): Promise<{ kategori: string; skor: number }> {
-  const lower = rawText.toLowerCase();
-  const scores: Record<string, number> = {};
-
-  for (const [kategori, keywords] of Object.entries(JENIS_TRANSAKSI_KEYWORDS)) {
-    let score = 0;
-    for (const kw of keywords) {
-      const regex = new RegExp(escapeRegex(kw), "gi");
-      const matches = lower.match(regex);
-      if (matches) score += matches.length;
-    }
-    scores[kategori] = score;
-  }
-
-  // Special handling for PLN token format: "TOKEN <nominal> PH..."
-  const plnTokenPattern = /^TOKEN\s+[\d.,]+\s+PH\w+/i;
-  if (plnTokenPattern.test(rawText.trim())) {
-    scores["pln"] = (scores["pln"] ?? 0) + 3;
-  }
-
-  // Bug 2 fix: Deteksi eksplisit nama operator seluler + angka tanpa "paket"/"data" = pulsa
-  const adaAngkaSetelahOperator =
-    /\b(telkomsel|byu|axis|tri|indosat|im3|xl|smartfren)\s+\d{3,6}\b/i;
-  if (
-    adaAngkaSetelahOperator.test(rawText) &&
-    !/\bpaket\b|\bdata\b/i.test(rawText)
-  ) {
-    scores["pulsa"] = (scores["pulsa"] ?? 0) + 2;
-  }
-
-  let best = "belum_dikenal";
-  let bestScore = 0;
-
-  for (const kategori of JENIS_TRANSAKSI_PRIORITY) {
-    if ((scores[kategori] ?? 0) > bestScore) {
-      bestScore = scores[kategori] ?? 0;
-      best = kategori;
-    }
-  }
-
-  for (const [kategori, score] of Object.entries(scores)) {
-    if (!JENIS_TRANSAKSI_PRIORITY.includes(kategori) && score > bestScore) {
-      bestScore = score;
-      best = kategori;
-    }
-  }
-
-  return { kategori: best, skor: bestScore };
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+// Use the shared scoring function from detectJenisTransaksi which includes
+// scoringPaketAtauPulsa logic for paket_nelpon vs paket_data (including Talkmania)
 
 export async function tebakJenisTransaksiUniversal(
   rawText: string,
