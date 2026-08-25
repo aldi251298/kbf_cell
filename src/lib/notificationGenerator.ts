@@ -231,14 +231,8 @@ function generateDigiposPulsa(config: GeneratorConfig): string {
     config.saldoAwal || nominal + 50000 + Math.floor(Math.random() * 100000);
   const saldoAkhir = saldoAwal - nominal - 2000; // -2000 admin fee
 
-  // Two formats observed in real data
-  const format = Math.random() > 0.5 ? 1 : 2;
-
-  if (format === 1) {
-    return `Isi ulang pulsa ${formatRupiahWithRp(nominal)} untuk no pelanggan ${customerNumber} telah berhasil dengan SN ${sn} dan ID Transaksi ${transactionId}. Cek sisa stock di *181*1*5*2*PIN#. Sisa saldo ${formatRupiahWithRp(saldoAkhir)}`;
-  } else {
-    return `Isi ulang pulsa ${formatRupiahWithRp(nominal)} untuk no pelanggan ${customerNumber} telah berhasil dengan SN ${sn} dan ID Transaksi ${transactionId}. Cek sisa stock di *181*1*5*2*PIN#.`;
-  }
+  // Real format: "Isi ulang pulsa Rp 20000 untuk no pelanggan 6285126236562 telah berhasil dengan SN 04251800000231881088 dan ID Transaksi DGPS260822194910929804414. Cek sisa stock di *181*1*5*2*PIN#."
+  return `Isi ulang pulsa Rp ${formatRupiah(nominal)} untuk no pelanggan ${customerNumber} telah berhasil dengan SN ${sn} dan ID Transaksi ${transactionId}. Cek sisa stock di *181*1*5*2*PIN#.`;
 }
 
 function generateDigiposPaketData(config: GeneratorConfig): string {
@@ -255,13 +249,31 @@ function generateDigiposPaketData(config: GeneratorConfig): string {
   const dateStr = formatDateIndonesian(timestamp);
   const timeStr = formatTimeIndonesian(timestamp);
 
-  // Two formats observed
+  // Real format 1: "Isi ulang paket Super Seru Internet 6282382402102 pd 22/08/2026 14:50:00 berhasil. Voucher senilai Rp30000. Nomor seri 04251200000226014462. Cek sisa stock di *181*1*5*2*PIN#."
+  // Real format 2: "Transaksi pengisian paket data byU Kaget 33 GB 28 Hari 28 Hari pada 22 August 2026 04:22:29 senilai Rp72000 telah berhasil. MSISDN: 6285185491964, ID Transaksi: DGPS260822162227613053557. Sisa Saldo Rp. 174.587,00"
   const format = Math.random() > 0.5 ? 1 : 2;
 
   if (format === 1) {
-    return `Isi ulang paket ${product} ${customerNumber} pd ${dateStr} ${timeStr} berhasil. Voucher senilai ${formatRupiahWithRp(nominal)}. Nomor seri ${sn}. Cek sisa stock di *181*1*5*2*PIN#.`;
+    return `Isi ulang paket ${product} ${customerNumber} pd ${dateStr} ${timeStr} berhasil. Voucher senilai Rp${formatRupiah(nominal)}. Nomor seri ${sn}. Cek sisa stock di *181*1*5*2*PIN#.`;
   } else {
-    return `Transaksi pengisian paket data ${product} ${customerNumber} pada ${dateStr} ${timeStr} senilai ${formatRupiahWithRp(nominal)} telah berhasil. MSISDN: ${customerNumber}, ID Transaksi: ${transactionId}. Sisa Saldo ${formatRupiahWithRp(saldoAkhir)}`;
+    // Format date as "22 August 2026 04:22:29"
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    const monthName = months[timestamp.getMonth()];
+    const dateStrEn = `${timestamp.getDate()} ${monthName} ${timestamp.getFullYear()} ${timeStr}`;
+    return `Transaksi pengisian paket data ${product} ${customerNumber} pada ${dateStrEn} senilai Rp${formatRupiah(nominal)} telah berhasil. MSISDN: ${customerNumber}, ID Transaksi: ${transactionId}. Sisa Saldo Rp. ${formatRupiah(saldoAkhir)},00`;
   }
 }
 
@@ -275,7 +287,8 @@ function generateDigiposPaketNelpon(config: GeneratorConfig): string {
   const dateStr = formatDateIndonesian(timestamp);
   const timeStr = formatTimeIndonesian(timestamp);
 
-  return `Isi ulang paket ${product} ${customerNumber} pd ${dateStr} ${timeStr} berhasil. Voucher senilai ${formatRupiahWithRp(nominal)}. Nomor seri ${sn}. Cek sisa stock di *181*1*5*2*PIN#.`;
+  // Real format: "Isi ulang paket Talkmania Sakti Bulanan 6281374087911 pd 21/08/2026 16:04:39 berhasil. Voucher senilai Rp7999. Nomor seri 04250600000200678066. Cek sisa stock di *181*1*5*2*PIN#."
+  return `Isi ulang paket ${product} ${customerNumber} pd ${dateStr} ${timeStr} berhasil. Voucher senilai Rp${formatRupiah(nominal)}. Nomor seri ${sn}. Cek sisa stock di *181*1*5*2*PIN#.`;
 }
 
 function generateDigiposPLN(config: GeneratorConfig): string {
@@ -294,6 +307,7 @@ function generateDigiposPLN(config: GeneratorConfig): string {
   const dateStr = `${timestamp.getDate().toString().padStart(2, "0")}-${(timestamp.getMonth() + 1).toString().padStart(2, "0")}-${timestamp.getFullYear()}`;
   const timeStr = formatTimeIndonesian(timestamp);
 
+  // Real format: "Anda telah melakukan pembayaran PLN senilai 20000 pada 21-08-2026 15:58:04 Biaya admin 2400. ID Transaksi DGPS260821155753231533607 Saldo LinkAja 186386. Token PLN Prabayar Anda 3159 4822 1374 2540 9921. Nometer 86278933436 atas nama RUSTAM DT INDO BUMI. 43,9 kWh"
   return `Anda telah melakukan pembayaran PLN senilai ${nominal} pada ${dateStr} ${timeStr} Biaya admin ${biayaAdmin}. ID Transaksi ${transactionId} Saldo LinkAja ${saldoAwal}. Token PLN Prabayar Anda ${tokenPln}. Nometer ${nomorMeter} atas nama ${customerName}. ${daya}/${kwh}`;
 }
 
@@ -319,8 +333,10 @@ function generateAlpinesPulsa(config: GeneratorConfig): string {
   const saldoAkhir = saldoAwal - nominalWithFee;
   const alpinesTimestamp = formatAlpinesTimestamp(timestamp);
 
-  // Format: "Telkomsel BYU 15000 TSBYU15.085198025507 Berhasil. SN/Ref: 04250500000210620925. Saldo 39.777 - 15.550 = 24.227 @21/08 22:34:22"
-  const header = `${providerSeluler} ${providerSeluler === "Telkomsel" ? "BYU" : "Reguler"} ${nominal} ${productCode}${generateRandomDigits(12)} Berhasil.`;
+  // Real format: "Telkomsel BYU 15000 TSBYU15.085165745482 Berhasil. SN/Ref: 04252400000245405164. Saldo 1.257.427 - 15.550 = 1.241.877 @23/08 19:23:59"
+  // "Axis Reguler 30000 AX30.083877750811 Berhasil. SN/Ref: 0092420822554939. Saldo 773.577 - 30.650 = 742.927 @22/08 11:04:47"
+  const productName = providerSeluler === "Telkomsel" ? "BYU" : "Reguler";
+  const header = `${providerSeluler} ${productName} ${nominal} ${productCode}${generateRandomDigits(12)} Berhasil.`;
   const snRef = `SN/Ref: ${sn}.`;
   const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominalWithFee)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;
 
@@ -340,10 +356,16 @@ function generateAlpinesVoucherData(config: GeneratorConfig): string {
   const saldoAkhir = saldoAwal - nominalWithFee;
   const alpinesTimestamp = formatAlpinesTimestamp(timestamp);
 
-  // Format: "VOUCHER AIGO 5.5 gb 3 hari *838*nomor voucher#VA5.0838 Berhasil. SN/Ref: :3170 0838 8279 5759. Saldo 309.523 - 11950 = 297.573 @15/08 20:44:39"
-  const header = `${product} *838*nomor voucher#${transactionId} Berhasil.`;
-  const snRef = `SN/Ref: ${sn}.`;
-  const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominalWithFee)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;
+  // Real format: "VOUCHER AIGO 5.5 gb 3 hari    *838*nomor voucher# VA5.0838 Berhasil. SN/Ref:  :5213 9971 1934 0958. Saldo 20.327 - 11950 = 8.377 @22/08 20:24:03"
+  // "Voucher Three 5.5 gb 3 hr   *888*Nomor Sn# VTR10.0895 Berhasil. SN/Ref:  :1583 0278 6596 2336. Saldo 422.877 - 13150 = 409.727 @23/08 20:47:15"
+  const prefix = product.startsWith("VOUCHER") ? "VOUCHER" : "Voucher";
+  const productName = product.replace(/^(VOUCHER|Voucher)\s+/i, "");
+  const codePrefix = productName.includes("AIGO")
+    ? "*838*nomor voucher#"
+    : "*888*Nomor Sn#";
+  const header = `${prefix} ${productName}   ${codePrefix} ${transactionId} Berhasil.`;
+  const snRef = `SN/Ref:  ${sn}.`;
+  const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominal)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;
 
   return `${header} ${snRef} ${saldo}`;
 }
@@ -363,22 +385,12 @@ function generateAlpinesEwallet(config: GeneratorConfig): string {
   const saldoAkhir = saldoAwal - nominalWithFee;
   const alpinesTimestamp = formatAlpinesTimestamp(timestamp);
 
-  // Two formats observed
-  const format = Math.random() > 0.5 ? 1 : 2;
-
-  if (format === 1) {
-    // Format: "Saldo DANA50.081261592333 Berhasil. SN/Ref: DANA TOPUP/MXX INDXXXXXX/50000/081261592333/REFF:2026072610121481030100166970654515631. Saldo 998.218 - 50.650 = 947.568 @26/07 21:03:16"
-    const header = `Saldo ${ewalletName}${nominal}.${customerNumber.slice(-8)} Berhasil.`;
-    const snRef = `SN/Ref: ${ewalletName} TOPUP/${customerName.replace(" ", "XX")}/${nominal}/${customerNumber}/REFF:${transactionId}.`;
-    const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominalWithFee)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;
-    return `${header} ${snRef} ${saldo}`;
-  } else {
-    // Format: "Saldo DANA.200.081267746287 Berhasil. SN/Ref: NAMA:DNID-AVRXXXX WIJXXXXXX/NOMINAL:200000/IDT:2026081510121481030100166963767458397. Saldo 731-423 - 200.850 = 530.573 @15/08 13:17:49"
-    const header = `Saldo ${ewalletName}.${nominal}.${customerNumber.slice(-8)} Berhasil.`;
-    const snRef = `SN/Ref: NAMA:DNID-${customerName.replace(" ", "XX")}/NOMINAL:${nominal}/IDT:${transactionId}.`;
-    const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominalWithFee)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;
-    return `${header} ${snRef} ${saldo}`;
-  }
+  // Real format: "Saldo dana DANA200.082279141693 Berhasil. SN/Ref: NAMA:DNID-VIOXX ALYXXX/NOMINAL:200000/IDT:2026082310121481030100166859069335373. Saldo 1.937.077 - 201.150 = 1.735.927 @23/08 13:43:36"
+  // "Saldo dana DANA10.082171536241 Berhasil. SN/Ref: NAMA:DNID-ARNXXX RATXX DEWX/NOMINAL:10000/IDT:2026082310121481030100166412471781889. Saldo 1.268.077 - 10.650 = 1.257.427 @23/08 18:51:42"
+  const header = `Saldo dana ${ewalletName}${nominal}.${customerNumber.slice(-8)} Berhasil.`;
+  const snRef = `SN/Ref: NAMA:DNID-${customerName.replace(" ", "XX")}/NOMINAL:${nominal}/IDT:${transactionId}.`;
+  const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominalWithFee)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;
+  return `${header} ${snRef} ${saldo}`;
 }
 
 function generateAlpinesPLN(config: GeneratorConfig): string {
@@ -395,7 +407,7 @@ function generateAlpinesPLN(config: GeneratorConfig): string {
   const alpinesTimestamp = formatAlpinesTimestamp(timestamp);
   const sn = config.sn || generateSN("alpines", "pln");
 
-  // Format: "TOKEN 20000 PH20.50160790239 Berhasil. SN/Ref: 5185-7612-4324-7979-7585/LASKAR/R1/450VA/43,9kwh.. Saldo 59.527 - 22.450 = 37.077 @23/08 21:11:12"
+  // Real format: "TOKEN 20000 PH20.50160790239 Berhasil. SN/Ref: 5185-7612-4324-7979-7585/LASKAR/R1/450VA/43,9kwh.. Saldo 59.527 - 22.450 = 37.077 @23/08 21:11:12"
   const header = `TOKEN ${nominal} PH${generateRandomDigits(2)}.${generateRandomDigits(11)} Berhasil.`;
   const snRef = `SN/Ref: ${sn}/${customerName}/R1/${daya}/${kwh.replace(" ", "")}..`;
   const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominalWithFee)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;
@@ -418,7 +430,7 @@ function generateAlpinesTagihan(config: GeneratorConfig): string {
   const saldoAkhir = saldoAwal - nominalWithFee;
   const alpinesTimestamp = formatAlpinesTimestamp(timestamp);
 
-  // Format: "BAYAR TAGIHAN TELKOM BTEL.111452102552 Berhasil. SN/Ref: NOFRITA DEWI/1Lbr/Periode:202608/Rp.318850/979981323608A/Adm2500/RpTag316350/111452102552,. Saldo 409.727 - 319.550 = 90.177 @23/08 20:59:42"
+  // Real format: "BAYAR TAGIHAN TELKOM BTEL.111452102552 Berhasil. SN/Ref: NOFRITA DEWI/1Lbr/Periode:202608/Rp.318850/979981323608A/Adm2500/RpTag316350/111452102552,. Saldo 409.727 - 319.550 = 90.177 @23/08 20:59:42"
   const header = `BAYAR TAGIHAN TELKOM BTEL.${customerNumber} Berhasil.`;
   const snRef = `SN/Ref: ${customerName}/1Lbr/Periode:${periode}/Rp.${nominal}/${customerNumber}A/Adm${biayaAdmin}/RpTag${nominalTagihan}/${customerNumber},.`;
   const saldo = `Saldo ${formatRupiah(saldoAwal)} - ${formatRupiah(nominalWithFee)} = ${formatRupiah(saldoAkhir)} ${alpinesTimestamp}`;

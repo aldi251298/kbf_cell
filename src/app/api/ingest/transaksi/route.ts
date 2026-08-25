@@ -174,7 +174,8 @@ export async function POST(req: NextRequest) {
   const adminKonter = (detailTambahan?.admin_konter as number) ?? 0;
   const nominalDasar =
     (detailTambahan?.nominal_dasar as number) ?? parsed.nominal;
-  const nominalFinal = (nominalDasar ?? 0) + adminKonter;
+  // Gunakan parsed.nominal langsung karena sudah dihitung benar dengan pembulatan di parser
+  const nominalFinal = parsed.nominal ?? (nominalDasar ?? 0) + adminKonter;
 
   // 8. Prepare base insert row
   const baseInsertRow = {

@@ -39,6 +39,24 @@ export function extractNamaProduk(
   ewalletName: string | null,
 ): string | null {
   switch (jenisTransaksi) {
+    case "voucher_data_alpines": {
+      // Alpines voucher format: "Voucher <nama> <specs> *xxx*... Berhasil. SN/Ref: ... Saldo ..."
+      // Extract nama produk between "Voucher" and the first asterisk pattern or "Berhasil"/"Gagal"
+      let cleaned = text
+        .replace(/\*\d+\*.*$/i, "") // remove "*838*..." and everything after
+        .replace(/nomor\s*voucher#.*$/i, ""); // remove "nomor voucher#..." and everything after
+
+      // Remove trailing status words
+      cleaned = cleaned.replace(/\s+(Berhasil|Gagal)$/i, "").trim();
+
+      // Extract the part after "Voucher" (case insensitive)
+      const voucherMatch = cleaned.match(/Voucher\s+(.+)/i);
+      if (voucherMatch) {
+        return voucherMatch[1].trim();
+      }
+
+      return null;
+    }
     case "paket_data": {
       // First try structural keyword approach: between "paket data" and "pada"
       const paketDataResult = extractNamaProdukPaketData(text);
