@@ -66,10 +66,6 @@ function formatRupiah(amount: number): string {
   return amount.toLocaleString("id-ID");
 }
 
-function formatRupiahWithRp(amount: number): string {
-  return `Rp ${formatRupiah(amount)}`;
-}
-
 function generateRandomDigits(length: number): string {
   let result = "";
   for (let i = 0; i < length; i++) {
@@ -227,9 +223,6 @@ function generateDigiposPulsa(config: GeneratorConfig): string {
     config.customerNumber || `628${generateRandomDigits(9)}`;
   const sn = config.sn || generateSN("digipos", "pulsa");
   const transactionId = config.transactionId || generateDigiposTransactionId();
-  const saldoAwal =
-    config.saldoAwal || nominal + 50000 + Math.floor(Math.random() * 100000);
-  const saldoAkhir = saldoAwal - nominal - 2000; // -2000 admin fee
 
   // Real format: "Isi ulang pulsa Rp 20000 untuk no pelanggan 6285126236562 telah berhasil dengan SN 04251800000231881088 dan ID Transaksi DGPS260822194910929804414. Cek sisa stock di *181*1*5*2*PIN#."
   return `Isi ulang pulsa Rp ${formatRupiah(nominal)} untuk no pelanggan ${customerNumber} telah berhasil dengan SN ${sn} dan ID Transaksi ${transactionId}. Cek sisa stock di *181*1*5*2*PIN#.`;
@@ -245,7 +238,6 @@ function generateDigiposPaketData(config: GeneratorConfig): string {
   const product = config.product || getRandomProductDigiposPaketData();
   const saldoAwal =
     config.saldoAwal || nominal + 50000 + Math.floor(Math.random() * 100000);
-  const saldoAkhir = saldoAwal - nominal - 2000; // -2000 admin fee
   const dateStr = formatDateIndonesian(timestamp);
   const timeStr = formatTimeIndonesian(timestamp);
 
@@ -273,6 +265,7 @@ function generateDigiposPaketData(config: GeneratorConfig): string {
     ];
     const monthName = months[timestamp.getMonth()];
     const dateStrEn = `${timestamp.getDate()} ${monthName} ${timestamp.getFullYear()} ${timeStr}`;
+    const saldoAkhir = saldoAwal - nominal - 2000; // -2000 admin fee
     return `Transaksi pengisian paket data ${product} ${customerNumber} pada ${dateStrEn} senilai Rp${formatRupiah(nominal)} telah berhasil. MSISDN: ${customerNumber}, ID Transaksi: ${transactionId}. Sisa Saldo Rp. ${formatRupiah(saldoAkhir)},00`;
   }
 }

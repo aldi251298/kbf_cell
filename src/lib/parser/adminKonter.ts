@@ -102,9 +102,14 @@ export function terapkanAdminKonter(
     nominalFinal = Math.ceil(nominalFinal / 1000) * 1000;
   }
 
+  // Keuntungan aktual = nominalFinal - nominalDasar (bukan nilai config admin flat)
+  // Ini penting untuk kategori dengan pembulatan (seperti voucher_data_alpines)
+  // di mana margin aktual bisa beda dari nilai config akibat pembulatan ke kelipatan 1000
+  const adminAktual = nominalFinal - nominalDasar;
+
   return {
     nominalFinal,
-    adminKonter: admin,
+    adminKonter: adminAktual,
     adaAturan: true,
   };
 }
