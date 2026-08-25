@@ -831,7 +831,7 @@ export default function TransaksiPendingPage() {
                           </Badge>
                           {trx.errorMessage && (
                             <p
-                              className="text-xs text-text-tertiary mt-1 truncate max-w-[150px]"
+                              className="text-xs text-text-tertiary mt-1 truncate max-w-37.5"
                               title={trx.errorMessage}
                             >
                               {trx.errorMessage}

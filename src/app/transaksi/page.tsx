@@ -757,8 +757,8 @@ export default function TransaksiPage() {
                               trx.status === "sukses"
                                 ? "success"
                                 : trx.status === "gagal"
-                                ? "error"
-                                : "warning"
+                                  ? "error"
+                                  : "warning"
                             }
                             size="sm"
                             dot
@@ -767,7 +767,7 @@ export default function TransaksiPage() {
                           </Badge>
                           {trx.errorMessage && (
                             <p
-                              className="text-xs text-text-tertiary mt-1 truncate max-w-[150px]"
+                              className="text-xs text-text-tertiary mt-1 truncate max-w-37.5"
                               title={trx.errorMessage}
                             >
                               {trx.errorMessage}

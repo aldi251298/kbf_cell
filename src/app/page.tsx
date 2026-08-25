@@ -608,30 +608,30 @@ export default function DashboardPage() {
           </>
         ) : ringkasan ? (
           <>
-            {/* Omzet Card */}
-            <Card>
+            {/* Omzet Card - Gradient Blue */}
+            <Card variant="gradient-blue">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-white/80">
                       Omzet Hari Ini
                     </p>
-                    <p className="text-2xl font-bold text-gray-900 mt-2 tracking-tight">
+                    <p className="text-2xl font-bold text-white mt-2 tracking-tight">
                       {formatRupiah(ringkasan.totalOmzet)}
                     </p>
                     <div className="flex items-center gap-1 mt-2">
                       {omzetDelta > 0 ? (
-                        <ArrowUpRight className="h-3.5 w-3.5 text-green-600" />
+                        <ArrowUpRight className="h-3.5 w-3.5 text-green-300" />
                       ) : omzetDelta < 0 ? (
-                        <ArrowDownRight className="h-3.5 w-3.5 text-red-600" />
+                        <ArrowDownRight className="h-3.5 w-3.5 text-red-300" />
                       ) : null}
                       <span
                         className={`text-xs font-medium ${
                           omzetDelta > 0
-                            ? "text-green-600"
+                            ? "text-green-300"
                             : omzetDelta < 0
-                            ? "text-red-600"
-                            : "text-gray-500"
+                              ? "text-red-300"
+                              : "text-white/60"
                         }`}
                       >
                         {hitungPerubahanPersen(
@@ -646,51 +646,51 @@ export default function DashboardPage() {
                         ).toFixed(1)}
                         %
                       </span>
-                      <span className="text-xs text-gray-400 ml-1">
+                      <span className="text-xs text-white/50 ml-1">
                         dari kemarin
                       </span>
                     </div>
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-blue-600" />
+                  <div className="h-10 w-10 rounded-none bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <DollarSign className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Pendapatan Bersih Card */}
-            <Card>
+            {/* Pendapatan Bersih Card - Gradient Emerald */}
+            <Card variant="gradient-emerald">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-white/80">
                       Pendapatan Bersih Hari Ini
                     </p>
-                    <p className="text-2xl font-bold text-emerald-600 mt-2 tracking-tight">
+                    <p className="text-2xl font-bold text-white mt-2 tracking-tight">
                       {formatRupiah(ringkasan.pendapatanBersih ?? 0)}
                     </p>
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                    <PiggyBank className="h-5 w-5 text-emerald-600" />
+                  <div className="h-10 w-10 rounded-none bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <PiggyBank className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Saldo Alpines Card */}
-            <Card>
+            {/* Saldo Alpines Card - Gradient Cyan */}
+            <Card variant="gradient-cyan">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-white/80">
                       Saldo Alpines
                     </p>
                     {saldoAlpines !== null ? (
                       <>
-                        <p className="text-2xl font-bold text-blue-600 mt-2 tracking-tight">
+                        <p className="text-2xl font-bold text-white mt-2 tracking-tight">
                           {formatRupiah(saldoAlpines)}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-white/60 mt-1">
                           Per{" "}
                           {waktuSaldoAlpines
                             ? new Date(waktuSaldoAlpines).toLocaleString(
@@ -706,42 +706,42 @@ export default function DashboardPage() {
                         </p>
                       </>
                     ) : (
-                      <p className="text-2xl font-bold text-gray-400 mt-2 tracking-tight">
+                      <p className="text-2xl font-bold text-white/70 mt-2 tracking-tight">
                         ...
                       </p>
                     )}
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <Wallet className="h-5 w-5 text-blue-600" />
+                  <div className="h-10 w-10 rounded-none bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <Wallet className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Transaksi Card */}
-            <Card>
+            {/* Transaksi Card - Gradient Purple */}
+            <Card variant="gradient-purple">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-white/80">
                       Total Transaksi Hari Ini
                     </p>
-                    <p className="text-2xl font-bold text-gray-900 mt-2 tracking-tight">
+                    <p className="text-2xl font-bold text-white mt-2 tracking-tight">
                       {formatAngka(ringkasan.totalTransaksi)}
                     </p>
                     <div className="flex items-center gap-1 mt-2">
                       {transaksiDelta > 0 ? (
-                        <ArrowUpRight className="h-3.5 w-3.5 text-green-600" />
+                        <ArrowUpRight className="h-3.5 w-3.5 text-green-300" />
                       ) : transaksiDelta < 0 ? (
-                        <ArrowDownRight className="h-3.5 w-3.5 text-red-600" />
+                        <ArrowDownRight className="h-3.5 w-3.5 text-red-300" />
                       ) : null}
                       <span
                         className={`text-xs font-medium ${
                           transaksiDelta > 0
-                            ? "text-green-600"
+                            ? "text-green-300"
                             : transaksiDelta < 0
-                            ? "text-red-600"
-                            : "text-gray-500"
+                              ? "text-red-300"
+                              : "text-white/60"
                         }`}
                       >
                         {hitungPerubahanPersen(
@@ -756,56 +756,68 @@ export default function DashboardPage() {
                         ).toFixed(1)}
                         %
                       </span>
-                      <span className="text-xs text-gray-400 ml-1">
+                      <span className="text-xs text-white/50 ml-1">
                         dari kemarin
                       </span>
                     </div>
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center">
-                    <Receipt className="h-5 w-5 text-green-600" />
+                  <div className="h-10 w-10 rounded-none bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <Receipt className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Status Transaksi Card */}
-            <Card>
+            {/* Status Transaksi Card - Gradient Rose */}
+            <Card variant="gradient-rose">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium text-white/80">
                       Status Transaksi Hari Ini
                     </p>
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center">
-                    <ShoppingCart className="h-5 w-5 text-purple-600" />
+                  <div className="h-10 w-10 rounded-none bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <ShoppingCart className="h-5 w-5 text-white" />
                   </div>
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span className="text-xs text-gray-600">Sukses</span>
+                      <div className="h-2 w-2 rounded-full bg-green-400" />
+                      <span className="text-xs text-white/90">Sukses</span>
                     </div>
-                    <Badge variant="success" size="sm">
+                    <Badge
+                      variant="success"
+                      size="sm"
+                      className="bg-white/20 text-white border-white/30"
+                    >
                       {ringkasan.transaksiPerStatus.sukses}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-amber-500" />
-                      <span className="text-xs text-gray-600">Pending</span>
+                      <div className="h-2 w-2 rounded-full bg-amber-400" />
+                      <span className="text-xs text-white/90">Pending</span>
                     </div>
-                    <Badge variant="warning" size="sm">
+                    <Badge
+                      variant="warning"
+                      size="sm"
+                      className="bg-white/20 text-white border-white/30"
+                    >
                       {ringkasan.transaksiPerStatus.pending}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-red-500" />
-                      <span className="text-xs text-gray-600">Gagal</span>
+                      <div className="h-2 w-2 rounded-full bg-red-400" />
+                      <span className="text-xs text-white/90">Gagal</span>
                     </div>
-                    <Badge variant="error" size="sm">
+                    <Badge
+                      variant="error"
+                      size="sm"
+                      className="bg-white/20 text-white border-white/30"
+                    >
                       {ringkasan.transaksiPerStatus.gagal}
                     </Badge>
                   </div>
@@ -826,10 +838,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Riwayat Transaksi with Pagination */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card variant="default">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100">
           <div>
-            <CardTitle>Riwayat Transaksi</CardTitle>
+            <CardTitle className="text-gray-500">Riwayat Transaksi</CardTitle>
             <p className="text-xs text-gray-400 mt-0.5">
               {totalRiwayatItems} total transaksi
             </p>
@@ -838,7 +850,7 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 rounded-lg border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              className="h-8 rounded-none border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50"
             >
               Lihat Semua
               <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
