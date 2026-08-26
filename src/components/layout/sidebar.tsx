@@ -36,7 +36,7 @@ export function Sidebar() {
         "fixed top-0 left-0 h-full z-30",
         "bg-white",
         "border-r border-border-subtle",
-        collapsed ? "w-20" : "w-57.5",
+        collapsed ? "w-40" : "w-57.5",
       )}
     >
       {/* Logo / Brand */}
@@ -49,33 +49,25 @@ export function Sidebar() {
       >
         {!collapsed && (
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-border-subtle overflow-hidden">
+            <div className="flex h-25 w-35 shrink-0 items-center justify-center overflow-hidden">
               <Image
                 src="/logo_kbf.png"
                 alt="KBF Cell Logo"
-                width={36}
-                height={36}
-                className="object-contain"
+                width={90}
+                height={80}
+                className="h-full w-full object-contain"
               />
-            </div>
-            <div>
-              <span className="text-base font-bold text-text-primary tracking-tight">
-                KBF Cell
-              </span>
-              <p className="text-[10px] font-medium text-text-tertiary leading-none mt-0.5">
-                Monitoring Konter
-              </p>
             </div>
           </div>
         )}
         {collapsed && (
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-border-subtle overflow-hidden">
+          <div className="flex h-16 w-18 items-center justify-center">
             <Image
               src="/logo_kbf.png"
               alt="KBF Cell Logo"
-              width={36}
-              height={36}
-              className="object-contain"
+              width={90}
+              height={68}
+              className="h-full w-full object-contain"
             />
           </div>
         )}
