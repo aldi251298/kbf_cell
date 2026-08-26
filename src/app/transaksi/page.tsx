@@ -10,6 +10,8 @@ import type { Transaksi, StatusTransaksi } from "@/types";
 import {
   formatRupiah,
   formatWaktu,
+  formatTanggal,
+  formatJam,
   potongTeks,
   getTampilanTransaksi,
   getDisplayProductName,
@@ -31,7 +33,8 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { Search, X, Download, Receipt, Filter, Eye } from "lucide-react";
+import { LogoBrand } from "@/components/ui/LogoBrand";
+import { Search, X, Download, Receipt, Filter } from "lucide-react";
 import { STATUS_LABELS } from "@/constants/statusTransaksi";
 import { getKonterList } from "@/services";
 import type { Konter } from "@/types";
@@ -165,6 +168,11 @@ function TransactionDetailModal({
             <span className="text-sm text-gray-500">Produk</span>
             <div className="flex flex-col items-end gap-1">
               <div className="flex items-center gap-2">
+                <LogoBrand
+                  namaProduk={transaction.produk.nama}
+                  jenisTransaksi={transaction.produk.kategori}
+                  size={28}
+                />
                 <Badge
                   variant="default"
                   size="sm"
@@ -197,6 +205,12 @@ function TransactionDetailModal({
                   )}
                 </span>
               )}
+              {transaction.produk.kategori === "pulsa" &&
+                !transaction.produk.nama && (
+                  <span className="text-sm font-medium text-gray-900">
+                    Isi Ulang Pulsa
+                  </span>
+                )}
             </div>
           </div>
 
@@ -682,9 +696,8 @@ export default function TransaksiPage() {
                     >
                       Nominal
                     </SortableTableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]">Status</TableHead>
                     <TableHead>Tujuan</TableHead>
-                    <TableHead>Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -697,12 +710,16 @@ export default function TransaksiPage() {
                     return (
                       <TableRow
                         key={trx.id}
-                        className={trx.perluReview ? "bg-yellow-50" : undefined}
+                        className={`${trx.perluReview ? "bg-yellow-50" : ""} cursor-pointer hover:bg-surface-hover/50 transition-colors`}
+                        onClick={() => setSelectedTransaction(trx)}
                       >
                         <TableCell className="whitespace-nowrap">
-                          <div>
+                          <div className="flex flex-col">
                             <p className="text-sm font-medium text-text-primary">
-                              {formatWaktu(trx.waktu)}
+                              {formatTanggal(trx.waktu)}
+                            </p>
+                            <p className="text-xs text-text-tertiary">
+                              {formatJam(trx.waktu)}
                             </p>
                           </div>
                         </TableCell>
@@ -712,38 +729,43 @@ export default function TransaksiPage() {
                           </p>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant="default"
-                              size="sm"
-                              className={getCategoryBadgeColor(
-                                trx.produk.kategori,
-                              )}
-                            >
-                              {tampilan.labelJenisTransaksi}
-                            </Badge>
-                            {trx.perluReview && (
-                              <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
-                                PERLU REVIEW
-                              </span>
-                            )}
-                          </div>
+                          <span className="text-xs text-text-tertiary">
+                            {tampilan.labelJenisTransaksi}
+                          </span>
+                          {trx.perluReview && (
+                            <span className="ml-2 px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
+                              PERLU REVIEW
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm text-text-primary">
-                              {getDisplayProductName(
-                                trx.produk.kategori,
-                                trx.produk.nama,
-                                trx.providerSeluler,
-                              )}
-                            </span>
-                            {tampilan.tampilkanProviderSeluler &&
-                              trx.providerSeluler && (
-                                <span className="text-xs text-text-tertiary">
-                                  {trx.providerSeluler}
-                                </span>
-                              )}
+                          <div className="flex items-center gap-2">
+                            <LogoBrand
+                              namaProduk={trx.produk.nama}
+                              jenisTransaksi={trx.produk.kategori}
+                              size={28}
+                            />
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm text-text-primary">
+                                {getDisplayProductName(
+                                  trx.produk.kategori,
+                                  trx.produk.nama,
+                                  trx.providerSeluler,
+                                )}
+                              </span>
+                              {trx.produk.kategori === "pulsa" &&
+                                !trx.produk.nama && (
+                                  <span className="text-sm text-text-primary">
+                                    Isi Ulang Pulsa
+                                  </span>
+                                )}
+                              {tampilan.tampilkanProviderSeluler &&
+                                trx.providerSeluler && (
+                                  <span className="text-xs text-text-tertiary">
+                                    {trx.providerSeluler}
+                                  </span>
+                                )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
@@ -761,7 +783,6 @@ export default function TransaksiPage() {
                                   : "warning"
                             }
                             size="sm"
-                            dot
                           >
                             {STATUS_LABELS[trx.status]}
                           </Badge>
@@ -784,17 +805,6 @@ export default function TransaksiPage() {
                               -
                             </span>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedTransaction(trx)}
-                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                            title="Lihat Detail"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
                         </TableCell>
                       </TableRow>
                     );

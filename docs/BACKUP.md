@@ -23,6 +23,7 @@ tabel `transaksi`, `perangkat`, dan `konter` sebagai file JSON.
 
 Secara default, endpoint mengembalikan JSON sebagai attachment download. Untuk
 penyimpanan otomatis, modifikasi endpoint agar juga mengunggah hasil ke:
+
 - **Vercel Blob** (`@vercel/blob`), atau
 - **S3 / R2 / GCS**, atau
 - **Email** (kirim JSON sebagai lampiran via Resend/Mailgun).
@@ -48,6 +49,7 @@ Jika data perlu dipulihkan dari file backup JSON:
 ### Langkah-langkah
 
 1. **Siapkan file backup** (mis. `backup-2025-01-15.json`) dengan struktur:
+
    ```json
    {
      "exported_at": "...",
@@ -63,6 +65,7 @@ Jika data perlu dipulihkan dari file backup JSON:
    CLI).
 
 3. **Restore tabel konter & perangkat** (urutan penting karena ada foreign key):
+
    ```sql
    -- Konter (idempotent)
    insert into public.konter (id, nama, lokasi, perangkat_id)
@@ -84,6 +87,7 @@ Jika data perlu dipulihkan dari file backup JSON:
 4. **Restore tabel transaksi** — gunakan script Node/Python yang membaca file
    JSON dan melakukan insert via Supabase client (service role). Contoh script
    Node:
+
    ```js
    const { createClient } = require("@supabase/supabase-js");
    const fs = require("fs");
@@ -100,7 +104,8 @@ Jika data perlu dipulihkan dari file backup JSON:
        .from("transaksi")
        .upsert(backup.tables.transaksi, { onConflict: "dedup_key" });
      if (error) console.error(error);
-     else console.log("Restore selesai:", backup.tables.transaksi.length, "baris");
+     else
+       console.log("Restore selesai:", backup.tables.transaksi.length, "baris");
    })();
    ```
 

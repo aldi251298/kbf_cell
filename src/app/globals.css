@@ -4,15 +4,17 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================================
-   DESIGN TOKENS — KonterKu Dashboard
-   Palette: Clean Blue & Gray — modern SaaS admin dashboard
+   DESIGN TOKENS — KBF Cell Dashboard
+   Palette: Quiet Premium — Clean, Elegant, Professional SaaS Dashboard
    ============================================================================ */
 
 /* ---------- Light Mode (default) ---------- */
 :root {
-  /* Brand Accent — Blue */
+  /* Brand Accent — Deep Blue/Indigo */
   --accent: 221 83% 53%; /* #3b82f6 */
   --accent-foreground: 0 0% 100%;
+  --accent-muted: 221 83% 53% / 0.08;
+  --accent-hover: 221 83% 48%;
 
   /* Secondary — Slate */
   --secondary: 215 16% 47%; /* #64748b */
@@ -39,22 +41,56 @@
   --surface-4: var(--gray-600);
   --surface-5: var(--gray-500);
 
-  /* Status Colors */
-  /* Success — Green */
+  /* Status Colors — Muted/Soft variants for premium feel */
+  /* Success — Soft Green */
   --success: 142 76% 36%; /* #16a34a */
   --success-foreground: 0 0% 100%;
-  /* Warning — Amber */
+  --success-muted: 142 76% 36% / 0.08;
+  --success-soft: 142 50% 45%;
+  /* Warning — Soft Amber */
   --warning: 38 92% 50%; /* #f59e0b */
   --warning-foreground: 0 0% 100%;
-  /* Error — Red */
+  --warning-muted: 38 92% 50% / 0.08;
+  --warning-soft: 38 60% 50%;
+  /* Error — Soft Red */
   --error: 0 84% 60%; /* #ef4444 */
   --error-foreground: 0 0% 100%;
+  --error-muted: 0 84% 60% / 0.08;
+  --error-soft: 0 60% 50%;
   /* Info — Blue */
   --info: 221 83% 53%; /* #3b82f6 */
   --info-foreground: 0 0% 100%;
+  --info-muted: 221 83% 53% / 0.08;
   /* Offline — Gray */
   --offline: 215 13% 65%; /* #94a3b8 */
   --offline-foreground: 0 0% 100%;
+  --offline-muted: 215 13% 65% / 0.08;
+
+  /* Summary Card Color Identities — Premium Gradients */
+  /* Card 1: Total Uang Masuk — Emerald to Teal Gradient */
+  --card-income: 152 70% 40%;
+  --card-income-from: 152 70% 40%;
+  --card-income-to: 165 75% 35%;
+  --card-income-container: 152 70% 40% / 0.15;
+  --card-income-border: 152 70% 40% / 0.2;
+  /* Card 2: Omzet Bersih — Violet to Purple Gradient */
+  --card-revenue: 265 75% 55%;
+  --card-revenue-from: 265 75% 55%;
+  --card-revenue-to: 280 70% 50%;
+  --card-revenue-container: 265 75% 55% / 0.15;
+  --card-revenue-border: 265 75% 55% / 0.2;
+  /* Card 3: Saldo Alpines — Blue to Indigo Gradient */
+  --card-balance: 225 85% 55%;
+  --card-balance-from: 225 85% 55%;
+  --card-balance-to: 240 80% 50%;
+  --card-balance-container: 225 85% 55% / 0.15;
+  --card-balance-border: 225 85% 55% / 0.2;
+  /* Card 4: Total Transaksi — Amber to Orange Gradient */
+  --card-transactions: 32 90% 55%;
+  --card-transactions-from: 32 90% 55%;
+  --card-transactions-to: 20 85% 50%;
+  --card-transactions-container: 32 90% 55% / 0.15;
+  --card-transactions-border: 32 90% 55% / 0.2;
 
   /* Chart Palette */
   --chart-1: 221 83% 53%; /* Blue */
@@ -63,16 +99,17 @@
   --chart-4: 0 84% 60%; /* Red */
   --chart-5: 262 83% 58%; /* Purple */
 
-  /* Borders & Rings */
+  /* Borders & Rings — Subtle */
   --border: 210 17% 90%; /* #e2e8f0 */
   --border-strong: 215 13% 65%; /* #94a3b8 */
   --border-subtle: 210 20% 96%; /* #f1f5f9 */
+  --border-card: 210 17% 90% / 0.6;
   --ring: 221 83% 53%;
 
-  /* Cards */
+  /* Cards — White with subtle border */
   --card: 0 0% 100%; /* #ffffff */
   --card-foreground: 215 28% 18%; /* #0f172a */
-  --card-border: 210 17% 90%; /* #e2e8f0 */
+  --card-border: 210 17% 90% / 0.6;
 
   /* Popover */
   --popover: 0 0% 100%;
@@ -92,9 +129,9 @@
   --text-tertiary: 215 13% 65%; /* #94a3b8 */
   --text-disabled: 210 15% 80%; /* #cbd5e1 */
 
-  /* Surface hierarchy */
-  --surface-primary: 0 0% 100%; /* #ffffff */
-  --surface-secondary: 210 20% 96%; /* #f1f5f9 */
+  /* Surface hierarchy — Page bg is soft off-white, cards are white */
+  --surface-primary: 0 0% 100%; /* #ffffff — cards */
+  --surface-secondary: 210 40% 98%; /* #f8fafc — page background */
   --surface-hover: 210 17% 90%; /* #e2e8f0 */
   --surface-overlay: 0 0% 100% / 0.8;
 
@@ -156,35 +193,38 @@
   --space-20: 5rem;
   --space-24: 6rem;
 
-  /* Border Radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-base: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
+  /* Border Radius — Consistent scale (sharper, more professional) */
+  --radius-sm: 0.25rem; /* 4px — badges, small elements */
+  --radius-md: 0.375rem; /* 6px — buttons, inputs */
+  --radius-base: 0.375rem; /* 6px */
+  --radius-lg: 0.5rem; /* 8px — sidebar items, date picker */
+  --radius-xl: 0.75rem; /* 12px — icon containers */
+  --radius-2xl: 1rem; /* 16px — summary cards, transaction container */
+  --radius-3xl: 1.25rem; /* 20px — large containers */
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  /* Shadows — Very subtle, premium feel */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
   --shadow-sm:
-    0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
   --shadow-base:
-    0 4px 6px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+    0 2px 6px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
   --shadow-md:
-    0 6px 10px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+    0 4px 12px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.03);
   --shadow-lg:
-    0 10px 18px rgba(15, 23, 42, 0.06), 0 4px 6px rgba(15, 23, 42, 0.04);
+    0 8px 20px rgba(15, 23, 42, 0.04), 0 4px 8px rgba(15, 23, 42, 0.03);
   --shadow-xl:
-    0 16px 24px rgba(15, 23, 42, 0.07), 0 6px 8px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0;
-  --shadow-card-hover: 0 4px 10px rgba(15, 23, 42, 0.08), 0 0 0 1px #e2e8f0;
+    0 12px 28px rgba(15, 23, 42, 0.05), 0 6px 12px rgba(15, 23, 42, 0.03);
+  --shadow-card:
+    0 1px 3px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover:
+    0 4px 12px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.05);
   --shadow-elevated:
-    0 20px 25px rgba(15, 23, 42, 0.08), 0 8px 10px rgba(15, 23, 42, 0.04);
-  --shadow-dropdown-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-dropdown-md: 0 8px 20px rgba(15, 23, 42, 0.1);
-  --shadow-button-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-button-md: 0 2px 4px rgba(15, 23, 42, 0.08);
+    0 20px 30px rgba(15, 23, 42, 0.05), 0 8px 12px rgba(15, 23, 42, 0.03);
+  --shadow-dropdown-sm: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-dropdown-md: 0 8px 20px rgba(15, 23, 42, 0.08);
+  --shadow-button-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-button-md: 0 2px 4px rgba(15, 23, 42, 0.05);
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -299,12 +339,16 @@
    ============================================================================ */
 @theme {
   /* Colors — HSL namespace */
-  --color-background: hsl(var(--gray-50));
+  --color-background: hsl(
+    var(--surface-secondary)
+  ); /* #f8fafc — page background */
   --color-foreground: hsl(var(--gray-900));
 
   /* Accent */
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-muted: hsl(var(--accent-muted));
+  --color-accent-hover: hsl(var(--accent-hover));
 
   /* Secondary */
   --color-secondary: hsl(var(--secondary));
@@ -323,17 +367,50 @@
   --color-gray-900: hsl(var(--gray-900));
   --color-gray-950: hsl(var(--gray-950));
 
-  /* Status colors */
+  /* Status colors — Base */
   --color-success: hsl(var(--success));
   --color-success-foreground: hsl(var(--success-foreground));
+  --color-success-muted: hsl(var(--success-muted));
+  --color-success-soft: hsl(var(--success-soft));
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-warning-muted: hsl(var(--warning-muted));
+  --color-warning-soft: hsl(var(--warning-soft));
   --color-error: hsl(var(--error));
   --color-error-foreground: hsl(var(--error-foreground));
+  --color-error-muted: hsl(var(--error-muted));
+  --color-error-soft: hsl(var(--error-soft));
   --color-info: hsl(var(--info));
   --color-info-foreground: hsl(var(--info-foreground));
+  --color-info-muted: hsl(var(--info-muted));
   --color-offline: hsl(var(--offline));
   --color-offline-foreground: hsl(var(--offline-foreground));
+  --color-offline-muted: hsl(var(--offline-muted));
+
+  /* Summary Card Color Identities */
+  --color-card-income: hsl(var(--card-income));
+  --color-card-income-bg: hsl(var(--card-income-bg));
+  --color-card-income-container: hsl(var(--card-income-container));
+  --color-card-income-border: hsl(var(--card-income-border));
+  --color-card-revenue: hsl(var(--card-revenue));
+  --color-card-revenue-bg: hsl(var(--card-revenue-bg));
+  --color-card-revenue-container: hsl(var(--card-revenue-container));
+  --color-card-revenue-border: hsl(var(--card-revenue-border));
+  --color-card-balance: hsl(var(--card-balance));
+  --color-card-balance-bg: hsl(var(--card-balance-bg));
+  --color-card-balance-container: hsl(var(--card-balance-container));
+  --color-card-balance-border: hsl(var(--card-balance-border));
+  --color-card-transactions: hsl(var(--card-transactions));
+  --color-card-transactions-bg: hsl(var(--card-transactions-bg));
+  --color-card-transactions-container: hsl(var(--card-transactions-container));
+  --color-card-transactions-border: hsl(var(--card-transactions-border));
+
+  /* Chart Palette */
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
 
   /* Card & surfaces */
   --color-card: hsl(var(--card));
@@ -354,6 +431,7 @@
   --color-border: hsl(var(--border));
   --color-border-strong: hsl(var(--border-strong));
   --color-border-subtle: hsl(var(--border-subtle));
+  --color-border-card: hsl(var(--border-card));
   --color-ring: hsl(var(--ring));
 
   /* Text hierarchy */
@@ -363,8 +441,10 @@
   --color-text-disabled: hsl(var(--text-disabled));
 
   /* Surface hierarchy */
-  --color-surface-primary: hsl(var(--surface-primary));
-  --color-surface-secondary: hsl(var(--surface-secondary));
+  --color-surface-primary: hsl(var(--surface-primary)); /* white — cards */
+  --color-surface-secondary: hsl(
+    var(--surface-secondary)
+  ); /* #f8fafc — page bg */
   --color-surface-hover: hsl(var(--surface-hover));
   --color-surface-overlay: hsl(var(--surface-overlay));
 
@@ -372,47 +452,43 @@
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
-  /* Chart */
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
-
   /* Fonts */
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
   --font-mono: var(--font-mono);
 
   /* Radius — use literal values to avoid circular reference */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-base: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
+  --radius-sm: 0.25rem; /* 4px */
+  --radius-md: 0.375rem; /* 6px */
+  --radius-base: 0.375rem; /* 6px */
+  --radius-lg: 0.5rem; /* 8px */
+  --radius-xl: 0.75rem; /* 12px */
+  --radius-2xl: 1rem; /* 16px */
+  --radius-3xl: 1.25rem; /* 20px */
   --radius-full: 9999px;
 
   /* Shadows — use literal values to avoid circular reference */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
   --shadow-sm:
-    0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
   --shadow-base:
-    0 4px 6px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+    0 2px 6px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
   --shadow-md:
-    0 6px 10px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+    0 4px 12px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.03);
   --shadow-lg:
-    0 10px 18px rgba(15, 23, 42, 0.06), 0 4px 6px rgba(15, 23, 42, 0.04);
+    0 8px 20px rgba(15, 23, 42, 0.04), 0 4px 8px rgba(15, 23, 42, 0.03);
   --shadow-xl:
-    0 16px 24px rgba(15, 23, 42, 0.07), 0 6px 8px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px #e2e8f0;
-  --shadow-card-hover: 0 4px 10px rgba(15, 23, 42, 0.08), 0 0 0 1px #e2e8f0;
+    0 12px 28px rgba(15, 23, 42, 0.05), 0 6px 12px rgba(15, 23, 42, 0.03);
+  --shadow-card:
+    0 1px 3px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover:
+    0 4px 12px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.05);
   --shadow-elevated:
-    0 20px 25px rgba(15, 23, 42, 0.08), 0 8px 10px rgba(15, 23, 42, 0.04);
-  --shadow-dropdown-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-dropdown-md: 0 8px 20px rgba(15, 23, 42, 0.1);
-  --shadow-button-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-button-md: 0 2px 4px rgba(15, 23, 42, 0.08);
+    0 20px 30px rgba(15, 23, 42, 0.05), 0 8px 12px rgba(15, 23, 42, 0.03);
+  --shadow-dropdown-sm: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-dropdown-md: 0 8px 20px rgba(15, 23, 42, 0.08);
+  --shadow-button-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-button-md: 0 2px 4px rgba(15, 23, 42, 0.05);
 
   /* Transitions — use literal values to avoid circular reference */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -445,11 +521,12 @@
     min-height: 100vh;
   }
 
-  /* Data/number typography */
+  /* Data/number typography — tabular nums for alignment */
   .font-data {
     font-family: var(--font-display);
     font-weight: var(--font-semibold);
     letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
   }
 
   .font-data-lg {
@@ -457,6 +534,7 @@
     font-weight: var(--font-bold);
     letter-spacing: -0.03em;
     line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Heading typography */

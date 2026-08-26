@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 /**
  * Middleware: pass through all requests.
  * Auth has been removed — all routes are public.
  */
-export async function middleware(_req: NextRequest) {
+export async function middleware() {
   return NextResponse.next();
 }
 

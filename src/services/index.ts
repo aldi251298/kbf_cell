@@ -31,7 +31,12 @@ export {
 } from "./perangkatService";
 
 // Laporan Services
-export { getLaporan, getPerbandinganKonter } from "./laporanService";
+export {
+  getLaporan,
+  getPerbandinganKonter,
+  exportLaporanExcel,
+  generateLaporanExportFilename,
+} from "./laporanService";
 
 // Ringkasan Services
 export {

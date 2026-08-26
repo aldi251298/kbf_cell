@@ -2,7 +2,13 @@
 
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { createPortal } from "react-dom";
 
 interface SelectOption {
@@ -134,7 +140,7 @@ export function SelectFloating({
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   // Calculate dropdown position with viewport awareness
-  const updatePosition = () => {
+  const updatePosition = useCallback(() => {
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
@@ -170,14 +176,14 @@ export function SelectFloating({
         maxHeight: `${dropdownHeight}px`,
       });
     }
-  };
+  }, [options.length]);
 
   // Update position synchronously when opened
   useLayoutEffect(() => {
     if (isOpen) {
       updatePosition();
     }
-  }, [isOpen, options.length]);
+  }, [isOpen, updatePosition]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -202,7 +208,7 @@ export function SelectFloating({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [isOpen]);
+  }, [isOpen, updatePosition]);
 
   // Close on Escape key
   useEffect(() => {

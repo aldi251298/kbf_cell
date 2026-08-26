@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import type { LaporanPeriode, ModeLaporan } from "@/types";
+import type {
+  LaporanPeriode,
+  ModeLaporan,
+  BreakdownJenisTransaksi,
+} from "@/types";
 import type { TransaksiRow, KonterRow } from "@/types/database";
+import { getKategoriLabel } from "@/lib/utils";
 
 /**
  * GET /api/laporan?mode=harian&periode=2025-01
@@ -121,13 +126,65 @@ function buildLaporan(
   rows: TransaksiRow[],
 ): LaporanPeriode {
   const data: LaporanPeriode["data"] = [];
-  const agregat = {
+  const agregat: LaporanPeriode["agregat"] = {
     totalOmzet: 0,
     totalTransaksi: 0,
     rataRataOmzet: 0,
     hariAktif: 0,
     hariTidakTransaksi: 0,
+    totalMargin: 0,
+    transaksiTertinggi: 0,
+    transaksiTerendah: Number.MAX_SAFE_INTEGER,
   };
+
+  // Helper: build breakdown per jenis_transaksi from rows
+  function buildBreakdown(rows: TransaksiRow[]): BreakdownJenisTransaksi[] {
+    const map = new Map<
+      string,
+      { omzet: number; margin: number; jumlahTransaksi: number }
+    >();
+
+    rows.forEach((r) => {
+      const jenis = r.jenis_transaksi || "belum_dikenal";
+      const nominal = Number(r.nominal);
+      const adminKonter = r.detail_tambahan?.admin_konter
+        ? Number(r.detail_tambahan.admin_konter)
+        : 0;
+
+      const cur = map.get(jenis) ?? { omzet: 0, margin: 0, jumlahTransaksi: 0 };
+      cur.omzet += nominal;
+      cur.margin += adminKonter;
+      cur.jumlahTransaksi += 1;
+      map.set(jenis, cur);
+    });
+
+    const totalOmzet = Array.from(map.values()).reduce(
+      (s, v) => s + v.omzet,
+      0,
+    );
+    const totalMargin = Array.from(map.values()).reduce(
+      (s, v) => s + v.margin,
+      0,
+    );
+
+    return Array.from(map.entries())
+      .map(([jenisTransaksi, v]) => ({
+        jenisTransaksi,
+        label: getKategoriLabel(jenisTransaksi),
+        icon: jenisTransaksi, // frontend akan map ke icon via getIconJenisTransaksi
+        omzet: v.omzet,
+        margin: v.margin,
+        jumlahTransaksi: v.jumlahTransaksi,
+        persentaseOmzet:
+          totalOmzet > 0 ? Math.round((v.omzet / totalOmzet) * 100) : 0,
+        persentaseMargin:
+          totalMargin > 0 ? Math.round((v.margin / totalMargin) * 100) : 0,
+      }))
+      .sort((a, b) => b.omzet - a.omzet); // sort by omzet desc
+  }
+
+  // Overall breakdown for the entire period
+  const overallBreakdown = buildBreakdown(rows);
 
   if (mode === "harian") {
     const [yearStr, monthStr] = periode.split("-");
@@ -154,15 +211,37 @@ function buildLaporan(
       const rataRataNilai =
         jumlahTransaksi > 0 ? Math.round(omzet / jumlahTransaksi) : 0;
 
+      // Track transaksi tertinggi/terendah (sukses only)
+      const suksesRows = dayRows.filter((r) => r.status === "sukses");
+      if (suksesRows.length > 0) {
+        const maxNominal = Math.max(
+          ...suksesRows.map((r) => Number(r.nominal)),
+        );
+        const minNominal = Math.min(
+          ...suksesRows.map((r) => Number(r.nominal)),
+        );
+        if (maxNominal > agregat.transaksiTertinggi)
+          agregat.transaksiTertinggi = maxNominal;
+        if (minNominal < agregat.transaksiTerendah)
+          agregat.transaksiTerendah = minNominal;
+      }
+
+      // Margin for this day
+      const dayMargin = dayRows
+        .filter((r) => r.status === "sukses")
+        .reduce((s, r) => s + Number(r.detail_tambahan?.admin_konter ?? 0), 0);
+
       data.push({
         tanggal: new Date(Date.UTC(year, month, day)),
         omzet,
         jumlahTransaksi,
         rataRataNilai,
+        breakdownJenisTransaksi: buildBreakdown(dayRows),
       });
 
       agregat.totalOmzet += omzet;
       agregat.totalTransaksi += jumlahTransaksi;
+      agregat.totalMargin += dayMargin;
       if (jumlahTransaksi > 0) agregat.hariAktif++;
       else agregat.hariTidakTransaksi++;
     }
@@ -189,10 +268,37 @@ function buildLaporan(
       ).size;
       const rataRataNilai = hariAktif > 0 ? Math.round(omzet / hariAktif) : 0;
 
-      data.push({ bulan: m + 1, omzet, jumlahTransaksi, rataRataNilai });
+      // Track transaksi tertinggi/terendah (sukses only)
+      const suksesRows = monthRows.filter((r) => r.status === "sukses");
+      if (suksesRows.length > 0) {
+        const maxNominal = Math.max(
+          ...suksesRows.map((r) => Number(r.nominal)),
+        );
+        const minNominal = Math.min(
+          ...suksesRows.map((r) => Number(r.nominal)),
+        );
+        if (maxNominal > agregat.transaksiTertinggi)
+          agregat.transaksiTertinggi = maxNominal;
+        if (minNominal < agregat.transaksiTerendah)
+          agregat.transaksiTerendah = minNominal;
+      }
+
+      // Margin for this month
+      const monthMargin = monthRows
+        .filter((r) => r.status === "sukses")
+        .reduce((s, r) => s + Number(r.detail_tambahan?.admin_konter ?? 0), 0);
+
+      data.push({
+        bulan: m + 1,
+        omzet,
+        jumlahTransaksi,
+        rataRataNilai,
+        breakdownJenisTransaksi: buildBreakdown(monthRows),
+      });
 
       agregat.totalOmzet += omzet;
       agregat.totalTransaksi += jumlahTransaksi;
+      agregat.totalMargin += monthMargin;
       if (jumlahTransaksi > 0) agregat.hariAktif++;
     }
   } else {
@@ -213,20 +319,53 @@ function buildLaporan(
       const rataRataNilai =
         yearRows.length > 0 ? Math.round(omzet / yearRows.length) : 0;
 
+      // Track transaksi tertinggi/terendah (sukses only)
+      const suksesRows = yearRows.filter((r) => r.status === "sukses");
+      if (suksesRows.length > 0) {
+        const maxNominal = Math.max(
+          ...suksesRows.map((r) => Number(r.nominal)),
+        );
+        const minNominal = Math.min(
+          ...suksesRows.map((r) => Number(r.nominal)),
+        );
+        if (maxNominal > agregat.transaksiTertinggi)
+          agregat.transaksiTertinggi = maxNominal;
+        if (minNominal < agregat.transaksiTerendah)
+          agregat.transaksiTerendah = minNominal;
+      }
+
+      // Margin for this year
+      const yearMargin = yearRows
+        .filter((r) => r.status === "sukses")
+        .reduce((s, r) => s + Number(r.detail_tambahan?.admin_konter ?? 0), 0);
+
       data.push({
         tanggal: new Date(y, 0, 1),
         omzet,
         jumlahTransaksi,
         rataRataNilai,
+        breakdownJenisTransaksi: buildBreakdown(yearRows),
       });
 
       agregat.totalOmzet += omzet;
       agregat.totalTransaksi += jumlahTransaksi;
+      agregat.totalMargin += yearMargin;
     }
+  }
+
+  // Fix transaksiTerendah if no successful transactions
+  if (agregat.transaksiTerendah === Number.MAX_SAFE_INTEGER) {
+    agregat.transaksiTerendah = 0;
   }
 
   agregat.rataRataOmzet =
     data.length > 0 ? Math.round(agregat.totalOmzet / data.length) : 0;
 
-  return { mode, periode, data, agregat };
+  return {
+    mode,
+    periode,
+    data,
+    agregat,
+    breakdownJenisTransaksi: overallBreakdown,
+  };
 }

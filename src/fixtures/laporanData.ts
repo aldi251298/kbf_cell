@@ -1,4 +1,8 @@
-import type { LaporanPeriode, ModeLaporan } from "@/types";
+import type {
+  LaporanPeriode,
+  ModeLaporan,
+  BreakdownJenisTransaksi,
+} from "@/types";
 import { getRingkasanPeriode } from "./ringkasanData";
 
 const FAKE_API_DELAY = 500;
@@ -32,6 +36,9 @@ export async function getLaporanPeriode(
     rataRataOmzet: 0,
     hariAktif: 0,
     hariTidakTransaksi: 0,
+    totalMargin: 0,
+    transaksiTertinggi: 0,
+    transaksiTerendah: 0,
   };
 
   if (mode === "harian") {
@@ -151,10 +158,14 @@ export async function getLaporanPeriode(
   agregat.rataRataOmzet =
     data.length > 0 ? Math.round(agregat.totalOmzet / data.length) : 0;
 
+  // Empty breakdown for fixture data
+  const breakdownJenisTransaksi: BreakdownJenisTransaksi[] = [];
+
   return {
     mode,
     periode,
     data,
     agregat,
+    breakdownJenisTransaksi,
   };
 }

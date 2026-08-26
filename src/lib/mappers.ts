@@ -47,6 +47,7 @@ export function mapPerangkat(row: PerangkatRow): Perangkat {
 export function mapTransaksi(row: TransaksiRow): Transaksi {
   const kategoriMap: Record<string, KategoriTransaksi> = {
     pulsa: "pulsa",
+    paket_nelpon: "paket_nelpon",
     paket_data: "paket_data",
     pln: "pln",
     ewallet_dana: "ewallet",
@@ -106,6 +107,8 @@ function getDefaultProdukNama(jenis: string): string {
   switch (jenis) {
     case "pulsa":
       return "Isi Ulang Pulsa";
+    case "paket_nelpon":
+      return "Paket Nelpon/SMS";
     case "paket_data":
       return "Paket Data";
     case "pln":

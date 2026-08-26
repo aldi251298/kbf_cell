@@ -8,17 +8,17 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen bg-surface-primary">
+    <div className="min-h-screen bg-surface-secondary">
       {/* Desktop Sidebar */}
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="lg:pl-64 flex flex-col min-h-screen">
+      <div className="lg:pl-[230px] flex flex-col min-h-screen">
         {/* Header */}
         <Header />
 
         {/* Page Content */}
-        <main className="flex-1 p-4 pb-20 lg:p-6 lg:pb-6 overflow-auto">
+        <main className="flex-1 p-4 lg:p-7 lg:pb-7 overflow-auto">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>

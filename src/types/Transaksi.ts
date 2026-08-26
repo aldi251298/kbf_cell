@@ -2,6 +2,7 @@ export type StatusTransaksi = "sukses" | "gagal" | "pending";
 
 export type KategoriTransaksi =
   | "pulsa"
+  | "paket_nelpon"
   | "paket_data"
   | "pln"
   | "ewallet"

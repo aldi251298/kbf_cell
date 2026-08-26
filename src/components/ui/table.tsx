@@ -9,7 +9,7 @@ export function Table({
   ...props
 }: ComponentPropsWithoutRef<"table">) {
   return (
-    <div className="relative w-full overflow-auto rounded-xl border border-border bg-card shadow-card">
+    <div className="relative w-full overflow-auto rounded-lg border border-border bg-card shadow-card">
       <table
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
@@ -87,7 +87,7 @@ export function TableHead({
   return (
     <th
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-text-tertiary text-xs uppercase tracking-wider",
+        "h-12 px-4 text-left align-middle font-bold text-text-tertiary text-xs uppercase tracking-wider",
         className,
       )}
       {...props}
@@ -99,7 +99,7 @@ export function TableCell({
   className,
   ...props
 }: ComponentPropsWithoutRef<"td">) {
-  return <td className={cn("p-4 align-middle", className)} {...props} />;
+  return <td className={cn("py-5 px-4 align-middle", className)} {...props} />;
 }
 
 interface SortableTableHeadProps extends ComponentPropsWithoutRef<"th"> {

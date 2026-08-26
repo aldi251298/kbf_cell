@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 /**
@@ -7,7 +7,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
  * Returns all dynamic transaction categories from the database.
  * Used by frontend to populate filter dropdowns dynamically.
  */
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const supabase = createServiceRoleClient();
 
   const { data, error } = await supabase

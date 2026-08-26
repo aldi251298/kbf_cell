@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
@@ -37,18 +37,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
+import { LogoBrand } from "@/components/ui/LogoBrand";
 import {
-  Receipt,
-  DollarSign,
-  ShoppingCart,
+  WalletCards,
+  ChartNoAxesCombined,
+  CreditCard,
+  ChartNoAxesColumnIncreasing,
   Clock,
   ExternalLink,
   ArrowUpRight,
   ArrowDownRight,
-  Eye,
   X,
-  Wallet,
-  PiggyBank,
+  Store,
 } from "lucide-react";
 
 // Items per page for riwayat transaksi
@@ -81,53 +81,54 @@ function TransactionDetailModal({
   const getCategoryBadgeColor = (kategori: string) => {
     switch (kategori) {
       case "pulsa":
-        return "bg-blue-50 text-blue-700";
+        return "bg-blue-50 text-blue-700 border-blue-100";
       case "data":
-        return "bg-purple-50 text-purple-700";
+        return "bg-purple-50 text-purple-700 border-purple-100";
       case "voucher":
-        return "bg-amber-50 text-amber-700";
+        return "bg-amber-50 text-amber-700 border-amber-100";
       case "p2p":
-        return "bg-green-50 text-green-700";
+        return "bg-green-50 text-green-700 border-green-100";
       case "ewallet":
-        return "bg-cyan-50 text-cyan-700";
+        return "bg-cyan-50 text-cyan-700 border-cyan-100";
       case "ppob":
-        return "bg-orange-50 text-orange-700";
+        return "bg-orange-50 text-orange-700 border-orange-100";
       case "gametopup":
-        return "bg-pink-50 text-pink-700";
+        return "bg-pink-50 text-pink-700 border-pink-100";
       case "keuangan":
-        return "bg-teal-50 text-teal-700";
+        return "bg-teal-50 text-teal-700 border-teal-100";
       default:
-        return "bg-gray-50 text-gray-700";
+        return "bg-gray-50 text-gray-700 border-gray-100";
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-border-subtle overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-5 border-b border-border-subtle">
+          <h3 className="text-lg font-semibold text-text-primary">
             Detail Transaksi
           </h3>
           <button
             onClick={onClose}
-            className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-text-tertiary hover:bg-surface-hover hover:text-text-secondary transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" strokeWidth={2} />
           </button>
         </div>
 
         {/* Content */}
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {/* Status */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-            <span className="text-sm text-gray-500">Status</span>
+          <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-xl">
+            <span className="text-sm text-text-tertiary">Status</span>
             <Badge
               variant={
                 getStatusBadgeVariant(transaction.status) as
                   "success" | "warning" | "error" | "default"
               }
               size="sm"
+              className="px-2.5 py-1 text-[11px] font-medium"
             >
               {transaction.status.charAt(0).toUpperCase() +
                 transaction.status.slice(1)}
@@ -136,28 +137,39 @@ function TransactionDetailModal({
 
           {/* Waktu */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Waktu Transaksi</span>
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm text-text-tertiary">Waktu Transaksi</span>
+            <span className="text-sm font-medium text-text-primary font-data">
               {formatWaktu(transaction.waktu)}
             </span>
           </div>
 
           {/* Konter */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Konter</span>
-            <span className="text-sm font-medium text-gray-900">
-              {transaction.konterNama}
-            </span>
+            <span className="text-sm text-text-tertiary">Konter</span>
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-text-tertiary" strokeWidth={2} />
+              <span className="text-sm font-medium text-text-primary">
+                {transaction.konterNama}
+              </span>
+            </div>
           </div>
 
           {/* Produk */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Produk</span>
+            <span className="text-sm text-text-tertiary">Produk</span>
             <div className="flex items-center gap-2">
+              <LogoBrand
+                namaProduk={transaction.produk.nama}
+                jenisTransaksi={transaction.produk.kategori}
+                size={28}
+              />
               <Badge
-                variant="default"
+                variant="outline"
                 size="sm"
-                className={getCategoryBadgeColor(transaction.produk.kategori)}
+                className={
+                  getCategoryBadgeColor(transaction.produk.kategori) +
+                  " text-[10px] font-medium"
+                }
               >
                 {
                   getTampilanTransaksi(
@@ -172,7 +184,7 @@ function TransactionDetailModal({
                 transaction.nomorTujuan,
                 transaction.produk.nama,
               ).tampilkanNamaProduk && (
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-text-primary">
                   {getDisplayProductName(
                     transaction.produk.kategori,
                     transaction.produk.nama,
@@ -180,13 +192,19 @@ function TransactionDetailModal({
                   )}
                 </span>
               )}
+              {transaction.produk.kategori === "pulsa" &&
+                !transaction.produk.nama && (
+                  <span className="text-sm font-medium text-text-primary">
+                    Isi Ulang Pulsa
+                  </span>
+                )}
             </div>
           </div>
 
           {/* Nominal */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Nominal</span>
-            <span className="text-sm font-bold text-gray-900">
+            <span className="text-sm text-text-tertiary">Nominal</span>
+            <span className="text-sm font-bold text-text-primary font-data">
               {formatRupiah(transaction.nominal)}
             </span>
           </div>
@@ -194,7 +212,7 @@ function TransactionDetailModal({
           {/* Nomor Tujuan - Only show if exists and not empty */}
           {transaction.nomorTujuan && transaction.nomorTujuan !== "-" && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-text-tertiary">
                 {
                   getTampilanTransaksi(
                     transaction.produk.kategori,
@@ -203,7 +221,7 @@ function TransactionDetailModal({
                   ).labelNomorTujuan
                 }
               </span>
-              <span className="text-sm font-mono font-medium text-gray-900">
+              <span className="text-sm font-mono font-medium text-text-primary">
                 {transaction.nomorTujuan}
               </span>
             </div>
@@ -212,8 +230,8 @@ function TransactionDetailModal({
           {/* Serial Number */}
           {transaction.sn && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Serial Number</span>
-              <span className="text-sm font-mono text-gray-900">
+              <span className="text-sm text-text-tertiary">Serial Number</span>
+              <span className="text-sm font-mono text-text-primary">
                 {transaction.sn}
               </span>
             </div>
@@ -221,11 +239,9 @@ function TransactionDetailModal({
 
           {/* Error Message */}
           {transaction.errorMessage && (
-            <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
-              <p className="text-xs font-medium text-red-600 mb-1">
-                Pesan Error
-              </p>
-              <p className="text-sm text-red-700">{transaction.errorMessage}</p>
+            <div className="p-3 bg-error/5 border border-error/20 rounded-xl">
+              <p className="text-xs font-medium text-error mb-1">Pesan Error</p>
+              <p className="text-sm text-error">{transaction.errorMessage}</p>
             </div>
           )}
         </div>
@@ -536,68 +552,10 @@ export default function DashboardPage() {
     }
   };
 
-  const getCategoryIcon = (kategori: string) => {
-    switch (kategori) {
-      case "pulsa":
-        return <Receipt className="h-4 w-4" />;
-      case "data":
-        return <DollarSign className="h-4 w-4" />;
-      case "voucher":
-        return <ShoppingCart className="h-4 w-4" />;
-      case "p2p":
-        return <Receipt className="h-4 w-4" />;
-      case "ewallet":
-        return <DollarSign className="h-4 w-4" />;
-      case "ppob":
-        return <DollarSign className="h-4 w-4" />;
-      case "gametopup":
-        return <ShoppingCart className="h-4 w-4" />;
-      case "keuangan":
-        return <DollarSign className="h-4 w-4" />;
-      default:
-        return <Receipt className="h-4 w-4" />;
-    }
-  };
-
-  const getCategoryBadgeColor = (kategori: string) => {
-    switch (kategori) {
-      case "pulsa":
-        return "bg-blue-50 text-blue-700";
-      case "data":
-        return "bg-purple-50 text-purple-700";
-      case "voucher":
-        return "bg-amber-50 text-amber-700";
-      case "p2p":
-        return "bg-green-50 text-green-700";
-      case "ewallet":
-        return "bg-cyan-50 text-cyan-700";
-      case "ppob":
-        return "bg-orange-50 text-orange-700";
-      case "gametopup":
-        return "bg-pink-50 text-pink-700";
-      case "keuangan":
-        return "bg-teal-50 text-teal-700";
-      default:
-        return "bg-gray-50 text-gray-700";
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Ringkasan aktivitas konter pulsa Anda
-          </p>
-        </div>
-      </div>
-
-      {/* Summary Cards - Omzet, Pendapatan Bersih, Saldo Alpines, Transaksi */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="space-y-7">
+      {/* Summary Cards - Total Uang Masuk, Omzet Bersih, Saldo Alpines, Total Transaksi Hari Ini */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {loading ? (
           <>
             <CardSkeleton />
@@ -607,38 +565,39 @@ export default function DashboardPage() {
           </>
         ) : ringkasan ? (
           <>
-            {/* Omzet Card - Gradient Blue */}
-            <Card variant="gradient-blue">
-              <CardContent className="p-6">
+            {/* Card 1: Total Uang Masuk â€” Emerald to Teal Gradient */}
+            <Card variant="summary-income">
+              <CardContent className="relative">
                 <div className="flex items-start justify-between">
                   <div className="pr-4">
-                    <p className="text-sm font-semibold text-white tracking-wide uppercase">
-                      Omzet Hari Ini
+                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
+                      Total Uang Masuk
                     </p>
-                    <p className="text-3xl font-extrabold text-white mt-2 tracking-tight leading-none">
+                    <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
                       {formatRupiah(ringkasan.totalOmzet)}
                     </p>
                     <div className="flex items-center gap-1.5 mt-3">
                       {omzetDelta > 0 ? (
-                        <ArrowUpRight className="h-4 w-4 text-green-200" />
+                        <ArrowUpRight
+                          className="h-4 w-4 text-green-300"
+                          strokeWidth={2}
+                        />
                       ) : omzetDelta < 0 ? (
-                        <ArrowDownRight className="h-4 w-4 text-red-200" />
+                        <ArrowDownRight
+                          className="h-4 w-4 text-red-300"
+                          strokeWidth={2}
+                        />
                       ) : null}
                       <span
                         className={`text-sm font-semibold ${
                           omzetDelta > 0
-                            ? "text-green-100"
+                            ? "text-green-300"
                             : omzetDelta < 0
-                              ? "text-red-100"
-                              : "text-white/80"
+                              ? "text-red-300"
+                              : "text-white/70"
                         }`}
                       >
-                        {hitungPerubahanPersen(
-                          perbandingan?.today.totalOmzet ?? 0,
-                          perbandingan?.yesterday.totalOmzet ?? 0,
-                        ) > 0
-                          ? "+"
-                          : ""}
+                        {omzetDelta > 0 ? "+" : ""}
                         {hitungPerubahanPersen(
                           perbandingan?.today.totalOmzet ?? 0,
                           perbandingan?.yesterday.totalOmzet ?? 0,
@@ -650,56 +609,55 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="h-12 w-12 rounded-none bg-white/15 flex items-center justify-center backdrop-blur-sm">
-                    <DollarSign className="h-6 w-6 text-white" />
+                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <WalletCards
+                      className="h-5.5 w-5.5 text-white"
+                      strokeWidth={2}
+                    />
                   </div>
-                </div>
-                {/* Decorative accent */}
-                <div className="absolute bottom-0 right-0 opacity-10">
-                  <DollarSign className="h-24 w-24 text-white" />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Pendapatan Bersih Card - Gradient Emerald */}
-            <Card variant="gradient-emerald">
-              <CardContent className="p-6 relative">
+            {/* Card 2: Omzet Bersih â€” Violet to Purple Gradient */}
+            <Card variant="summary-revenue">
+              <CardContent className="relative">
                 <div className="flex items-start justify-between">
                   <div className="pr-4">
-                    <p className="text-sm font-semibold text-white tracking-wide uppercase">
-                      Pendapatan Bersih
+                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
+                      Omzet Bersih
                     </p>
-                    <p className="text-3xl font-extrabold text-white mt-2 tracking-tight leading-none">
+                    <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
                       {formatRupiah(ringkasan.pendapatanBersih ?? 0)}
                     </p>
-                    <p className="text-sm font-medium text-white/80 mt-3">
+                    <p className="text-sm font-medium text-white/70 mt-3">
                       Setelah potongan biaya
                     </p>
                   </div>
-                  <div className="h-12 w-12 rounded-none bg-white/15 flex items-center justify-center backdrop-blur-sm">
-                    <PiggyBank className="h-6 w-6 text-white" />
+                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <ChartNoAxesCombined
+                      className="h-5.5 w-5.5 text-white"
+                      strokeWidth={2}
+                    />
                   </div>
-                </div>
-                <div className="absolute bottom-0 right-0 opacity-10">
-                  <PiggyBank className="h-24 w-24 text-white" />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Saldo Alpines Card - Gradient Cyan */}
-            <Card variant="gradient-cyan">
-              <CardContent className="p-6 relative">
+            {/* Card 3: Saldo Alpines â€” Blue to Indigo Gradient */}
+            <Card variant="summary-balance">
+              <CardContent className="relative">
                 <div className="flex items-start justify-between">
                   <div className="pr-4">
-                    <p className="text-sm font-semibold text-white tracking-wide uppercase">
+                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
                       Saldo Alpines
                     </p>
                     {saldoAlpines !== null ? (
                       <>
-                        <p className="text-3xl font-extrabold text-white mt-2 tracking-tight leading-none">
+                        <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
                           {formatRupiah(saldoAlpines)}
                         </p>
-                        <p className="text-sm font-medium text-white/80 mt-3">
+                        <p className="text-sm font-medium text-white/70 mt-3">
                           Terakhir update:{" "}
                           {waktuSaldoAlpines
                             ? new Date(waktuSaldoAlpines).toLocaleString(
@@ -711,57 +669,58 @@ export default function DashboardPage() {
                                   minute: "2-digit",
                                 },
                               )
-                            : "-"}
+                            : "â€”"}
                         </p>
                       </>
                     ) : (
-                      <p className="text-3xl font-extrabold text-white/90 mt-2 tracking-tight leading-none">
-                        —
+                      <p className="text-3xl font-bold text-white/70 mt-2 tracking-tight leading-none font-data">
+                        â€”
                       </p>
                     )}
                   </div>
-                  <div className="h-12 w-12 rounded-none bg-white/15 flex items-center justify-center backdrop-blur-sm">
-                    <Wallet className="h-6 w-6 text-white" />
+                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <CreditCard
+                      className="h-5.5 w-5.5 text-white"
+                      strokeWidth={2}
+                    />
                   </div>
-                </div>
-                <div className="absolute bottom-0 right-0 opacity-10">
-                  <Wallet className="h-24 w-24 text-white" />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Transaksi Card - Gradient Purple */}
-            <Card variant="gradient-purple">
-              <CardContent className="p-6 relative">
+            {/* Card 4: Total Transaksi Hari Ini â€” Amber to Orange Gradient */}
+            <Card variant="summary-transactions">
+              <CardContent className="relative">
                 <div className="flex items-start justify-between">
                   <div className="pr-4">
-                    <p className="text-sm font-semibold text-white tracking-wide uppercase">
-                      Total Transaksi
+                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
+                      Total Transaksi Hari Ini
                     </p>
-                    <p className="text-3xl font-extrabold text-white mt-2 tracking-tight leading-none">
+                    <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
                       {formatAngka(ringkasan.totalTransaksi)}
                     </p>
                     <div className="flex items-center gap-1.5 mt-3">
                       {transaksiDelta > 0 ? (
-                        <ArrowUpRight className="h-4 w-4 text-green-200" />
+                        <ArrowUpRight
+                          className="h-4 w-4 text-amber-300"
+                          strokeWidth={2}
+                        />
                       ) : transaksiDelta < 0 ? (
-                        <ArrowDownRight className="h-4 w-4 text-red-200" />
+                        <ArrowDownRight
+                          className="h-4 w-4 text-red-300"
+                          strokeWidth={2}
+                        />
                       ) : null}
                       <span
                         className={`text-sm font-semibold ${
                           transaksiDelta > 0
-                            ? "text-green-100"
+                            ? "text-amber-300"
                             : transaksiDelta < 0
-                              ? "text-red-100"
-                              : "text-white/80"
+                              ? "text-red-300"
+                              : "text-white/70"
                         }`}
                       >
-                        {hitungPerubahanPersen(
-                          perbandingan?.today.totalTransaksi ?? 0,
-                          perbandingan?.yesterday.totalTransaksi ?? 0,
-                        ) > 0
-                          ? "+"
-                          : ""}
+                        {transaksiDelta > 0 ? "+" : ""}
                         {hitungPerubahanPersen(
                           perbandingan?.today.totalTransaksi ?? 0,
                           perbandingan?.yesterday.totalTransaksi ?? 0,
@@ -773,19 +732,19 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="h-12 w-12 rounded-none bg-white/15 flex items-center justify-center backdrop-blur-sm">
-                    <Receipt className="h-6 w-6 text-white" />
+                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <ChartNoAxesColumnIncreasing
+                      className="h-5.5 w-5.5 text-white"
+                      strokeWidth={2}
+                    />
                   </div>
-                </div>
-                <div className="absolute bottom-0 right-0 opacity-10">
-                  <Receipt className="h-24 w-24 text-white" />
                 </div>
               </CardContent>
             </Card>
           </>
         ) : (
           <Card className="col-span-full">
-            <CardContent className="py-8">
+            <CardContent className="py-12">
               <EmptyState
                 title="Tidak ada data"
                 description="Belum ada data transaksi untuk periode ini"
@@ -797,10 +756,12 @@ export default function DashboardPage() {
 
       {/* Riwayat Transaksi with Pagination */}
       <Card variant="default">
-        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100">
+        <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-gray-500">Riwayat Transaksi</CardTitle>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <CardTitle className="text-text-tertiary">
+              Riwayat Transaksi Hari Ini
+            </CardTitle>
+            <p className="text-xs text-text-tertiary mt-0.5">
               {totalRiwayatItems} total transaksi
             </p>
           </div>
@@ -808,20 +769,20 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 rounded-none border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50"
+              className="h-9 rounded-lg border-border text-xs font-medium text-text-secondary hover:bg-surface-hover"
             >
               Lihat Semua
-              <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+              <ExternalLink className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
             </Button>
           </Link>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-6">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-4 p-3 rounded-xl bg-gray-50/50"
+                  className="flex items-center gap-4 px-6 py-4 rounded-xl bg-surface-secondary/50"
                 >
                   <Skeleton className="h-4 w-20" />
                   <Skeleton className="h-4 w-24" />
@@ -837,12 +798,16 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Waktu</TableHead>
-                      <TableHead>Konter</TableHead>
-                      <TableHead>Produk</TableHead>
-                      <TableHead>Nominal</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Tujuan</TableHead>
+                      <TableHead className="w-27.5">Waktu</TableHead>
+                      <TableHead className="w-[170px]">Konter</TableHead>
+                      <TableHead className="w-[220px] max-w-[220px]">
+                        Produk
+                      </TableHead>
+                      <TableHead className="w-[80px] text-right">
+                        Nominal
+                      </TableHead>
+                      <TableHead className="w-[80px]">Status</TableHead>
+                      <TableHead className="w-[110px]">Tujuan</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -856,52 +821,60 @@ export default function DashboardPage() {
                         <TableRow
                           key={trx.id}
                           onClick={() => setSelectedTransaction(trx)}
-                          className="cursor-pointer hover:bg-gray-50 transition-colors"
+                          className="cursor-pointer hover:bg-surface-hover/50 transition-colors"
                         >
                           <TableCell className="whitespace-nowrap">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {formatJam(trx.waktu)}
-                              </p>
-                              <p className="text-[11px] text-gray-400">
+                            <div className="flex flex-col">
+                              <p className="text-sm font-medium text-text-primary">
                                 {formatTanggal(trx.waktu)}
+                              </p>
+                              <p className="text-xs text-text-tertiary">
+                                {formatJam(trx.waktu)}
                               </p>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <p className="text-sm text-gray-900">
+                            <p className="text-sm text-text-primary truncate max-w-[150px]">
                               {trx.konterNama}
                             </p>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="h-7 w-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
-                                {getCategoryIcon(trx.produk.kategori)}
-                              </div>
-                              <div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <LogoBrand
+                                namaProduk={trx.produk.nama}
+                                jenisTransaksi={trx.produk.kategori}
+                                size={28}
+                              />
+                              <div className="min-w-0 flex-1 flex flex-col gap-1">
                                 {tampilan.tampilkanNamaProduk && (
-                                  <p className="text-sm font-medium text-gray-900">
+                                  <span className="text-sm text-text-primary truncate max-w-[200px]">
                                     {getDisplayProductName(
                                       trx.produk.kategori,
                                       trx.produk.nama,
                                       trx.providerSeluler,
                                     )}
-                                  </p>
+                                  </span>
                                 )}
-                                <Badge
-                                  variant="default"
-                                  size="sm"
-                                  className={getCategoryBadgeColor(
-                                    trx.produk.kategori,
+                                {trx.produk.kategori === "pulsa" &&
+                                  !trx.produk.nama && (
+                                    <span className="text-sm text-text-primary truncate max-w-[200px]">
+                                      Isi Ulang Pulsa
+                                    </span>
                                   )}
-                                >
+                                {tampilan.tampilkanProviderSeluler &&
+                                  trx.providerSeluler && (
+                                    <span className="text-xs text-text-tertiary">
+                                      {trx.providerSeluler}
+                                    </span>
+                                  )}
+                                <span className="text-xs text-text-tertiary">
                                   {tampilan.labelJenisTransaksi}
-                                </Badge>
+                                </span>
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            <p className="text-sm font-medium text-gray-900">
+                          <TableCell className="whitespace-nowrap text-right">
+                            <p className="text-sm font-medium text-text-primary">
                               {formatRupiah(trx.nominal)}
                             </p>
                           </TableCell>
@@ -920,55 +893,24 @@ export default function DashboardPage() {
                           <TableCell>
                             {tampilan.tampilkanNomorTujuan &&
                             trx.nomorTujuan ? (
-                              <span className="text-sm text-gray-600">
+                              <span className="text-sm text-text-primary font-mono">
                                 {trx.nomorTujuan}
                               </span>
                             ) : (
-                              <span className="text-sm text-gray-400">-</span>
+                              <span className="text-sm text-text-tertiary">
+                                -
+                              </span>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedTransaction(trx);
-                              }}
-                              className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                              title="Lihat Detail"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
                           </TableCell>
                         </TableRow>
                       );
                     })}
-                    <TableRow className="bg-gray-50 font-semibold">
-                      <TableCell colSpan={4} className="text-right">
-                        <span className="text-sm font-semibold text-gray-900">
-                          Total {ITEMS_PER_PAGE} Transaksi
-                        </span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <p className="text-sm font-bold text-blue-600">
-                          {formatRupiah(
-                            riwayatTransactions.reduce(
-                              (sum, trx) => sum + trx.nominal,
-                              0,
-                            ),
-                          )}
-                        </p>
-                      </TableCell>
-                      <TableCell></TableCell>
-                      <TableCell></TableCell>
-                    </TableRow>
                   </TableBody>
                 </Table>
               </div>
 
               {/* Pagination */}
-              <div className="px-4 py-3 border-t border-border">
+              <div className="px-6 py-4 border-t border-border-subtle">
                 <Pagination
                   currentPage={riwayatPage}
                   totalPages={totalRiwayatPages}
@@ -980,7 +922,9 @@ export default function DashboardPage() {
             </>
           ) : (
             <EmptyState
-              icon={<Clock className="h-6 w-6 text-gray-400" />}
+              icon={
+                <Clock className="h-6 w-6 text-text-tertiary" strokeWidth={2} />
+              }
               title="Belum ada transaksi"
               description="Transaksi akan muncul di sini saat ada aktivitas"
             />

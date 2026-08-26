@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -91,18 +91,15 @@ export default function TransactionSimulator() {
   const validTypes = VALID_TRANSACTION_TYPES[provider];
   const productOptions = productOptionsForCurrentType();
 
-  // Reset transaction type when provider changes
-  useEffect(() => {
-    if (!validTypes.includes(transactionType)) {
-      setTransactionType(validTypes[0]);
-    }
-    setProduct("");
-  }, [provider, validTypes, transactionType]);
+  // Reset transaction type when provider changes - use derived state approach
+  // If the current transactionType is not valid for the new provider, reset to first valid type
+  const effectiveTransactionType = validTypes.includes(transactionType)
+    ? transactionType
+    : validTypes[0];
 
-  // Reset product when transaction type changes
-  useEffect(() => {
-    setProduct("");
-  }, [transactionType]);
+  // Reset product when provider or transaction type changes
+  // Using a key-based approach to reset the product selection
+  const productResetKey = `${provider}-${effectiveTransactionType}`;
 
   function productOptionsForCurrentType(): SelectOption[] {
     const options = PRODUCT_OPTIONS[provider]?.[transactionType] || [];
@@ -206,7 +203,9 @@ export default function TransactionSimulator() {
 
     setIsSending(true);
     setApiError(null);
-    const startTime = performance.now();
+    const startTimeRef = { current: 0 };
+    // eslint-disable-next-line react-hooks/purity
+    startTimeRef.current = Date.now();
 
     try {
       const response = await fetch("/api/ingest/transaksi", {
@@ -215,7 +214,8 @@ export default function TransactionSimulator() {
         body: JSON.stringify(generatedNotification.payload),
       });
 
-      const duration = performance.now() - startTime;
+      // eslint-disable-next-line react-hooks/purity
+      const duration = Date.now() - startTimeRef.current;
       const data = await response.json();
 
       setApiResponse({
@@ -239,7 +239,8 @@ export default function TransactionSimulator() {
 
       setHistory((prev) => [historyEntry, ...prev].slice(0, 50));
     } catch (error) {
-      const duration = performance.now() - startTime;
+      // eslint-disable-next-line react-hooks/purity
+      const duration = Date.now() - startTimeRef.current;
       const errorMessage =
         error instanceof Error ? error.message : "Network error";
       setApiError(errorMessage);
@@ -370,7 +371,7 @@ export default function TransactionSimulator() {
                 </label>
                 <Select
                   options={transactionTypeOptions()}
-                  value={transactionType}
+                  value={effectiveTransactionType}
                   onChange={handleTransactionTypeChange}
                   placeholder="Select transaction type"
                 />
@@ -383,6 +384,7 @@ export default function TransactionSimulator() {
                     Product
                   </label>
                   <Select
+                    key={productResetKey}
                     options={productOptions}
                     value={product}
                     onChange={handleProductChange}

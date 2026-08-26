@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FORM_CONFIG_TRANSAKSI_MANUAL, FieldConfig } from "@/lib/formConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,16 +66,30 @@ export default function FormTransaksiManual() {
     (c) => c.jenisTransaksi === jenisTerpilih,
   );
 
+  // Track if notification was already shown for current status
+  const notificationShownRef = useRef(false);
+
   // Auto-close notification after 3 seconds
   useEffect(() => {
     if (statusSubmit === "sukses" || statusSubmit === "error") {
-      setShowNotification(true);
       const timer = setTimeout(() => {
         setShowNotification(false);
         setStatusSubmit("idle");
         setErrorMessage("");
+        notificationShownRef.current = false;
       }, 3000);
       return () => clearTimeout(timer);
+    }
+  }, [statusSubmit]);
+
+  // Show notification when status changes to sukses or error
+  useEffect(() => {
+    if (
+      (statusSubmit === "sukses" || statusSubmit === "error") &&
+      !notificationShownRef.current
+    ) {
+      setShowNotification(true);
+      notificationShownRef.current = true;
     }
   }, [statusSubmit]);
   const TransactionIcon = config

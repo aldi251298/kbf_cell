@@ -16,11 +16,11 @@ mendeploy ke Vercel.
 
 Di Supabase Dashboard > Project Settings > API:
 
-| Variable | Lokasi | Contoh |
-|----------|--------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Project URL | `https://xxxxxxxx.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` / `public` key | `eyJhbG...` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `service_role` key | `eyJhbG...` (RAHASIA) |
+| Variable                        | Lokasi                | Contoh                         |
+| ------------------------------- | --------------------- | ------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Project URL           | `https://xxxxxxxx.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` / `public` key | `eyJhbG...`                    |
+| `SUPABASE_SERVICE_ROLE_KEY`     | `service_role` key    | `eyJhbG...` (RAHASIA)          |
 
 ## 3. Setup Database
 
@@ -55,6 +55,7 @@ CRON_SECRET=<generate-dengan-openssl-rand-hex-32>
 ```
 
 Generate API key yang kuat:
+
 ```bash
 openssl rand -hex 32
 ```
@@ -76,6 +77,7 @@ openssl rand -hex 32
 ## 6. Konfigurasi Android App (di luar scope, tapi catatan)
 
 Android app yang mengirim data ke endpoint ingest harus dikonfigurasi dengan:
+
 - Base URL: `https://<your-vercel-domain>.vercel.app`
 - API Key: nilai `INGEST_API_KEY` yang sama
 - Endpoint transaksi: `POST /api/ingest/transaksi`
@@ -88,6 +90,7 @@ File `vercel.json` sudah disediakan dengan cron job yang memanggil
 akan berjalan otomatis.
 
 Untuk menguji cron secara manual:
+
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" \
   https://<your-domain>/api/cron/backup

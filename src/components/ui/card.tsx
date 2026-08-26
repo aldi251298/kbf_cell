@@ -5,6 +5,10 @@ type Variant =
   | "default"
   | "status"
   | "highlight"
+  | "summary-income"
+  | "summary-revenue"
+  | "summary-balance"
+  | "summary-transactions"
   | "gradient-blue"
   | "gradient-emerald"
   | "gradient-purple"
@@ -28,17 +32,31 @@ export function Card({
   ...props
 }: CardRootProps) {
   const variantStyles = {
-    default: "border border-gray-100 bg-white shadow-sm hover:shadow-md",
-    highlight: "border-blue-100 bg-blue-50/30 shadow-sm hover:shadow-md",
-    status:
-      status &&
-      {
-        success: "border-green-100 bg-green-50/30",
-        warning: "border-amber-100 bg-amber-50/30",
-        error: "border-red-100 bg-red-50/30",
-        info: "border-blue-100 bg-blue-50/30",
-        offline: "border-gray-100 bg-gray-50/30",
-      }[status],
+    default:
+      "border border-card-border bg-card shadow-card hover:shadow-card-hover",
+    highlight:
+      "border-accent/20 bg-accent/5 shadow-card hover:shadow-card-hover",
+    status: (() => {
+      if (!status) return "";
+      const statusMap = {
+        success: "border-success/20 bg-success/5",
+        warning: "border-warning/20 bg-warning/5",
+        error: "border-error/20 bg-error/5",
+        info: "border-info/20 bg-info/5",
+        offline: "border-offline/20 bg-offline/5",
+      } as const;
+      return statusMap[status] ?? "";
+    })(),
+    // Summary card variants — Premium gradient backgrounds with white text
+    "summary-income":
+      "bg-gradient-to-br from-[hsl(var(--card-income-from))] to-[hsl(var(--card-income-to))] border-card-income-border shadow-lg shadow-[hsl(var(--card-income))/0.25] hover:shadow-xl hover:shadow-[hsl(var(--card-income))/0.35] hover:-translate-y-1",
+    "summary-revenue":
+      "bg-gradient-to-br from-[hsl(var(--card-revenue-from))] to-[hsl(var(--card-revenue-to))] border-card-revenue-border shadow-lg shadow-[hsl(var(--card-revenue))/0.25] hover:shadow-xl hover:shadow-[hsl(var(--card-revenue))/0.35] hover:-translate-y-1",
+    "summary-balance":
+      "bg-gradient-to-br from-[hsl(var(--card-balance-from))] to-[hsl(var(--card-balance-to))] border-card-balance-border shadow-lg shadow-[hsl(var(--card-balance))/0.25] hover:shadow-xl hover:shadow-[hsl(var(--card-balance))/0.35] hover:-translate-y-1",
+    "summary-transactions":
+      "bg-gradient-to-br from-[hsl(var(--card-transactions-from))] to-[hsl(var(--card-transactions-to))] border-card-transactions-border shadow-lg shadow-[hsl(var(--card-transactions))/0.25] hover:shadow-xl hover:shadow-[hsl(var(--card-transactions))/0.35] hover:-translate-y-1",
+    // Legacy gradient variants (kept for compatibility)
     "gradient-blue":
       "bg-gradient-to-br from-blue-600 to-blue-800 shadow-lg shadow-blue-600/25",
     "gradient-emerald":
@@ -58,9 +76,12 @@ export function Card({
   };
 
   const isGradientVariant = variant.startsWith("gradient-");
+  const isSummaryVariant = variant.startsWith("summary-");
   const baseStyles = isGradientVariant
-    ? "rounded-none border-0 text-white transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
-    : "rounded-none border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:shadow-md";
+    ? "rounded-2xl border-0 text-white transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+    : isSummaryVariant
+      ? "rounded-2xl border-0 text-white transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+      : "rounded-2xl border bg-card shadow-card transition-all duration-200 hover:shadow-card-hover";
 
   return (
     <div
@@ -83,7 +104,7 @@ interface CardHeaderProps extends ComponentPropsWithoutRef<"div"> {
 export function CardHeader({ className, children, ...props }: CardHeaderProps) {
   return (
     <div
-      className={cn("px-5 py-4 border-b border-white/10", className)}
+      className={cn("px-6 py-5 border-b border-border-subtle", className)}
       {...props}
     >
       {children}
@@ -99,7 +120,7 @@ export function CardTitle({ className, children, ...props }: CardTitleProps) {
   return (
     <h3
       className={cn(
-        "text-sm font-medium text-white/80 leading-none tracking-tight",
+        "text-sm font-medium text-text-secondary leading-none tracking-tight",
         className,
       )}
       {...props}
@@ -119,7 +140,10 @@ export function CardDescription({
   ...props
 }: CardDescriptionProps) {
   return (
-    <p className={cn("text-xs text-white/60 mt-0.5", className)} {...props}>
+    <p
+      className={cn("text-xs text-text-tertiary mt-0.5", className)}
+      {...props}
+    >
       {children}
     </p>
   );
@@ -135,7 +159,7 @@ export function CardContent({
   ...props
 }: CardContentProps) {
   return (
-    <div className={cn("p-5 pt-4", className)} {...props}>
+    <div className={cn("p-6 pt-5", className)} {...props}>
       {children}
     </div>
   );
@@ -144,7 +168,6 @@ export function CardContent({
 interface CardMetricProps extends ComponentPropsWithoutRef<"div"> {
   icon?: ReactNode;
   value: string | number;
-  delta?: number;
   className?: string;
 }
 
@@ -152,7 +175,6 @@ export function CardMetric({
   className,
   icon,
   value,
-  delta,
   children,
   ...props
 }: CardMetricProps) {

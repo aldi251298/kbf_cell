@@ -12,6 +12,7 @@ import {
   formatWaktu,
   potongTeks,
   getTampilanTransaksi,
+  getDisplayProductName,
 } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,8 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { IkonJenisTransaksi } from "@/components/ui/IkonJenisTransaksi";
+import { LogoBrand } from "@/components/ui/LogoBrand";
 import {
   Search,
   X,
@@ -172,6 +175,15 @@ function TransactionDetailModal({
             <span className="text-sm text-gray-500">Produk</span>
             <div className="flex flex-col items-end gap-1">
               <div className="flex items-center gap-2">
+                <IkonJenisTransaksi
+                  jenis={transaction.produk.kategori}
+                  size={28}
+                />
+                <LogoBrand
+                  namaProduk={transaction.produk.nama}
+                  jenisTransaksi={transaction.produk.kategori}
+                  size={28}
+                />
                 <Badge
                   variant="default"
                   size="sm"
@@ -197,9 +209,19 @@ function TransactionDetailModal({
                 transaction.produk.nama,
               ).tampilkanNamaProduk && (
                 <span className="text-sm font-medium text-gray-900">
-                  {transaction.produk.nama}
+                  {getDisplayProductName(
+                    transaction.produk.kategori,
+                    transaction.produk.nama,
+                    transaction.providerSeluler,
+                  )}
                 </span>
               )}
+              {transaction.produk.kategori === "pulsa" &&
+                !transaction.produk.nama && (
+                  <span className="text-sm font-medium text-gray-900">
+                    Isi Ulang Pulsa
+                  </span>
+                )}
             </div>
           </div>
 
@@ -778,6 +800,15 @@ export default function TransaksiPendingPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            <IkonJenisTransaksi
+                              jenis={trx.produk.kategori}
+                              size={28}
+                            />
+                            <LogoBrand
+                              namaProduk={trx.produk.nama}
+                              jenisTransaksi={trx.produk.kategori}
+                              size={28}
+                            />
                             <Badge
                               variant="default"
                               size="sm"
@@ -797,11 +828,18 @@ export default function TransaksiPendingPage() {
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <span className="text-sm text-text-primary">
-                              {trx.produk.nama ||
-                                (tampilan.tampilkanNamaProduk
-                                  ? "-"
-                                  : trx.produk.nama)}
+                              {getDisplayProductName(
+                                trx.produk.kategori,
+                                trx.produk.nama,
+                                trx.providerSeluler,
+                              )}
                             </span>
+                            {trx.produk.kategori === "pulsa" &&
+                              !trx.produk.nama && (
+                                <span className="text-sm text-text-primary">
+                                  Isi Ulang Pulsa
+                                </span>
+                              )}
                             {tampilan.tampilkanProviderSeluler &&
                               trx.providerSeluler && (
                                 <span className="text-xs text-text-tertiary">

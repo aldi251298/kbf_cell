@@ -20,7 +20,7 @@ export function Skeleton({ className, children, ...props }: SkeletonRootProps) {
 
 export function CardSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-card">
+    <div className="rounded-lg border border-border bg-card p-5 shadow-card">
       <Skeleton className="h-4 w-24 mb-3" />
       <Skeleton className="h-8 w-32 mb-2" />
       <Skeleton className="h-3 w-20" />
@@ -37,7 +37,7 @@ export function TableSkeleton({
 }) {
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-border overflow-hidden bg-card shadow-card">
+      <div className="rounded-lg border border-border overflow-hidden bg-card shadow-card">
         <div className="p-4">
           <div className="flex gap-4">
             {Array.from({ length: columns }).map((_, i) => (
@@ -61,7 +61,7 @@ export function TableSkeleton({
 
 export function ChartSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-card">
+    <div className="rounded-lg border border-border bg-card p-5 shadow-card">
       <Skeleton className="h-4 w-32 mb-4" />
       <Skeleton className="h-64 w-full" />
     </div>
