@@ -18,12 +18,17 @@ export function Skeleton({ className, children, ...props }: SkeletonRootProps) {
   );
 }
 
-export function CardSkeleton() {
+export function CardSkeleton({ className }: { className?: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5 shadow-card">
-      <Skeleton className="h-4 w-24 mb-3" />
-      <Skeleton className="h-8 w-32 mb-2" />
-      <Skeleton className="h-3 w-20" />
+    <div
+      className={cn(
+        "rounded-lg border border-border bg-card p-5 shadow-card",
+        className,
+      )}
+    >
+      <Skeleton className="h-6 w-24 mb-3" />
+      <Skeleton className="h-12 w-32 mb-2" />
+      <Skeleton className="h-6 w-20" />
     </div>
   );
 }

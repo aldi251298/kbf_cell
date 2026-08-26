@@ -10,7 +10,6 @@ import type { Transaksi, StatusTransaksi } from "@/types";
 import {
   formatRupiah,
   formatWaktu,
-  potongTeks,
   getTampilanTransaksi,
   getDisplayProductName,
 } from "@/lib/utils";
@@ -749,29 +748,40 @@ export default function TransaksiPendingPage() {
         ) : transactions.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[870px]">
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-surface-secondary/50 border-b border-border">
                     <SortableTableHead
                       sortable
                       sorted={sortField === "waktu" ? sortDirection : null}
                       onSort={() => handleSort("waktu")}
+                      className="w-[110px] min-w-[110px] max-w-[110px]"
                     >
                       Waktu
                     </SortableTableHead>
-                    <TableHead>Konter</TableHead>
-                    <TableHead>Jenis Transaksi</TableHead>
-                    <TableHead>Produk</TableHead>
+                    <TableHead className="w-[140px] min-w-[140px] max-w-[140px]">
+                      Konter
+                    </TableHead>
+                    <TableHead className="w-[260px] min-w-[260px] max-w-[260px]">
+                      Produk
+                    </TableHead>
+                    <TableHead className="w-[100px] min-w-[100px] max-w-[100px]">
+                      Tujuan
+                    </TableHead>
                     <SortableTableHead
                       sortable
                       sorted={sortField === "nominal" ? sortDirection : null}
                       onSort={() => handleSort("nominal")}
+                      className="w-[120px] min-w-[120px] max-w-[120px] text-right"
                     >
                       Nominal
                     </SortableTableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Tujuan</TableHead>
-                    <TableHead>Aksi</TableHead>
+                    <TableHead className="w-[90px] min-w-[90px] max-w-[90px] text-center">
+                      Status
+                    </TableHead>
+                    <TableHead className="w-[50px] min-w-[50px] max-w-[50px] text-center">
+                      Aksi
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -784,76 +794,75 @@ export default function TransaksiPendingPage() {
                     return (
                       <TableRow
                         key={trx.id}
-                        className={trx.perluReview ? "bg-yellow-50" : undefined}
+                        className={`${trx.perluReview ? "bg-yellow-50" : ""} hover:bg-surface-hover/50 transition-colors border-t border-border-subtle`}
                       >
-                        <TableCell className="whitespace-nowrap">
-                          <div>
+                        <TableCell className="whitespace-nowrap py-4 min-w-[110px] max-w-[110px]">
+                          <div className="flex flex-col">
                             <p className="text-sm font-medium text-text-primary">
                               {formatWaktu(trx.waktu)}
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <p className="text-sm text-text-primary">
-                            {potongTeks(trx.konterNama, 20)}
+                        <TableCell className="py-4 min-w-[140px] max-w-[140px]">
+                          <p className="text-sm text-text-primary truncate">
+                            {trx.konterNama}
                           </p>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <IkonJenisTransaksi
-                              jenis={trx.produk.kategori}
-                              size={28}
-                            />
+                        <TableCell className="py-4 min-w-[260px] max-w-[260px]">
+                          <div className="flex items-center gap-2 min-w-0">
                             <LogoBrand
                               namaProduk={trx.produk.nama}
                               jenisTransaksi={trx.produk.kategori}
-                              size={28}
+                              size={24}
                             />
-                            <Badge
-                              variant="default"
-                              size="sm"
-                              className={getCategoryBadgeColor(
-                                trx.produk.kategori,
-                              )}
-                            >
-                              {tampilan.labelJenisTransaksi}
-                            </Badge>
-                            {trx.perluReview && (
-                              <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
-                                PERLU REVIEW
+                            <div className="min-w-0 flex-1 flex flex-col gap-1">
+                              <span className="text-sm text-text-primary truncate">
+                                {getDisplayProductName(
+                                  trx.produk.kategori,
+                                  trx.produk.nama,
+                                  trx.providerSeluler,
+                                )}
                               </span>
-                            )}
+                              {trx.produk.kategori === "pulsa" &&
+                                !trx.produk.nama && (
+                                  <span className="text-sm text-text-primary truncate">
+                                    Isi Ulang Pulsa
+                                  </span>
+                                )}
+                              {tampilan.tampilkanProviderSeluler &&
+                                trx.providerSeluler && (
+                                  <span className="text-xs text-text-tertiary">
+                                    {trx.providerSeluler}
+                                  </span>
+                                )}
+                              <span className="text-xs text-text-tertiary">
+                                {tampilan.labelJenisTransaksi}
+                              </span>
+                              {trx.perluReview && (
+                                <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
+                                  PERLU REVIEW
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm text-text-primary">
-                              {getDisplayProductName(
-                                trx.produk.kategori,
-                                trx.produk.nama,
-                                trx.providerSeluler,
-                              )}
+                        <TableCell className="py-4 min-w-[100px] max-w-[100px]">
+                          {tampilan.tampilkanNomorTujuan && trx.nomorTujuan ? (
+                            <span className="text-sm text-text-primary font-mono truncate block">
+                              {trx.nomorTujuan}
                             </span>
-                            {trx.produk.kategori === "pulsa" &&
-                              !trx.produk.nama && (
-                                <span className="text-sm text-text-primary">
-                                  Isi Ulang Pulsa
-                                </span>
-                              )}
-                            {tampilan.tampilkanProviderSeluler &&
-                              trx.providerSeluler && (
-                                <span className="text-xs text-text-tertiary">
-                                  {trx.providerSeluler}
-                                </span>
-                              )}
-                          </div>
+                          ) : (
+                            <span className="text-sm text-text-tertiary">
+                              —
+                            </span>
+                          )}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-right py-4 font-data min-w-[120px] max-w-[120px]">
                           <p className="text-sm font-medium text-text-primary">
                             {formatRupiah(trx.nominal)}
                           </p>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-4 text-center min-w-[90px] max-w-[90px]">
                           <Badge
                             variant={
                               trx.status === "sukses"
@@ -864,30 +873,20 @@ export default function TransaksiPendingPage() {
                             }
                             size="sm"
                             dot
+                            className="w-full justify-center"
                           >
                             {STATUS_LABELS[trx.status]}
                           </Badge>
                           {trx.errorMessage && (
                             <p
-                              className="text-xs text-text-tertiary mt-1 truncate max-w-37.5"
+                              className="text-xs text-text-tertiary mt-1 truncate"
                               title={trx.errorMessage}
                             >
                               {trx.errorMessage}
                             </p>
                           )}
                         </TableCell>
-                        <TableCell>
-                          {tampilan.tampilkanNomorTujuan && trx.nomorTujuan ? (
-                            <span className="text-sm text-text-primary font-mono">
-                              {trx.nomorTujuan}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-text-tertiary">
-                              -
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
+                        <TableCell className="py-4 text-center min-w-[50px] max-w-[50px]">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -903,28 +902,27 @@ export default function TransaksiPendingPage() {
                   })}
                 </TableBody>
                 {/* Total Row */}
-                <TableRow className="bg-gray-50 font-semibold">
-                  <TableCell colSpan={4} className="text-right">
-                    <span className="text-sm font-semibold text-gray-900">
+                <TableRow className="bg-surface-secondary/50 font-semibold border-t border-border">
+                  <TableCell colSpan={4} className="text-right py-4">
+                    <span className="text-sm font-semibold text-text-primary">
                       Total {transactions.length} Transaksi
                     </span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="whitespace-nowrap text-right py-4 font-data min-w-[120px] max-w-[120px]">
                     <p className="text-sm font-bold text-blue-600">
                       {formatRupiah(
                         transactions.reduce((sum, trx) => sum + trx.nominal, 0),
                       )}
                     </p>
                   </TableCell>
-                  <TableCell></TableCell>
-                  <TableCell></TableCell>
-                  <TableCell></TableCell>
+                  <TableCell className="py-4 min-w-[90px] max-w-[90px]"></TableCell>
+                  <TableCell className="py-4 min-w-[50px] max-w-[50px]"></TableCell>
                 </TableRow>
               </Table>
             </div>
 
             {/* Pagination */}
-            <div className="px-4 py-3 border-t border-border">
+            <div className="px-6 py-4 border-t border-border-subtle">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}

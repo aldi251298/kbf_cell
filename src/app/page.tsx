@@ -22,6 +22,7 @@ import {
   formatWaktu,
   formatJam,
   formatTanggal,
+  cn,
 } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,59 @@ const ITEMS_PER_PAGE = 10;
 
 // Day change check interval (every 5 minutes)
 const DAY_CHANGE_CHECK_INTERVAL = 5 * 60 * 1000;
+
+// Table column definitions - single source of truth for column widths
+// Fixed widths for consistent columns, flexible for variable content (Produk)
+const TABLE_COLUMNS = [
+  {
+    key: "waktu",
+    label: "Waktu",
+    width: "80px",
+    minWidth: "80px",
+    maxWidth: "100px",
+    align: "left" as const,
+  },
+  {
+    key: "konter",
+    label: "Konter",
+    width: "100px",
+    minWidth: "100px",
+    maxWidth: "100px",
+    align: "left" as const,
+  },
+  {
+    key: "produk",
+    label: "Produk",
+    width: "150px",
+    minWidth: "150px",
+    maxWidth: "150px",
+    align: "left" as const,
+  },
+  {
+    key: "tujuan",
+    label: "Tujuan",
+    width: "80px",
+    minWidth: "80px",
+    maxWidth: "80px",
+    align: "left" as const,
+  },
+  {
+    key: "nominal",
+    label: "Nominal",
+    width: "100px",
+    minWidth: "100px",
+    maxWidth: "100px",
+    align: "center" as const,
+  },
+  {
+    key: "status",
+    label: "Status",
+    width: "50px",
+    minWidth: "50px",
+    maxWidth: "50px",
+    align: "center" as const,
+  },
+] as const;
 
 // Transaction Detail Modal Component (moved outside to avoid react-hooks/static-components error)
 function TransactionDetailModal({
@@ -161,14 +215,14 @@ function TransactionDetailModal({
               <LogoBrand
                 namaProduk={transaction.produk.nama}
                 jenisTransaksi={transaction.produk.kategori}
-                size={28}
+                size={30}
               />
               <Badge
                 variant="outline"
                 size="sm"
                 className={
                   getCategoryBadgeColor(transaction.produk.kategori) +
-                  " text-[10px] font-medium"
+                  " text-[12px] font-medium"
                 }
               >
                 {
@@ -184,7 +238,7 @@ function TransactionDetailModal({
                 transaction.nomorTujuan,
                 transaction.produk.nama,
               ).tampilkanNamaProduk && (
-                <span className="text-sm font-medium text-text-primary">
+                <span className="text-xl font-medium text-text-primary">
                   {getDisplayProductName(
                     transaction.produk.kategori,
                     transaction.produk.nama,
@@ -554,29 +608,74 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-7">
-      {/* Summary Cards - Total Uang Masuk, Omzet Bersih, Saldo Alpines, Total Transaksi Hari Ini */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* Header Row - Welcome + Date Picker/Filter */}
+
+      {/* Strip Saldo Alpines - Full width, small height, accent border */}
+      <div className="relative">
+        {loading ? (
+          <Skeleton className="h-20 w-full rounded-lg" />
+        ) : (
+          <div
+            className="flex items-center justify-between px-4 py-3 bg-background border border-primary/30 rounded-lg transition-colors hover:border-primary/50"
+            style={{ minHeight: "64px" }}
+          >
+            {/* Left side: Icon + Label + Value */}
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <CreditCard className="h-4.5 w-4.5 text-primary strokeWidth={2}" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-text-black uppercase tracking-wider">
+                  Saldo Alpines
+                </p>
+                <p className="text-lg font-bold text-text-primary font-data">
+                  {saldoAlpines !== null ? formatRupiah(saldoAlpines) : "—"}
+                </p>
+              </div>
+            </div>
+            {/* Right side: Last update info */}
+            <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
+              <Clock className="h-3.5 w-3.5" strokeWidth={2} />
+              <span>
+                {waktuSaldoAlpines
+                  ? `Update ${new Date(waktuSaldoAlpines).toLocaleString(
+                      "id-ID",
+                      {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    )}`
+                  : "—"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Summary Cards Grid - 3 columns: Total Uang Masuk, Omzet Bersih, Total Transaksi */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           <>
-            <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
           </>
         ) : ringkasan ? (
           <>
-            {/* Card 1: Total Uang Masuk â€” Emerald to Teal Gradient */}
+            {/* Card 1: Total Uang Masuk — Emerald to Teal Gradient */}
             <Card variant="summary-income">
-              <CardContent className="relative">
+              <CardContent className="relative py-8">
                 <div className="flex items-start justify-between">
                   <div className="pr-4">
                     <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
                       Total Uang Masuk
                     </p>
-                    <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
+                    <p className="text-4xl font-bold text-white mt-4 tracking-tight leading-none font-data">
                       {formatRupiah(ringkasan.totalOmzet)}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-3">
+                    <div className="flex items-center gap-1.5 mt-5">
                       {omzetDelta > 0 ? (
                         <ArrowUpRight
                           className="h-4 w-4 text-green-300"
@@ -609,9 +708,9 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                  <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
                     <WalletCards
-                      className="h-5.5 w-5.5 text-white"
+                      className="h-8 w-8 text-white"
                       strokeWidth={2}
                     />
                   </div>
@@ -619,24 +718,24 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Card 2: Omzet Bersih â€” Violet to Purple Gradient */}
+            {/* Card 2: Omzet Bersih — Violet to Purple Gradient */}
             <Card variant="summary-revenue">
-              <CardContent className="relative">
+              <CardContent className="relative py-8">
                 <div className="flex items-start justify-between">
                   <div className="pr-4">
                     <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
                       Omzet Bersih
                     </p>
-                    <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
+                    <p className="text-4xl font-bold text-white mt-4 tracking-tight leading-none font-data">
                       {formatRupiah(ringkasan.pendapatanBersih ?? 0)}
                     </p>
-                    <p className="text-sm font-medium text-white/70 mt-3">
+                    <p className="text-sm font-medium text-white/70 mt-5">
                       Setelah potongan biaya
                     </p>
                   </div>
-                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                  <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
                     <ChartNoAxesCombined
-                      className="h-5.5 w-5.5 text-white"
+                      className="h-8 w-8 text-white"
                       strokeWidth={2}
                     />
                   </div>
@@ -644,62 +743,18 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Card 3: Saldo Alpines â€” Blue to Indigo Gradient */}
-            <Card variant="summary-balance">
-              <CardContent className="relative">
-                <div className="flex items-start justify-between">
-                  <div className="pr-4">
-                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
-                      Saldo Alpines
-                    </p>
-                    {saldoAlpines !== null ? (
-                      <>
-                        <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
-                          {formatRupiah(saldoAlpines)}
-                        </p>
-                        <p className="text-sm font-medium text-white/70 mt-3">
-                          Terakhir update:{" "}
-                          {waktuSaldoAlpines
-                            ? new Date(waktuSaldoAlpines).toLocaleString(
-                                "id-ID",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )
-                            : "â€”"}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-3xl font-bold text-white/70 mt-2 tracking-tight leading-none font-data">
-                        â€”
-                      </p>
-                    )}
-                  </div>
-                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <CreditCard
-                      className="h-5.5 w-5.5 text-white"
-                      strokeWidth={2}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Card 4: Total Transaksi Hari Ini â€” Amber to Orange Gradient */}
+            {/* Card 3: Total Transaksi Hari Ini — Amber to Orange Gradient */}
             <Card variant="summary-transactions">
-              <CardContent className="relative">
+              <CardContent className="relative py-8">
                 <div className="flex items-start justify-between">
                   <div className="pr-4">
                     <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
                       Total Transaksi Hari Ini
                     </p>
-                    <p className="text-3xl font-bold text-white mt-2 tracking-tight leading-none font-data">
+                    <p className="text-4xl font-bold text-white mt-4 tracking-tight leading-none font-data">
                       {formatAngka(ringkasan.totalTransaksi)}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-3">
+                    <div className="flex items-center gap-1.5 mt-5">
                       {transaksiDelta > 0 ? (
                         <ArrowUpRight
                           className="h-4 w-4 text-amber-300"
@@ -732,9 +787,9 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="h-11 w-11 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                  <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
                     <ChartNoAxesColumnIncreasing
-                      className="h-5.5 w-5.5 text-white"
+                      className="h-8 w-8 text-white"
                       strokeWidth={2}
                     />
                   </div>
@@ -795,19 +850,26 @@ export default function DashboardPage() {
           ) : riwayatTransactions.length > 0 ? (
             <>
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="min-w-[820px]">
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-27.5">Waktu</TableHead>
-                      <TableHead className="w-[170px]">Konter</TableHead>
-                      <TableHead className="w-[220px] max-w-[220px]">
-                        Produk
-                      </TableHead>
-                      <TableHead className="w-[80px] text-right">
-                        Nominal
-                      </TableHead>
-                      <TableHead className="w-[80px]">Status</TableHead>
-                      <TableHead className="w-[110px]">Tujuan</TableHead>
+                    <TableRow className="bg-surface-secondary/50 border-b border-border">
+                      {TABLE_COLUMNS.map((col) => (
+                        <TableHead
+                          key={col.key}
+                          className={cn(
+                            "whitespace-nowrap",
+                            col.align === "left" && "text-left",
+                            col.align === "center" && "text-center",
+                          )}
+                          style={{
+                            minWidth: col.minWidth,
+                            maxWidth: col.maxWidth,
+                            width: col.width,
+                          }}
+                        >
+                          {col.label}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -821,87 +883,149 @@ export default function DashboardPage() {
                         <TableRow
                           key={trx.id}
                           onClick={() => setSelectedTransaction(trx)}
-                          className="cursor-pointer hover:bg-surface-hover/50 transition-colors"
+                          className="cursor-pointer hover:bg-surface-hover/50 transition-colors border-t border-border-subtle"
                         >
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex flex-col">
-                              <p className="text-sm font-medium text-text-primary">
-                                {formatTanggal(trx.waktu)}
-                              </p>
-                              <p className="text-xs text-text-tertiary">
-                                {formatJam(trx.waktu)}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm text-text-primary truncate max-w-[150px]">
-                              {trx.konterNama}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2 min-w-0">
-                              <LogoBrand
-                                namaProduk={trx.produk.nama}
-                                jenisTransaksi={trx.produk.kategori}
-                                size={28}
-                              />
-                              <div className="min-w-0 flex-1 flex flex-col gap-1">
-                                {tampilan.tampilkanNamaProduk && (
-                                  <span className="text-sm text-text-primary truncate max-w-[200px]">
-                                    {getDisplayProductName(
-                                      trx.produk.kategori,
-                                      trx.produk.nama,
-                                      trx.providerSeluler,
+                          {TABLE_COLUMNS.map((col) => {
+                            const alignClass = cn(
+                              col.align === "left" && "text-left",
+                              col.align === "center" && "text-center",
+                            );
+                            const widthStyle = {
+                              minWidth: col.minWidth,
+                              maxWidth: col.maxWidth,
+                              width: col.width,
+                            };
+
+                            switch (col.key) {
+                              case "waktu":
+                                return (
+                                  <TableCell
+                                    key={col.key}
+                                    className={cn(
+                                      "whitespace-nowrap py-4",
+                                      alignClass,
                                     )}
-                                  </span>
-                                )}
-                                {trx.produk.kategori === "pulsa" &&
-                                  !trx.produk.nama && (
-                                    <span className="text-sm text-text-primary truncate max-w-[200px]">
-                                      Isi Ulang Pulsa
-                                    </span>
-                                  )}
-                                {tampilan.tampilkanProviderSeluler &&
-                                  trx.providerSeluler && (
-                                    <span className="text-xs text-text-tertiary">
-                                      {trx.providerSeluler}
-                                    </span>
-                                  )}
-                                <span className="text-xs text-text-tertiary">
-                                  {tampilan.labelJenisTransaksi}
-                                </span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-right">
-                            <p className="text-sm font-medium text-text-primary">
-                              {formatRupiah(trx.nominal)}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                getStatusBadgeVariant(trx.status) as
-                                  "success" | "warning" | "error" | "default"
-                              }
-                              size="sm"
-                            >
-                              {trx.status.charAt(0).toUpperCase() +
-                                trx.status.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {tampilan.tampilkanNomorTujuan &&
-                            trx.nomorTujuan ? (
-                              <span className="text-sm text-text-primary font-mono">
-                                {trx.nomorTujuan}
-                              </span>
-                            ) : (
-                              <span className="text-sm text-text-tertiary">
-                                -
-                              </span>
-                            )}
-                          </TableCell>
+                                    style={widthStyle}
+                                  >
+                                    <div className="flex flex-col">
+                                      <p className="text-sm font-medium text-text-primary">
+                                        {formatTanggal(trx.waktu)}
+                                      </p>
+                                      <p className="text-xs text-text-tertiary">
+                                        {formatJam(trx.waktu)}
+                                      </p>
+                                    </div>
+                                  </TableCell>
+                                );
+                              case "konter":
+                                return (
+                                  <TableCell
+                                    key={col.key}
+                                    className={cn("py-4 truncate", alignClass)}
+                                    style={widthStyle}
+                                  >
+                                    <p className="text-sm text-text-primary truncate">
+                                      {trx.konterNama}
+                                    </p>
+                                  </TableCell>
+                                );
+                              case "produk":
+                                return (
+                                  <TableCell
+                                    key={col.key}
+                                    className={cn("py-4", alignClass)}
+                                    style={widthStyle}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <LogoBrand
+                                        namaProduk={trx.produk.nama}
+                                        jenisTransaksi={trx.produk.kategori}
+                                        size={24}
+                                      />
+                                      <div className="min-w-0 flex-1 flex flex-col gap-1">
+                                        {tampilan.tampilkanNamaProduk && (
+                                          <span className="text-sm text-text-primary truncate">
+                                            {getDisplayProductName(
+                                              trx.produk.kategori,
+                                              trx.produk.nama,
+                                              trx.providerSeluler,
+                                            )}
+                                          </span>
+                                        )}
+                                        {trx.produk.kategori === "pulsa" &&
+                                          !trx.produk.nama && (
+                                            <span className="text-sm text-text-primary truncate">
+                                              Isi Ulang Pulsa
+                                            </span>
+                                          )}
+                                        <span className="text-xs text-text-tertiary">
+                                          {tampilan.labelJenisTransaksi}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                );
+                              case "tujuan":
+                                return (
+                                  <TableCell
+                                    key={col.key}
+                                    className={cn("py-4 truncate", alignClass)}
+                                    style={widthStyle}
+                                  >
+                                    {tampilan.tampilkanNomorTujuan &&
+                                    trx.nomorTujuan ? (
+                                      <span className="text-sm text-text-primary font-mono truncate block">
+                                        {trx.nomorTujuan}
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-text-tertiary">
+                                        —
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                );
+                              case "nominal":
+                                return (
+                                  <TableCell
+                                    key={col.key}
+                                    className={cn(
+                                      "whitespace-nowrap py-4 font-data",
+                                      alignClass,
+                                    )}
+                                    style={widthStyle}
+                                  >
+                                    <p className="text-sm font-medium text-text-primary">
+                                      {formatRupiah(trx.nominal)}
+                                    </p>
+                                  </TableCell>
+                                );
+                              case "status":
+                                return (
+                                  <TableCell
+                                    key={col.key}
+                                    className={cn("py-4", alignClass)}
+                                    style={widthStyle}
+                                  >
+                                    <Badge
+                                      variant={
+                                        getStatusBadgeVariant(trx.status) as
+                                          | "success"
+                                          | "warning"
+                                          | "error"
+                                          | "default"
+                                      }
+                                      size="sm"
+                                      className="w-full justify-center"
+                                    >
+                                      {trx.status.charAt(0).toUpperCase() +
+                                        trx.status.slice(1)}
+                                    </Badge>
+                                  </TableCell>
+                                );
+                              default:
+                                return null;
+                            }
+                          })}
                         </TableRow>
                       );
                     })}

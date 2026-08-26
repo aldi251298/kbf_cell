@@ -9,6 +9,7 @@ type Variant =
   | "summary-revenue"
   | "summary-balance"
   | "summary-transactions"
+  | "summary-alpines"
   | "gradient-blue"
   | "gradient-emerald"
   | "gradient-purple"
@@ -56,6 +57,9 @@ export function Card({
       "bg-gradient-to-br from-[hsl(var(--card-balance-from))] to-[hsl(var(--card-balance-to))] border-card-balance-border shadow-lg shadow-[hsl(var(--card-balance))/0.25] hover:shadow-xl hover:shadow-[hsl(var(--card-balance))/0.35] hover:-translate-y-1",
     "summary-transactions":
       "bg-gradient-to-br from-[hsl(var(--card-transactions-from))] to-[hsl(var(--card-transactions-to))] border-card-transactions-border shadow-lg shadow-[hsl(var(--card-transactions))/0.25] hover:shadow-xl hover:shadow-[hsl(var(--card-transactions))/0.35] hover:-translate-y-1",
+    // Alpines balance card — Credit card style, horizontal, smaller
+    "summary-alpines":
+      "bg-gradient-to-r from-cyan-700 via-cyan-800 to-teal-800 border-cyan-500/30 shadow-lg shadow-cyan-900/40 hover:shadow-xl hover:shadow-cyan-900/50 hover:-translate-y-0.5 rounded-xl",
     // Legacy gradient variants (kept for compatibility)
     "gradient-blue":
       "bg-gradient-to-br from-blue-600 to-blue-800 shadow-lg shadow-blue-600/25",

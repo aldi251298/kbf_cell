@@ -22,7 +22,7 @@ export function LogoBrand({
   namaProduk,
   jenisTransaksi,
   className,
-  size = 32,
+  size = 30,
 }: LogoBrandProps) {
   const logoPath = getBrandLogo(namaProduk, jenisTransaksi);
 
@@ -31,7 +31,6 @@ export function LogoBrand({
       <div
         className={cn(
           "inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden",
-          "border border-border/50 shadow-sm",
           "transition-all duration-200",
           "hover:shadow-md hover:border-border/70 hover:scale-[1.02]",
           className,
@@ -47,8 +46,8 @@ export function LogoBrand({
         <Image
           src={logoPath}
           alt=""
-          width={size * 0.85}
-          height={size * 0.85}
+          width={size * 0.78}
+          height={size * 0.78}
           style={{ objectFit: "contain" }}
           aria-hidden="true"
         />

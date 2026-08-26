@@ -11,7 +11,7 @@ export function Table({
   return (
     <div className="relative w-full overflow-auto rounded-lg border border-border bg-card shadow-card">
       <table
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-sm table-fixed", className)}
         {...props}
       >
         {props.children}
@@ -87,7 +87,7 @@ export function TableHead({
   return (
     <th
       className={cn(
-        "h-12 px-4 text-left align-middle font-bold text-text-tertiary text-xs uppercase tracking-wider",
+        "h-12 px-3 text-left align-middle font-bold text-text-tertiary text-xs uppercase tracking-wider",
         className,
       )}
       {...props}
@@ -99,7 +99,7 @@ export function TableCell({
   className,
   ...props
 }: ComponentPropsWithoutRef<"td">) {
-  return <td className={cn("py-5 px-4 align-middle", className)} {...props} />;
+  return <td className={cn("py-4 px-3 align-middle", className)} {...props} />;
 }
 
 interface SortableTableHeadProps extends ComponentPropsWithoutRef<"th"> {
@@ -120,7 +120,7 @@ export function SortableTableHead({
   return (
     <th
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-text-tertiary text-xs uppercase tracking-wider",
+        "h-12 px-3 text-left align-middle font-medium text-text-tertiary text-xs uppercase tracking-wider",
         sortable &&
           "cursor-pointer select-none hover:text-text-secondary transition-colors duration-150",
         className,
