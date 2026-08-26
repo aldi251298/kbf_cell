@@ -3,6 +3,7 @@ export interface SkenarioTest {
   kategori: string;
   provider: "digipos" | "alpines";
   rawText: string;
+  ekspektasiValid?: boolean;
 }
 
 export const SKENARIO_TESTING: SkenarioTest[] = [
@@ -211,6 +212,22 @@ export const SKENARIO_TESTING: SkenarioTest[] = [
   },
 
   // ===== NOTIFIKASI NON-TRANSAKSI (HARUS DIABAIKAN TOTAL) =====
+  {
+    nama: "HOT PROMO (nama produk mengandung kata 'promo', HARUS tetap valid sebagai transaksi)",
+    kategori: "Paket Data",
+    provider: "digipos",
+    rawText:
+      "Isi ulang paket HOT PROMO 6285213742324 pd 25/08/2026 08:56:41 berhasil. Voucher senilai Rp30000. Nomor seri 04254000000275319660. Cek sisa stock di *181*1*5*2*PIN#.",
+    ekspektasiValid: true,
+  },
+  {
+    nama: "REGRESI: Gebyar Merdeka tetap harus ditolak walau ada perubahan urutan cek",
+    kategori: "Promo/Info (Harus Diabaikan)",
+    provider: "digipos",
+    rawText:
+      "Gebyar Merdeka Digipos 17.8.45! Yuk, kerjar taget transaksinya dan raih hadiah Rp 1.781.945! Penuhi target selama periode 17 Agustus - 17 September 2026.",
+    ekspektasiValid: false,
+  },
   {
     nama: "[HARUS DIABAIKAN] Promo - Gebyar Merdeka",
     kategori: "Promo/Info (Harus Diabaikan)",

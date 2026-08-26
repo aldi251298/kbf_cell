@@ -64,22 +64,38 @@ export function apakahTransaksiPelanggan(rawText: string): {
   valid: boolean;
   alasan?: string;
 } {
-  if (keywordBukanTransaksi.test(rawText)) {
-    return { valid: false, alasan: "terdeteksi_promo_atau_info" };
-  }
+  const adaNomorTujuan = /\b(08|62)\d{8,11}\b/.test(rawText);
+  const adaReferensi = /\b(SN|REFF|ID Transaksi|IDT|Nomor seri)\b/i.test(
+    rawText,
+  );
+  const adaStatusTransaksi = keywordStatusTransaksi.test(rawText);
+  const adaNominalEksplisit = /\bRp\.?\s?[\d.,]+|\bNOMINAL:\s?[\d.,]+/i.test(
+    rawText,
+  );
+  const adaNominalValid = adaNominalEksplisit && adaStatusTransaksi;
+
+  // CEK KHUSUS: Top-up saldo aplikasi sendiri — SELALU ditolak, bukan transaksi pelanggan
+  // Cek ini HARUS sebelum cek struktur, karena notifikasi top-up saldo punya struktur
+  // mirip transaksi (ada status "berhasil" + nominal), tapi bukan transaksi pelanggan.
   if (keywordTopUpSaldoSendiri.test(rawText)) {
     return { valid: false, alasan: "top_up_saldo_aplikasi_sendiri" };
   }
 
-  const adaNomorTujuan = /\b(08|62)\d{8,11}\b/.test(rawText);
-  const adaReferensi = /\b(SN|REFF|ID Transaksi|IDT)\b/i.test(rawText);
-  const adaNominalEksplisit = /\bRp\s?[\d.,]+|\bNOMINAL:\s?[\d.,]+/i.test(
-    rawText,
-  );
-  const adaStatusTransaksi = keywordStatusTransaksi.test(rawText);
-  const adaNominalValid = adaNominalEksplisit && adaStatusTransaksi;
+  // CEK PALING AWAL: kalau struktur transaksi sudah kuat (ada penanda tujuan/referensi/nominal
+  // DAN ada kata status transaksi eksplisit), langsung anggap valid — TIDAK PEDULI ada kata
+  // "promo" atau kata blocklist lain di dalam nama produknya. Struktur data yang menang, bukan
+  // sekadar kecocokan kata.
+  const strukturTransaksiKuat =
+    (adaNomorTujuan || adaReferensi || adaNominalValid) && adaStatusTransaksi;
+  if (strukturTransaksiKuat) {
+    return { valid: true };
+  }
 
-  // Tolak HANYA kalau ketiga sinyal transaksi sama sekali tidak ada
+  // Baru kalau strukturnya lemah/tidak jelas, keyword blocklist jadi penentu
+  if (keywordBukanTransaksi.test(rawText)) {
+    return { valid: false, alasan: "terdeteksi_promo_atau_info" };
+  }
+
   if (!adaNomorTujuan && !adaReferensi && !adaNominalValid) {
     return { valid: false, alasan: "tidak_ada_elemen_transaksi" };
   }
