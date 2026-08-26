@@ -26,20 +26,26 @@ const jetBrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Dashboard Konter Pulsa",
-    template: "%s | Dashboard Konter Pulsa",
+    default: "KBF Cell",
+    template: "%s | KBF Cell",
   },
   description:
     "Monitoring transaksi harian untuk 3 konter pulsa — omzet, jumlah transaksi, status perangkat, dan laporan lengkap.",
-  applicationName: "Dashboard Konter Pulsa",
+  applicationName: "KBF Cell",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Dashboard",
+    title: "KBF Cell",
   },
   formatDetection: {
     telephone: false,
   },
+  icons: {
+    icon: "/logo_kbf.png",
+    shortcut: "/logo_kbf.png",
+    apple: "/logo_kbf.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

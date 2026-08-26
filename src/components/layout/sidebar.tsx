@@ -14,10 +14,11 @@ import {
 } from "lucide-react";
 import { NavItem } from "./nav-item";
 import { useState } from "react";
+import Image from "next/image";
 
 const NAV_ITEMS = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/transaksi-baru", icon: Plus, label: "Transaksi Baru" },
+  { href: "/transaksi-baru", icon: Plus, label: "Tambah Transaksi Manual" },
   { href: "/transaksi", icon: ReceiptText, label: "Riwayat Transaksi" },
   { href: "/transaksi-pending", icon: AlertTriangle, label: "Pending & Gagal" },
   { href: "/laporan", icon: ChartNoAxesColumn, label: "Laporan" },
@@ -48,10 +49,13 @@ export function Sidebar() {
       >
         {!collapsed && (
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-card-income-container">
-              <ReceiptText
-                className="h-5 w-5 text-card-income"
-                strokeWidth={2}
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-border-subtle overflow-hidden">
+              <Image
+                src="/logo_kbf.png"
+                alt="KBF Cell Logo"
+                width={36}
+                height={36}
+                className="object-contain"
               />
             </div>
             <div>
@@ -65,8 +69,14 @@ export function Sidebar() {
           </div>
         )}
         {collapsed && (
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-card-income-container">
-            <ReceiptText className="h-5 w-5 text-card-income" strokeWidth={2} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white border border-border-subtle overflow-hidden">
+            <Image
+              src="/logo_kbf.png"
+              alt="KBF Cell Logo"
+              width={36}
+              height={36}
+              className="object-contain"
+            />
           </div>
         )}
         <button
@@ -99,14 +109,20 @@ export function Sidebar() {
       <div className="border-t border-border-subtle p-3">
         {!collapsed && (
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-secondary border border-border-subtle">
-            <div className="h-8 w-8 rounded-lg bg-card-income-container flex items-center justify-center">
-              <span className="text-xs font-bold text-card-income">KC</span>
+            <div className="h-8 w-8 rounded-lg bg-white border border-border-subtle overflow-hidden flex items-center justify-center">
+              <Image
+                src="/logo_kbf.png"
+                alt="KBF Cell Logo"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-text-primary truncate">
-                Konter Admin
+                Dashboard Admin
               </p>
-              <p className="text-[10px] text-text-tertiary">v2.7.0</p>
+              <p className="text-[10px] text-text-tertiary">v1.1.0</p>
             </div>
           </div>
         )}
