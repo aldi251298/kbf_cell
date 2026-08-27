@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Calendar, Download, Loader2 } from "lucide-react";
+import { Calendar, CalendarDays } from "lucide-react";
 import { Select } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import type { FilterLaporan, PeriodeFilter } from "@/types/laporanAnalytics";
 
 interface SelectOption {
@@ -16,7 +15,6 @@ interface FilterBarLaporanProps {
   filter: FilterLaporan;
   onChange: (filter: FilterLaporan) => void;
   loading?: boolean;
-  onExport?: () => void;
   disabled?: boolean;
 }
 
@@ -25,7 +23,7 @@ const PERIODE_OPTIONS: SelectOption[] = [
   { value: "7_hari", label: "7 Hari Terakhir" },
   { value: "30_hari", label: "30 Hari Terakhir" },
   { value: "bulan_ini", label: "Bulan Ini" },
-  { value: "custom", label: "Custom" },
+  { value: "custom", label: "Custom Range" },
 ];
 
 const KONTER_OPTIONS: SelectOption[] = [
@@ -45,8 +43,6 @@ const PROVIDER_OPTIONS: SelectOption[] = [
 export function FilterBarLaporan({
   filter,
   onChange,
-  loading = false,
-  onExport,
   disabled = false,
 }: FilterBarLaporanProps) {
   const [tanggalMulaiStr, setTanggalMulaiStr] = useState("");
@@ -92,16 +88,12 @@ export function FilterBarLaporan({
     onChange({ ...filter, tanggalSelesai: date });
   };
 
-  const handleExport = () => {
-    onExport?.();
-  };
-
   const showCustomDates = filter.periode === "custom";
 
   return (
     <div
       className={cn(
-        "bg-white border-b px-8 py-4 flex flex-col sm:flex-row items-center gap-4 sticky top-0 z-10",
+        "bg-white border-b px-6 py-4 flex flex-col sm:flex-row items-center gap-4 sticky top-0 z-10",
         disabled && "opacity-50",
       )}
     >
@@ -143,6 +135,7 @@ export function FilterBarLaporan({
             disabled={disabled}
             max={new Date().toISOString().split("T")[0]}
           />
+          <CalendarDays className="h-4 w-4 text-text-tertiary ml-1" />
         </div>
       )}
 
@@ -167,22 +160,6 @@ export function FilterBarLaporan({
           className="w-40"
         />
       </div>
-
-      {/* Export Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="ml-auto sm:ml-0 gap-2"
-        onClick={handleExport}
-        disabled={disabled || loading}
-      >
-        {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Download className="h-4 w-4" />
-        )}
-        {loading ? "Mengekspor..." : "Ekspor CSV"}
-      </Button>
     </div>
   );
 }

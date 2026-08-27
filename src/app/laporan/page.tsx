@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   getLaporanAnalytics,
-  exportLaporanAnalyticsCsv,
+  exportLaporanAnalyticsExcel,
   generateLaporanAnalyticsExportFilename,
 } from "@/services";
 import type {
@@ -60,7 +60,7 @@ export default function LaporanPage() {
     if (!data) return;
     setExporting(true);
     try {
-      const blob = await exportLaporanAnalyticsCsv(filter);
+      const blob = await exportLaporanAnalyticsExcel(filter, data);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -106,7 +106,7 @@ export default function LaporanPage() {
             ) : (
               <Download className="h-4 w-4" />
             )}
-            {exporting ? "Mengekspor..." : "Ekspor CSV"}
+            {exporting ? "Mengekspor..." : "Ekspor Excel"}
           </Button>
         </div>
       </div>
@@ -116,7 +116,6 @@ export default function LaporanPage() {
         filter={filter}
         onChange={handleFilterChange}
         loading={loading}
-        onExport={handleExport}
       />
 
       {/* Summary Cards */}
@@ -134,16 +133,16 @@ export default function LaporanPage() {
 
       {/* Charts Section */}
       {loading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-96 w-full" />
+        <div className="space-y-6">
+          <Skeleton className="h-96 w-full rounded-2xl" />
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Skeleton className="h-80 w-full" />
-            <Skeleton className="h-80 w-full" />
+            <Skeleton className="h-80 w-full rounded-2xl" />
+            <Skeleton className="h-80 w-full rounded-2xl" />
           </div>
-          <Skeleton className="h-80 w-full" />
+          <Skeleton className="h-80 w-full rounded-2xl" />
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Skeleton className="h-80 w-full" />
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-80 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
         </div>
       ) : data ? (
@@ -175,7 +174,7 @@ export default function LaporanPage() {
           </div>
         </>
       ) : (
-        <Card>
+        <Card className="py-12">
           <CardContent className="py-8">
             <div className="text-center">
               <p className="text-text-secondary">

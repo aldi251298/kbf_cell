@@ -440,6 +440,82 @@ const nominalTestCases: NominalTestCase[] = [
     adminKonter: 2000,
     nominalFinal: 17000,
   },
+
+  // BUG 1 FIX: GoPay/ShopeePay with REF:/Reff: variations
+  {
+    nama: "GoPay REF: (single F, uppercase) - nominal eksplisit 50000",
+    provider: "alpines",
+    rawText:
+      "SALDO GOPAY GO50.08218444166 Berhasil. SN/Ref: GOPAY/Rxx Sxxxxx/50000/08218444166/REF:MB26080323082647. Saldo 115.377 - 51.950 = 63.427 @26/08 20:47:37",
+    jenisTransaksi: "ewallet",
+    namaProduk: "GoPay",
+    nominalDasar: 50000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 5000,
+    nominalFinal: 55000,
+  },
+  {
+    nama: "ShopeePay Reff: (lowercase, double f) - nominal eksplisit 50000",
+    provider: "alpines",
+    rawText:
+      "SHOPEE  ADMIN 500 SHO50.085194309746 Berhasil. SN/Ref: SHOPEEPAY/adamanggara483/50000/Reff:1787757144936800526 . Saldo 63.427 - 50.650 = 12.777 @26/08 22:12:29",
+    jenisTransaksi: "ewallet",
+    namaProduk: "ShopeePay",
+    nominalDasar: 50000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 5000,
+    nominalFinal: 55000,
+  },
+  {
+    nama: "GoPay REFF: (standard, double F uppercase) - nominal eksplisit 100000",
+    provider: "alpines",
+    rawText:
+      "GOPAY/Jasmisaputra/100000/081372331339/REFF:0420260814154213iJ5AJAncKMID berhasil. Saldo 1000000 - 105000 = 895000 @15/08 10:30:00",
+    jenisTransaksi: "ewallet",
+    namaProduk: "GoPay",
+    nominalDasar: 100000,
+    sumberDasar: "eksplisit_segmen",
+    adminKonter: 5000,
+    nominalFinal: 105000,
+  },
+
+  // BUG 3: Bayar Tagihan Telkom/Indihome via Alpines
+  {
+    nama: "Bayar Tagihan Telkom - nominal 200000, admin telkom 2500",
+    provider: "alpines",
+    rawText:
+      "BAYAR TAGIHAN TELKOM 1234567890 Berhasil. SN/Ref: Budi Santoso /Periode:202408/Rp.200000/205000A/Adm2500/RpTag200000/200000,. Saldo 1000000 - 205000 = 795000 @15/08 10:30:00",
+    jenisTransaksi: "tagihan",
+    namaProduk: "Tagihan Indihome/Telkom",
+    nominalDasar: 200000,
+    sumberDasar: "eksplisit_tagihan",
+    adminKonter: 5000, // tagihan > 50rb -> admin 5000
+    nominalFinal: 205000,
+  },
+  {
+    nama: "Bayar Tagihan Indihome - nominal 150000, admin telkom 2500",
+    provider: "alpines",
+    rawText:
+      "BAYAR TAGIHAN TELKOM 9876543210 Berhasil. SN/Ref: Siti Rahayu /Periode:202407/Rp.150000/155000B/Adm2500/RpTag150000/150000,. Saldo 500000 - 155000 = 345000 @20/07 14:22:15",
+    jenisTransaksi: "tagihan",
+    namaProduk: "Tagihan Indihome/Telkom",
+    nominalDasar: 150000,
+    sumberDasar: "eksplisit_tagihan",
+    adminKonter: 5000, // tagihan > 50rb -> admin 5000
+    nominalFinal: 155000,
+  },
+  {
+    nama: "Bayar Tagihan Telkom - nominal 30000 (<=50rb), admin telkom 2500",
+    provider: "alpines",
+    rawText:
+      "BAYAR TAGIHAN TELKOM 5555555555 Berhasil. SN/Ref: Ahmad /Periode:202406/Rp.30000/34000C/Adm2500/RpTag30000/30000,. Saldo 200000 - 34000 = 166000 @10/06 09:15:30",
+    jenisTransaksi: "tagihan",
+    namaProduk: "Tagihan Indihome/Telkom",
+    nominalDasar: 30000,
+    sumberDasar: "eksplisit_tagihan",
+    adminKonter: 4000, // tagihan <= 50rb -> admin 4000
+    nominalFinal: 34000,
+  },
 ];
 
 // ============================================================================

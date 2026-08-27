@@ -51,7 +51,7 @@ export function RingkasanCards({ data, loading = false }: RingkasanCardsProps) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
+          <Card key={i} className="animate-pulse h-[120px]">
             <CardContent className="pt-6">
               <div className="h-4 w-1/4 bg-surface-hover rounded mb-2" />
               <div className="h-8 w-1/2 bg-surface-hover rounded" />
@@ -66,7 +66,7 @@ export function RingkasanCards({ data, loading = false }: RingkasanCardsProps) {
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
       {CARD_CONFIG.map(
         ({ key, label, icon: Icon, iconBg, iconColor, formatter }) => (
-          <Card key={key} variant="highlight">
+          <Card key={key} className="h-[120px]">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-text-secondary">
@@ -74,17 +74,19 @@ export function RingkasanCards({ data, loading = false }: RingkasanCardsProps) {
                 </CardTitle>
                 <div
                   className={cn(
-                    "h-8 w-8 rounded-lg flex items-center justify-center",
+                    "h-10 w-10 rounded-xl flex items-center justify-center",
                     iconBg,
                   )}
                 >
-                  <Icon className={cn("h-4 w-4", iconColor)} />
+                  <Icon className={cn("h-5 w-5", iconColor)} />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
               <p className="text-2xl font-display font-bold text-text-primary tracking-tight">
-                {formatter(data[key as keyof RingkasanLaporan] as number)}
+                {data[key as keyof RingkasanLaporan] > 0
+                  ? formatter(data[key as keyof RingkasanLaporan] as number)
+                  : "—"}
               </p>
             </CardContent>
           </Card>

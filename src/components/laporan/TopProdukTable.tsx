@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TopProduk } from "@/types/laporanAnalytics";
 import { formatRupiah, formatAngka } from "@/lib/utils";
+import { LogoBrand } from "@/components/ui/LogoBrand";
+import { Trophy } from "lucide-react";
 
 interface TopProdukTableProps {
   data: TopProduk[];
@@ -49,6 +51,12 @@ export function TopProdukTable({ data, loading = false }: TopProdukTableProps) {
         </CardHeader>
         <CardContent>
           <EmptyState
+            icon={
+              <Trophy
+                className="h-10 w-10 text-text-tertiary"
+                strokeWidth={1.5}
+              />
+            }
             title="Tidak ada data produk"
             description="Belum ada transaksi untuk periode ini"
           />
@@ -94,7 +102,14 @@ export function TopProdukTable({ data, loading = false }: TopProdukTableProps) {
                     {index + 1}
                   </td>
                   <td className="py-2 px-3 font-medium text-text-primary max-w-xs truncate">
-                    {item.namaProduk}
+                    <div className="flex items-center gap-2">
+                      <LogoBrand
+                        namaProduk={item.namaProduk}
+                        jenisTransaksi="pulsa"
+                        size={24}
+                      />
+                      <span>{item.namaProduk}</span>
+                    </div>
                   </td>
                   <td className="py-2 px-3 text-right font-mono text-text-primary">
                     {formatAngka(item.jumlahTerjual)}

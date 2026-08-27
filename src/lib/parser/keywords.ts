@@ -70,6 +70,14 @@ export const JENIS_TRANSAKSI_KEYWORDS: Record<string, string[]> = {
   ],
   pdam: ["pdam", "air minum", "tagihan air"],
   token_listrik_reseller: ["token ph", "token listrik reseller"],
+  // BUG 3: Tagihan Telkom/Indihome
+  tagihan: [
+    "bayar tagihan telkom",
+    "bayar tagihan indihome",
+    "tagihan telkom",
+    "tagihan indihome",
+    "bayar tagihan",
+  ],
 };
 
 // Priority order for disambiguation (higher = checked first)
@@ -82,6 +90,7 @@ export const JENIS_TRANSAKSI_PRIORITY = [
   "wifi",
   "tv_kabel",
   "pdam",
+  "tagihan", // BUG 3: Tagihan Telkom/Indihome - check before generic
   "paket_nelpon",
   "paket_data",
   "pulsa",

@@ -19,22 +19,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { BreakdownJenisTransaksi } from "@/types/laporanAnalytics";
 import { formatRupiah } from "@/lib/utils";
+import { getIconJenisTransaksi } from "@/lib/config/iconJenisTransaksi";
 
 interface BreakdownJenisChartProps {
   data: BreakdownJenisTransaksi[];
   loading?: boolean;
 }
-
-const CHART_COLORS = [
-  "var(--accent)",
-  "var(--success)",
-  "var(--warning)",
-  "var(--info)",
-  "var(--error)",
-  "var(--purple)",
-  "var(--pink)",
-  "var(--teal)",
-];
 
 export function BreakdownJenisChart({
   data,
@@ -77,14 +67,17 @@ export function BreakdownJenisChart({
     );
   }
 
-  const chartData = filteredData.map((item, index) => ({
-    name: item.label,
-    value: item.totalOmzet,
-    color: CHART_COLORS[index % CHART_COLORS.length],
-    jumlahTransaksi: item.jumlahTransaksi,
-    totalAdmin: item.totalAdmin,
-    persentaseOmzet: item.persentaseOmzet,
-  }));
+  const chartData = filteredData.map((item) => {
+    const { warna } = getIconJenisTransaksi(item.jenis);
+    return {
+      name: item.label,
+      value: item.totalOmzet,
+      color: warna,
+      jumlahTransaksi: item.jumlahTransaksi,
+      totalAdmin: item.totalAdmin,
+      persentaseOmzet: item.persentaseOmzet,
+    };
+  });
 
   return (
     <Card>
@@ -109,11 +102,8 @@ export function BreakdownJenisChart({
               }
               labelLine={false}
             >
-              {chartData.map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
-                />
+              {chartData.map((item, index) => (
+                <Cell key={`cell-${index}`} fill={item.color} />
               ))}
             </Pie>
             <Tooltip
@@ -124,10 +114,7 @@ export function BreakdownJenisChart({
                 boxShadow: "var(--shadow-dropdown-md)",
               }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              formatter={(value: any) => [
-                formatRupiah(value),
-                "Omzet",
-              ]}
+              formatter={(value: any) => [formatRupiah(value), "Omzet"]}
             />
             <Legend
               wrapperStyle={{ paddingTop: "8px" }}

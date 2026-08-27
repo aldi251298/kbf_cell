@@ -83,12 +83,12 @@ export function DistribusiJamChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--border-subtle)"
+              stroke="hsl(var(--border-subtle))"
               vertical={false}
             />
             <XAxis
               dataKey="label"
-              stroke="var(--text-tertiary)"
+              stroke="hsl(var(--text-tertiary))"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -97,7 +97,7 @@ export function DistribusiJamChart({
             />
             <YAxis
               type="number"
-              stroke="var(--text-tertiary)"
+              stroke="hsl(var(--text-tertiary))"
               fontSize={11}
               tickLine={false}
               axisLine={false}
@@ -106,13 +106,13 @@ export function DistribusiJamChart({
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--card-border)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--card-border))",
                 borderRadius: "var(--radius-lg)",
                 boxShadow: "var(--shadow-dropdown-md)",
               }}
               labelStyle={{
-                color: "var(--text-primary)",
+                color: "hsl(var(--text-primary))",
                 fontWeight: 600,
               }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -122,7 +122,7 @@ export function DistribusiJamChart({
             <Bar
               dataKey="jumlahTransaksi"
               name="Transaksi"
-              fill="var(--accent)"
+              fill="hsl(var(--accent))"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

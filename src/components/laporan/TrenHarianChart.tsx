@@ -28,8 +28,8 @@ interface TrenHarianChartProps {
 }
 
 const CHART_COLORS = {
-  omzet: "var(--accent)",
-  pendapatanBersih: "var(--success)",
+  omzet: "hsl(var(--accent))",
+  pendapatanBersih: "hsl(var(--success))",
 };
 
 export function TrenHarianChart({
@@ -103,12 +103,12 @@ export function TrenHarianChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--border-subtle)"
+              stroke="hsl(var(--border-subtle))"
               vertical={false}
             />
             <XAxis
               dataKey="label"
-              stroke="var(--text-tertiary)"
+              stroke="hsl(var(--text-tertiary))"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -117,7 +117,7 @@ export function TrenHarianChart({
             />
             <YAxis
               yAxisId="left"
-              stroke="var(--text-tertiary)"
+              stroke="hsl(var(--text-tertiary))"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -126,13 +126,13 @@ export function TrenHarianChart({
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--card-border)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--card-border))",
                 borderRadius: "var(--radius-lg)",
                 boxShadow: "var(--shadow-dropdown-md)",
               }}
               labelStyle={{
-                color: "var(--text-primary)",
+                color: "hsl(var(--text-primary))",
                 fontWeight: 600,
               }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any

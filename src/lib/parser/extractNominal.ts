@@ -93,7 +93,11 @@ export function extractNominal(
   // PRIORITAS: cek ini SEBELUM saldo untuk ewallet (SRS 3.4 poin 3)
   // HANYA jika segmen pertama adalah nama ewallet eksplisit (tanpa suffix seperti "TOPUP")
   if (jenisTransaksi === "ewallet") {
-    const snRefMatch = text.match(/sn\/ref:\s*(.+?)(?:\.\s*saldo\s|$)/i);
+    // Gunakan regex yang lebih robust (sama seperti parseStrukturAlpines di universal.ts)
+    // untuk menangani variasi " . Saldo" (spasi sebelum titik) dan REF:/Reff: case-insensitive
+    const snRefMatch = text.match(
+      /SN\/Ref:?\s*([\s\S]*?)(?=\s*Saldo\s+[\d.,]+|$)/i,
+    );
     if (snRefMatch) {
       const segments = snRefMatch[1].split("/").map((s) => s.trim());
       if (segments.length >= 4) {
@@ -184,8 +188,9 @@ function ekstrakDariSegmenSnRef(rawText: string): number | null {
   // mis. "GOPAY/Jasmisaputra/100000/081372331339/REFF:..." -> ambil komponen numerik
   //      yang BUKAN nomor HP (bukan 10-13 digit diawali 08)
   // Coba cari di SN/Ref segment dulu (format dengan prefix "SN/Ref:")
+  // Updated regex: handle optional period before "Saldo" (e.g., " . Saldo" or " Saldo")
   const snRefMatch = rawText.match(
-    /SN\/Ref:?\s*([\s\S]*?)(?=\s*Saldo\s+[\d.,]+)/i,
+    /SN\/Ref:?\s*([\s\S]*?)(?=\s*\.?\s*Saldo\s+[\d.,]+|$)/i,
   );
   let segmenText = snRefMatch ? snRefMatch[1] : null;
 
@@ -338,4 +343,79 @@ export function parseAngkaIndonesia(raw: string): number {
   const cleaned = raw.replace(/[.-]/g, "").replace(/,/g, ".");
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) ? 0 : Math.round(parsed);
+}
+
+/**
+ * Try to parse Alpines "Bayar Tagihan Telkom/Indihome" format.
+ * Format: BAYAR TAGIHAN TELKOM <ID_PELANGGAN> Berhasil. SN/Ref: <SN_REF> /Periode:<PERIODE>/Rp.<NOMINAL>/<POTONGAN_SALDO>[A-Z]?/Adm<ADMIN_TELKOM>/RpTag<RP_TAG>/<NOMINAL_DASAR>,.
+ *
+ * Returns parsed data or null if not matching.
+ */
+export interface HasilParseTagihanTelkom {
+  nominalDasar: number;
+  nomorTujuan: string;
+  namaPemilik: string | null;
+  periodeTagihan: string | null;
+  adminTelkom: number | null;
+  sumberDasar: "eksplisit_tagihan";
+}
+
+export function tryParseAlpinesTagihanTelkom(
+  rawText: string,
+): HasilParseTagihanTelkom | null {
+  // Regex untuk format: BAYAR TAGIHAN TELKOM <ID_PELANGGAN> Berhasil. SN/Ref: ... /Periode:.../Rp.<NOMINAL>/<POTONGAN_SALDO>[A-Z]?/Adm<ADMIN_TELKOM>/RpTag<RP_TAG>/<NOMINAL_DASAR>,.
+  // Contoh: BAYAR TAGIHAN TELKOM 1234567890 Berhasil. SN/Ref: 12345 /Periode:202408/Rp.200000/205000A/Adm2500/RpTag200000/200000,.
+  const regex =
+    /BAYAR\s+TAGIHAN\s+TELKOM\s+(\S+)\s+Berhasil\.?\s*SN\/Ref:?\s*([\s\S]*?)\/Periode:(\d{6})\/Rp\.?(\d+)\/(\d+)[A-Z]?\/Adm(\d+)\/RpTag(\d+)\/(\d+),?\.?/i;
+
+  const match = rawText.match(regex);
+  if (!match) return null;
+
+  const [
+    ,
+    idPelanggan,
+    snRef,
+    periode,
+    nominalStr,
+    adminTelkomStr,
+    rpTagStr,
+    nominalDasarStr,
+  ] = match;
+
+  const nominalDasar = parseAngkaIndonesia(nominalDasarStr);
+  const nominal = parseAngkaIndonesia(nominalStr);
+  const adminTelkom = parseAngkaIndonesia(adminTelkomStr);
+
+  // Validasi: nominalDasar harus sama dengan nominal (RpTag)
+  if (nominalDasar !== nominal) {
+    // Jika tidak match, gunakan nominalDasar dari grup terakhir (lebih reliable)
+    console.warn(
+      `[Tagihan Telkom] Nominal mismatch: Rp.${nominal} vs RpTag${rpTagStr} vs nominalDasar${nominalDasarStr}`,
+    );
+  }
+
+  // Extract nama pemilik from SN/Ref if available (format: NAMA/...)
+  let namaPemilik: string | null = null;
+  const snRefSegments = snRef.split("/").map((s) => s.trim());
+  if (snRefSegments.length >= 2) {
+    const candidate = snRefSegments[1];
+    if (
+      candidate &&
+      candidate.length > 0 &&
+      candidate.length < 50 &&
+      !/^\d+$/.test(candidate) &&
+      !/IND/i.test(candidate)
+    ) {
+      namaPemilik = candidate;
+    }
+  }
+
+  return {
+    nominalDasar,
+    nomorTujuan: idPelanggan,
+    namaPemilik,
+    periodeTagihan: periode,
+    adminTelkom,
+    sumberDasar: "eksplisit_tagihan",
+  };
 }

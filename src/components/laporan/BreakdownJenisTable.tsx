@@ -94,8 +94,8 @@ export function BreakdownJenisTable({
                 <th className="text-right py-2 px-3 font-medium text-text-secondary">
                   Transaksi
                 </th>
-                <th className="text-right py-2 px-3 font-medium text-text-secondary">
-                  % Omzet
+                <th className="text-left py-2 px-3 font-medium text-text-secondary w-40">
+                  Kontribusi
                 </th>
               </tr>
             </thead>
@@ -122,8 +122,18 @@ export function BreakdownJenisTable({
                   <td className="py-2 px-3 text-right font-mono text-text-primary">
                     {formatAngka(item.jumlahTransaksi)}
                   </td>
-                  <td className="py-2 px-3 text-right text-text-secondary">
-                    {item.persentaseOmzet}%
+                  <td className="py-2 px-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-surface-hover rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-accent rounded-full transition-all duration-500"
+                          style={{ width: `${item.persentaseOmzet}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-mono text-text-secondary w-12 text-right">
+                        {item.persentaseOmzet}%
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -140,8 +150,18 @@ export function BreakdownJenisTable({
                 <td className="py-2 px-3 text-right font-mono text-text-primary">
                   {formatAngka(totalTransaksi)}
                 </td>
-                <td className="py-2 px-3 text-right text-text-secondary">
-                  100%
+                <td className="py-2 px-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 bg-surface-hover rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-accent rounded-full"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                    <span className="text-sm font-mono text-text-secondary w-12 text-right">
+                      100%
+                    </span>
+                  </div>
                 </td>
               </tr>
             </tfoot>

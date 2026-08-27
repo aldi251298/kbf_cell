@@ -41,7 +41,7 @@ export {
 // Laporan Analytics Services (Fase 2.9)
 export {
   getLaporanAnalytics,
-  exportLaporanAnalyticsCsv,
+  exportLaporanAnalyticsExcel,
   generateLaporanAnalyticsExportFilename,
 } from "./laporanAnalyticsClient";
 

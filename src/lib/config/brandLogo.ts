@@ -119,7 +119,8 @@ export function deteksiOperatorSeluler(
 
   // Urutan prioritas: by.U dulu (karena "byu" bisa match "byu" di kata lain)
   if (/\bbyu\b|\bby\.u\b/.test(sumber)) return "telkomsel"; // by.U adalah sub-brand Telkomsel
-  if (/\btelkomsel\b|\bsimpati\b|\bas\b/.test(sumber)) return "telkomsel";
+  if (/\btelkomsel\b|\bsimpati\b|\bas\b|\btalkmania\b/.test(sumber))
+    return "telkomsel";
   if (/\baxis\b|\baigo\b/.test(sumber)) return "axis"; // AIGO = produk Axis
   if (/\btri\b|\bthree\b|\b 3 \b/.test(sumber)) return "tri";
   if (/\bxl\b|\baxiata\b/.test(sumber)) return "xl";

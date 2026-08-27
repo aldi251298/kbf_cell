@@ -1,0 +1,323 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseAngkaIndonesiaFlexible = parseAngkaIndonesiaFlexible;
+exports.parseSaldoWithValidation = parseSaldoWithValidation;
+exports.extractNominal = extractNominal;
+exports.ekstraksiNominalDasarAlpines = ekstraksiNominalDasarAlpines;
+exports.extractNominalForAlpines = extractNominalForAlpines;
+exports.parseAngkaIndonesia = parseAngkaIndonesia;
+exports.tryParseAlpinesTagihanTelkom = tryParseAlpinesTagihanTelkom;
+const universal_1 = require("./universal");
+/**
+ * Parse Indonesian-formatted number string to integer with flexible separator handling.
+ * Tries multiple parsing modes to handle inconsistent formats:
+ * - "13150" (no separator)
+ * - "15.550" (dot as thousand separator)
+ * - "52.927" (dot as thousand separator)
+ * - "50.650" (dot as thousand separator)
+ * - "102.150" (dot as thousand separator)
+ * - "100,000" (comma as thousand separator)
+ * - "731-423" (dash as thousand separator - typo format)
+ */
+function parseAngkaIndonesiaFlexible(raw, mode) {
+    let cleaned;
+    if (mode === "dot_as_thousand") {
+        // Dot is thousand separator, remove it. Comma is decimal separator.
+        // Also handle dash as thousand separator (typo format like "731-423")
+        cleaned = raw.replace(/[.-]/g, "").replace(/,/g, ".");
+    }
+    else if (mode === "dot_as_decimal") {
+        // Dot is decimal separator, comma is thousand separator (less common in ID)
+        // Also handle dash as thousand separator
+        cleaned = raw.replace(/[,-]/g, "").replace(/\./g, ".");
+    }
+    else {
+        // no_separator: just remove all separators (dots, commas, dashes)
+        cleaned = raw.replace(/[.,-]/g, "");
+    }
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : Math.round(parsed);
+}
+/**
+ * Try to parse saldo pattern with mathematical validation.
+ * Returns the validated potongan (middle number) or null if validation fails.
+ */
+function parseSaldoWithValidation(text) {
+    // Match: Saldo <awal> - <potongan> = <akhir>
+    // Updated: [\d.,-]+ to handle dashes as thousand separators (e.g., "731-423")
+    const match = text.match(/saldo\s*([\d.,-]+)\s*-\s*([\d.,-]+)\s*=\s*([\d.,-]+)/i);
+    if (!match)
+        return null;
+    const [, saldoAwalRaw, potonganRaw, saldoAkhirRaw] = match;
+    // Try different parsing modes to handle inconsistent formats
+    const modes = [
+        "dot_as_thousand",
+        "dot_as_decimal",
+        "no_separator",
+    ];
+    for (const mode of modes) {
+        const saldoAwal = parseAngkaIndonesiaFlexible(saldoAwalRaw, mode);
+        const potongan = parseAngkaIndonesiaFlexible(potonganRaw, mode);
+        const saldoAkhir = parseAngkaIndonesiaFlexible(saldoAkhirRaw, mode);
+        // Validate mathematically: saldo_awal - potongan == saldo_akhir
+        // Allow small tolerance for rounding
+        if (Math.abs(saldoAwal - potongan - saldoAkhir) < 1) {
+            if (potongan > 0)
+                return potongan;
+        }
+    }
+    return null;
+}
+function extractNominal(text, jenisTransaksi) {
+    const lower = text.toLowerCase();
+    // 1. Pola Rp\s?[\d.,]+
+    const rpMatch = text.match(/rp\s*([\d.,]+)/i);
+    if (rpMatch) {
+        const val = parseAngkaIndonesia(rpMatch[1]);
+        if (val > 0)
+            return val;
+    }
+    // 2. Keyword eksplisit NOMINAL: (prioritas atas saldo untuk ewallet)
+    const nominalLabelMatch = text.match(/nominal:\s*([\d.,]+)/i);
+    if (nominalLabelMatch) {
+        const val = parseAngkaIndonesia(nominalLabelMatch[1]);
+        if (val > 0)
+            return val;
+    }
+    // 3. Pola SN/Ref: X/Y/angka/nomor_hp/... (untuk ewallet Alpines)
+    // Ambil segmen ke-3 (nominal) jika formatnya 4+ segmen dipisah "/"
+    // PRIORITAS: cek ini SEBELUM saldo untuk ewallet (SRS 3.4 poin 3)
+    // HANYA jika segmen pertama adalah nama ewallet eksplisit (tanpa suffix seperti "TOPUP")
+    if (jenisTransaksi === "ewallet") {
+        // Gunakan regex yang lebih robust (sama seperti parseStrukturAlpines di universal.ts)
+        // untuk menangani variasi " . Saldo" (spasi sebelum titik) dan REF:/Reff: case-insensitive
+        const snRefMatch = text.match(/SN\/Ref:?\s*([\s\S]*?)(?=\s*Saldo\s+[\d.,]+|$)/i);
+        if (snRefMatch) {
+            const segments = snRefMatch[1].split("/").map((s) => s.trim());
+            if (segments.length >= 4) {
+                const firstSeg = segments[0].toUpperCase();
+                const exactEwallet = ["DANA", "GOPAY", "OVO", "SHOPEEPAY", "LINKAJA"];
+                const isExact = exactEwallet.some((name) => firstSeg === name);
+                if (isExact) {
+                    for (const seg of segments) {
+                        if (/^[\d.,]{3,6}$/.test(seg) && !/^0\d{9,12}$/.test(seg)) {
+                            const val = parseAngkaIndonesia(seg);
+                            if (val > 0)
+                                return val;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // 3b. Pola nominal eksplisit di header (untuk Digipos pulsa/paket_data/voucher)
+    // Format: "Telkomsel 25000 KODE..." atau "Voucher Three 50000 KODE..."
+    // Hanya untuk jenis transaksi yang biasanya punya nominal eksplisit di header
+    // TIDAK untuk format "Telkomsel BYU 15000 KODE..." di mana 15000 adalah denom produk, bukan nominal transaksi
+    if (["pulsa", "paket_data", "voucher"].includes(jenisTransaksi)) {
+        // Cari angka 3-6 digit di header sebelum kode transaksi (alfanumerik + titik + angka)
+        // Pola: ... angka 3-6 digit -> kode transaksi (contoh: TSBYU15.085198025507, VTR10.0895)
+        // Match: "Telkomsel 25000 TSBYU15..." atau "Voucher Three 50000 VTR10..."
+        // TIDAK match: "Telkomsel BYU 15000 TSBYU15..." karena "BYU" adalah kode produk (2-4 huruf besar)
+        // sebelum nominal, yang menandakan ini adalah denomination, bukan nominal transaksi
+        const headerNominalMatch = text.match(/([\d.,]{3,6})\s+[A-Z0-9]{3,15}\.\d{4,13}/i);
+        if (headerNominalMatch) {
+            // Cek apakah kata sebelum nominal adalah kode produk pendek (2-4 huruf besar seperti BYU, VTR, dll)
+            // Jika ya, ini adalah denomination produk, bukan nominal transaksi
+            const beforeNominal = text.slice(0, headerNominalMatch.index);
+            const lastWordBeforeNominal = beforeNominal.trim().split(/\s+/).pop() || "";
+            const isProductCode = /^[A-Z]{2,4}$/.test(lastWordBeforeNominal);
+            if (!isProductCode) {
+                const val = parseAngkaIndonesia(headerNominalMatch[1]);
+                if (val > 0)
+                    return val;
+            }
+        }
+        // Fallback: angka 3-6 digit di awal teks (sebelum spasi dan kata berikutnya)
+        // Hanya jika teks dimulai dengan angka (bukan nama produk)
+        const headerNominalMatch2 = text.match(/^([\d.,]{3,6})\s+/);
+        if (headerNominalMatch2) {
+            const val = parseAngkaIndonesia(headerNominalMatch2[1]);
+            if (val > 0)
+                return val;
+        }
+    }
+    // 4. Pola Saldo X - Y = Z → ambil Y (kedua) — fallback dengan validasi matematis
+    const saldoValidated = parseSaldoWithValidation(text);
+    if (saldoValidated !== null) {
+        return saldoValidated;
+    }
+    // 5. Fallback: angka besar (≥4 digit) terdekat keyword nominal/senilai/sebesar/rp
+    const fallbackMatch = lower.match(/(?:nominal|senilai|sebesar|rp)\s*[:\s]*([\d.,]+)/);
+    if (fallbackMatch) {
+        const val = parseAngkaIndonesia(fallbackMatch[1]);
+        if (val > 0)
+            return val;
+    }
+    return null;
+}
+/**
+ * Bersihkan angka dari format Indonesia (hapus titik dan koma)
+ */
+function bersihkanAngka(str) {
+    return parseInt(str.replace(/\./g, "").replace(/,/g, ""), 10);
+}
+// Pola 1: keyword NOMINAL: eksplisit
+const polaNominalEksplisit = /NOMINAL:\s*([\d.,]+)/i;
+// Pola 2 (BARU, PENTING): angka 4-7 digit yang muncul TEPAT SEBELUM pola KODE.NOMOR
+// Menangkap format seperti: "15000 TSBYU15.085198025507", "30000 AX30.083877750811",
+// "TOKEN 20000 PH20.50160790239"
+const polaAngkaSebelumKode = /(\d{4,7})\s+[A-Z0-9]{2,15}\.\d{8,13}/i;
+function ekstrakDariSegmenSnRef(rawText) {
+    // Pola 3: segmen posisional di SN/Ref, format X/Y/angka/nomorHP/...
+    // mis. "GOPAY/Jasmisaputra/100000/081372331339/REFF:..." -> ambil komponen numerik
+    //      yang BUKAN nomor HP (bukan 10-13 digit diawali 08)
+    // Coba cari di SN/Ref segment dulu (format dengan prefix "SN/Ref:")
+    // Updated regex: handle optional period before "Saldo" (e.g., " . Saldo" or " Saldo")
+    const snRefMatch = rawText.match(/SN\/Ref:?\s*([\s\S]*?)(?=\s*\.?\s*Saldo\s+[\d.,]+|$)/i);
+    let segmenText = snRefMatch ? snRefMatch[1] : null;
+    // Jika tidak ada SN/Ref prefix, coba ambil dari header (sebelum "berhasil"/"GAGAL")
+    // Format: "DANA TOPUP/MXX INDXXXXXX/50000/081234567890/REFF:12345 berhasil..."
+    if (!segmenText) {
+        const headerMatch = rawText.match(/^(.*?)\s*(?:Berhasil|GAGAL)\b/i);
+        if (headerMatch) {
+            segmenText = headerMatch[1].trim();
+        }
+    }
+    if (!segmenText)
+        return null;
+    // Coba split dengan "/" dulu (format standar)
+    let segmen = segmenText.split("/").map((s) => s.trim());
+    // Jika hanya 1 segmen setelah split "/", coba split dengan whitespace
+    // Format: "SN/Ref:  :8963 3812 8213 8164" -> split by whitespace
+    if (segmen.length === 1) {
+        const wsSegments = segmenText
+            .split(/\s+/)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+        if (wsSegments.length > 1) {
+            segmen = wsSegments;
+        }
+    }
+    // Validasi: cari angka 4-7 digit yang BUKAN nomor HP (bukan 10-13 digit diawali 08)
+    // DAN bukan serial number pendek (4 digit yang berulang seperti 8963 3812 8213 8164)
+    for (const s of segmen) {
+        const angka = s.replace(/\./g, "");
+        if (/^\d{4,7}$/.test(angka) && !/^0[0-9]{9,12}$/.test(angka)) {
+            // Cek apakah ini kemungkinan serial number (4 digit, dan segmen lain juga 4 digit)
+            // Jika semua segmen numerik adalah 4 digit, ini kemungkinan serial number, bukan nominal
+            const numericSegments = segmen
+                .map((s) => s.replace(/\./g, ""))
+                .filter((s) => /^\d+$/.test(s));
+            const allFourDigit = numericSegments.length >= 3 &&
+                numericSegments.every((s) => s.length === 4);
+            if (allFourDigit) {
+                continue; // Skip, ini serial number
+            }
+            return parseInt(angka, 10);
+        }
+    }
+    return null;
+}
+/**
+ * Ekstraksi nominal dasar Alpines dengan urutan prioritas final (Fase 2.7):
+ * 1. NOMINAL: eksplisit
+ * 2. Angka 4-7 digit sebelum kode transaksi (header)
+ * 3. Segmen posisional di SN/Ref
+ * 4. Fallback ke potongan saldo (HANYA kalau benar-benar tidak ada sumber eksplisit)
+ */
+function ekstraksiNominalDasarAlpines(rawText, potonganSaldo) {
+    const nominalEksplisit = rawText.match(polaNominalEksplisit);
+    if (nominalEksplisit) {
+        return {
+            nominalDasar: bersihkanAngka(nominalEksplisit[1]),
+            sumberDasar: "eksplisit_nominal",
+        };
+    }
+    const angkaSebelumKode = rawText.match(polaAngkaSebelumKode);
+    if (angkaSebelumKode) {
+        return {
+            nominalDasar: bersihkanAngka(angkaSebelumKode[1]),
+            sumberDasar: "eksplisit_header",
+        };
+    }
+    const segmenAngka = ekstrakDariSegmenSnRef(rawText);
+    if (segmenAngka != null) {
+        return { nominalDasar: segmenAngka, sumberDasar: "eksplisit_segmen" };
+    }
+    // FALLBACK TERAKHIR — hanya kalau benar-benar tidak ada sumber eksplisit
+    // (kasus ini terjadi untuk voucher/game top-up yang SN/Ref-nya berupa kode/UUID, bukan angka)
+    return { nominalDasar: potonganSaldo, sumberDasar: "fallback_saldo" };
+}
+/**
+ * Extract nominal for Alpines using the new priority order from Fase 2.7
+ * Returns { nominalDasar, sumberDasar, nominalFinal, adminKonter }
+ */
+function extractNominalForAlpines(text, preParsedStructure) {
+    // Use pre-parsed structure if provided (for async parser where saldo was already removed)
+    // Otherwise parse it ourselves (for sync parser)
+    const structure = preParsedStructure ?? (0, universal_1.parseStrukturAlpines)(text);
+    // Extract saldo to get potonganSaldo for fallback
+    let potonganSaldo = 0;
+    if (structure.saldoMatch && structure.saldoMatch[2]) {
+        potonganSaldo = parseAngkaIndonesia(structure.saldoMatch[2]);
+    }
+    const hasil = ekstraksiNominalDasarAlpines(text, potonganSaldo);
+    // For now, return nominalDasar as nominalFinal (admin konter will be applied later in parser/index.ts)
+    return {
+        nominalDasar: hasil.nominalDasar,
+        sumberDasar: hasil.sumberDasar,
+        nominalFinal: hasil.nominalDasar,
+        adminKonter: 0,
+        adaAturan: false,
+    };
+}
+/**
+ * Parse Indonesian-formatted number string to integer.
+ * Handles: "20000", "20.000", "20,000", "11950", "50.650", "731-423"
+ * Indonesian format uses dot (.) as thousands separator and comma (,) as decimal separator.
+ * For rupiah (whole numbers), we remove dots and dashes only.
+ * Also handles dash as thousand separator (typo format like "731-423")
+ */
+function parseAngkaIndonesia(raw) {
+    // Remove dots and dashes (thousands separator) but keep commas for potential decimals
+    // Also handle dash as thousand separator (typo format like "731-423")
+    // Then replace comma with dot for parseFloat, or just remove if we want integer
+    const cleaned = raw.replace(/[.-]/g, "").replace(/,/g, ".");
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : Math.round(parsed);
+}
+function tryParseAlpinesTagihanTelkom(rawText) {
+    // Regex untuk format: BAYAR TAGIHAN TELKOM <ID_PELANGGAN> Berhasil. SN/Ref: ... /Periode:.../Rp.<NOMINAL>/<POTONGAN_SALDO>[A-Z]?/Adm<ADMIN_TELKOM>/RpTag<RP_TAG>/<NOMINAL_DASAR>,.
+    // Contoh: BAYAR TAGIHAN TELKOM 1234567890 Berhasil. SN/Ref: 12345 /Periode:202408/Rp.200000/205000A/Adm2500/RpTag200000/200000,.
+    const regex = /BAYAR\s+TAGIHAN\s+TELKOM\s+(\S+)\s+Berhasil\.?\s*SN\/Ref:?\s*([\s\S]*?)\/Periode:(\d{6})\/Rp\.?(\d+)\/(\d+)[A-Z]?\/Adm(\d+)\/RpTag(\d+)\/(\d+),?\.?/i;
+    const match = rawText.match(regex);
+    if (!match)
+        return null;
+    const [, idPelanggan, snRef, periode, nominalStr, potonganSaldoStr, adminTelkomStr, rpTagStr, nominalDasarStr] = match;
+    const nominalDasar = parseAngkaIndonesia(nominalDasarStr);
+    const nominal = parseAngkaIndonesia(nominalStr);
+    const adminTelkom = parseAngkaIndonesia(adminTelkomStr);
+    // Validasi: nominalDasar harus sama dengan nominal (RpTag)
+    if (nominalDasar !== nominal) {
+        // Jika tidak match, gunakan nominalDasar dari grup terakhir (lebih reliable)
+        console.warn(`[Tagihan Telkom] Nominal mismatch: Rp.${nominal} vs RpTag${rpTagStr} vs nominalDasar${nominalDasarStr}`);
+    }
+    // Extract nama pemilik from SN/Ref if available (format: NAMA/...)
+    let namaPemilik = null;
+    const snRefSegments = snRef.split("/").map(s => s.trim());
+    if (snRefSegments.length >= 2) {
+        const candidate = snRefSegments[1];
+        if (candidate && candidate.length > 0 && candidate.length < 50 && !/^\d+$/.test(candidate) && !/IND/i.test(candidate)) {
+            namaPemilik = candidate;
+        }
+    }
+    return {
+        nominalDasar,
+        nomorTujuan: idPelanggan,
+        namaPemilik,
+        periodeTagihan: periode,
+        adminTelkom,
+        sumberDasar: "eksplisit_tagihan",
+    };
+}

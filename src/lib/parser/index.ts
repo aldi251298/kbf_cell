@@ -23,7 +23,11 @@ import {
   normalisasiWhitespace,
 } from "./universal";
 import { parseAngkaIndonesia } from "./extractNominal";
-import { extractNominalForAlpines } from "./extractNominal";
+import {
+  extractNominalForAlpines,
+  tryParseAlpinesTagihanTelkom,
+  type HasilParseTagihanTelkom,
+} from "./extractNominal";
 import { terapkanAdminKonter } from "./adminKonter";
 
 export { detectJenisTransaksi } from "./detectJenisTransaksi";
@@ -43,6 +47,10 @@ export {
   apakahNotifikasiPendingAlpines,
 } from "./universal";
 export { extractNominalForAlpines } from "./extractNominal";
+export {
+  tryParseAlpinesTagihanTelkom,
+  type HasilParseTagihanTelkom,
+} from "./extractNominal";
 export { terapkanAdminKonter } from "./adminKonter";
 
 export interface ParseNotifikasiOptions {
@@ -113,30 +121,51 @@ export function parseNotifikasi(
   let nominalDasar: number | null = null;
   let sumberDasar: string | null = null;
   let adminKonter = 0;
+  let tagihanData: HasilParseTagihanTelkom | null = null;
 
-  if (provider === "alpines") {
-    const nominalResult = extractNominalForAlpines(text);
-    nominalDasar = nominalResult.nominalDasar;
-    sumberDasar = nominalResult.sumberDasar;
+  // BUG 3: Special handling for "tagihan" (Bayar Tagihan Telkom/Indihome) via Alpines
+  // Call specific parser BEFORE generic Alpines parser
+  if (provider === "alpines" && jenisTransaksi === "tagihan") {
+    tagihanData = tryParseAlpinesTagihanTelkom(text);
+    if (tagihanData) {
+      nominalDasar = tagihanData.nominalDasar;
+      sumberDasar = tagihanData.sumberDasar;
+      // Apply admin konter fee for tagihan (same tier as PLN)
+      const adminResult = terapkanAdminKonter(
+        nominalDasar,
+        jenisTransaksi,
+        namaProduk,
+      );
+      nominal = adminResult.nominalFinal;
+      adminKonter = adminResult.adminKonter;
+    }
+  }
 
-    // Apply admin konter fee (jenisTransaksi sudah ditentukan di awal, termasuk voucher_data_alpines)
-    const adminResult = terapkanAdminKonter(
-      nominalDasar,
-      jenisTransaksi,
-      namaProduk,
-    );
-    nominal = adminResult.nominalFinal;
-    adminKonter = adminResult.adminKonter;
-  } else {
-    nominalDasar = extractNominal(text, jenisTransaksi);
-    // Apply admin konter fee for Digipos too
-    const adminResult = terapkanAdminKonter(
-      nominalDasar,
-      jenisTransaksi,
-      namaProduk,
-    );
-    nominal = adminResult.nominalFinal;
-    adminKonter = adminResult.adminKonter;
+  if (nominalDasar === null) {
+    if (provider === "alpines") {
+      const nominalResult = extractNominalForAlpines(text);
+      nominalDasar = nominalResult.nominalDasar;
+      sumberDasar = nominalResult.sumberDasar;
+
+      // Apply admin konter fee (jenisTransaksi sudah ditentukan di awal, termasuk voucher_data_alpines)
+      const adminResult = terapkanAdminKonter(
+        nominalDasar,
+        jenisTransaksi,
+        namaProduk,
+      );
+      nominal = adminResult.nominalFinal;
+      adminKonter = adminResult.adminKonter;
+    } else {
+      nominalDasar = extractNominal(text, jenisTransaksi);
+      // Apply admin konter fee for Digipos too
+      const adminResult = terapkanAdminKonter(
+        nominalDasar,
+        jenisTransaksi,
+        namaProduk,
+      );
+      nominal = adminResult.nominalFinal;
+      adminKonter = adminResult.adminKonter;
+    }
   }
 
   // 10. Extract waktu opsional (hanya untuk referensi, tidak disimpan sebagai waktu_transaksi)
@@ -164,6 +193,13 @@ export function parseNotifikasi(
   }
   // Always include admin_konter (even 0) for audit trail
   detailTambahan.admin_konter = adminKonter;
+  // Add tagihan-specific fields if available
+  if (tagihanData) {
+    detailTambahan.nomor_pelanggan = tagihanData.nomorTujuan;
+    detailTambahan.nama_pemilik_tagihan = tagihanData.namaPemilik;
+    detailTambahan.periode_tagihan = tagihanData.periodeTagihan;
+    detailTambahan.admin_telkom = tagihanData.adminTelkom;
+  }
   // Add saldo_konter object for Alpines
   if (provider === "alpines") {
     const structure = parseStrukturAlpines(text);
@@ -297,34 +333,55 @@ export async function parseNotifikasiUniversal(
   let nominalDasar: number | null = null;
   let sumberDasar: string | null = null;
   let adminKonter = 0;
+  let tagihanData: HasilParseTagihanTelkom | null = null;
 
-  if (provider === "alpines" && alpinesStructure) {
-    // Pass pre-parsed structure to avoid re-parsing after saldo removal
-    const nominalResult = extractNominalForAlpines(
-      teksTanpaSaldo,
-      alpinesStructure,
-    );
-    nominalDasar = nominalResult.nominalDasar;
-    sumberDasar = nominalResult.sumberDasar;
+  // BUG 3: Special handling for "tagihan" (Bayar Tagihan Telkom/Indihome) via Alpines
+  // Call specific parser BEFORE generic Alpines parser
+  if (provider === "alpines" && jenisTransaksi === "tagihan") {
+    tagihanData = tryParseAlpinesTagihanTelkom(teksTanpaSaldo);
+    if (tagihanData) {
+      nominalDasar = tagihanData.nominalDasar;
+      sumberDasar = tagihanData.sumberDasar;
+      // Apply admin konter fee for tagihan (same tier as PLN)
+      const adminResult = terapkanAdminKonter(
+        nominalDasar,
+        jenisTransaksi,
+        namaProduk,
+      );
+      nominal = adminResult.nominalFinal;
+      adminKonter = adminResult.adminKonter;
+    }
+  }
 
-    // Apply admin konter fee
-    const adminResult = terapkanAdminKonter(
-      nominalDasar,
-      jenisTransaksi,
-      namaProduk,
-    );
-    nominal = adminResult.nominalFinal;
-    adminKonter = adminResult.adminKonter;
-  } else {
-    nominalDasar = extractNominal(teksTanpaSaldo, jenisTransaksi);
-    // Apply admin konter fee for Digipos too
-    const adminResult = terapkanAdminKonter(
-      nominalDasar,
-      jenisTransaksi,
-      namaProduk,
-    );
-    nominal = adminResult.nominalFinal;
-    adminKonter = adminResult.adminKonter;
+  if (nominalDasar === null) {
+    if (provider === "alpines" && alpinesStructure) {
+      // Pass pre-parsed structure to avoid re-parsing after saldo removal
+      const nominalResult = extractNominalForAlpines(
+        teksTanpaSaldo,
+        alpinesStructure,
+      );
+      nominalDasar = nominalResult.nominalDasar;
+      sumberDasar = nominalResult.sumberDasar;
+
+      // Apply admin konter fee
+      const adminResult = terapkanAdminKonter(
+        nominalDasar,
+        jenisTransaksi,
+        namaProduk,
+      );
+      nominal = adminResult.nominalFinal;
+      adminKonter = adminResult.adminKonter;
+    } else {
+      nominalDasar = extractNominal(teksTanpaSaldo, jenisTransaksi);
+      // Apply admin konter fee for Digipos too
+      const adminResult = terapkanAdminKonter(
+        nominalDasar,
+        jenisTransaksi,
+        namaProduk,
+      );
+      nominal = adminResult.nominalFinal;
+      adminKonter = adminResult.adminKonter;
+    }
   }
 
   // 11. Sanity check — tandai perlu_review jika ada masalah
@@ -359,6 +416,13 @@ export async function parseNotifikasiUniversal(
   }
   // Always include admin_konter (even 0) for audit trail
   detailTambahan.admin_konter = adminKonter;
+  // Add tagihan-specific fields if available
+  if (tagihanData) {
+    detailTambahan.nomor_pelanggan = tagihanData.nomorTujuan;
+    detailTambahan.nama_pemilik_tagihan = tagihanData.namaPemilik;
+    detailTambahan.periode_tagihan = tagihanData.periodeTagihan;
+    detailTambahan.admin_telkom = tagihanData.adminTelkom;
+  }
   // Add saldo_konter object for Alpines
   if (provider === "alpines" && alpinesStructure?.saldoMatch) {
     const saldoAwal = parseAngkaIndonesia(alpinesStructure.saldoMatch[1]);

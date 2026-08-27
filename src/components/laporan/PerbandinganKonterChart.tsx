@@ -28,7 +28,11 @@ interface PerbandinganKonterChartProps {
   show?: boolean;
 }
 
-const CHART_COLORS = ["var(--accent)", "var(--success)", "var(--warning)"];
+const CHART_COLORS = [
+  "hsl(var(--accent))",
+  "hsl(var(--success))",
+  "hsl(var(--warning))",
+];
 
 export function PerbandinganKonterChart({
   data,
@@ -96,12 +100,12 @@ export function PerbandinganKonterChart({
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--border-subtle)"
+              stroke="hsl(var(--border-subtle))"
               horizontal={false}
             />
             <XAxis
               type="number"
-              stroke="var(--text-tertiary)"
+              stroke="hsl(var(--text-tertiary))"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -111,7 +115,7 @@ export function PerbandinganKonterChart({
             <YAxis
               type="category"
               dataKey="namaKonter"
-              stroke="var(--text-tertiary)"
+              stroke="hsl(var(--text-tertiary))"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -119,13 +123,13 @@ export function PerbandinganKonterChart({
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--card-border)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--card-border))",
                 borderRadius: "var(--radius-lg)",
                 boxShadow: "var(--shadow-dropdown-md)",
               }}
               labelStyle={{
-                color: "var(--text-primary)",
+                color: "hsl(var(--text-primary))",
                 fontWeight: 600,
               }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -147,13 +151,13 @@ export function PerbandinganKonterChart({
             <Bar
               dataKey="totalOmzet"
               name="Omzet"
-              fill="var(--accent)"
+              fill="hsl(var(--accent))"
               radius={[0, 4, 4, 0]}
             />
             <Bar
               dataKey="totalAdmin"
               name="Admin Konter"
-              fill="var(--success)"
+              fill="hsl(var(--success))"
               radius={[0, 4, 4, 0]}
             />
           </BarChart>
