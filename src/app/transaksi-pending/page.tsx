@@ -181,6 +181,7 @@ function TransactionDetailModal({
                 <LogoBrand
                   namaProduk={transaction.produk.nama}
                   jenisTransaksi={transaction.produk.kategori}
+                  providerSeluler={transaction.providerSeluler}
                   size={28}
                 />
                 <Badge
@@ -813,6 +814,7 @@ export default function TransaksiPendingPage() {
                             <LogoBrand
                               namaProduk={trx.produk.nama}
                               jenisTransaksi={trx.produk.kategori}
+                              providerSeluler={trx.providerSeluler}
                               size={24}
                             />
                             <div className="min-w-0 flex-1 flex flex-col gap-1">

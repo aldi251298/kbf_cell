@@ -14,7 +14,6 @@ import type { RingkasanHarianWithSaldo } from "@/services/ringkasanService";
 import {
   formatRupiah,
   formatAngka,
-  hitungPerubahanPersen,
   getTampilanTransaksi,
   getDisplayProductName,
   getTodayWIBDateString,
@@ -22,21 +21,10 @@ import {
   formatWaktu,
   formatJam,
   formatTanggal,
-  cn,
 } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton, CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { LogoBrand } from "@/components/ui/LogoBrand";
 import {
@@ -46,8 +34,6 @@ import {
   ChartNoAxesColumnIncreasing,
   Clock,
   ExternalLink,
-  ArrowUpRight,
-  ArrowDownRight,
   X,
   Store,
 } from "lucide-react";
@@ -57,59 +43,6 @@ const ITEMS_PER_PAGE = 10;
 
 // Day change check interval (every 5 minutes)
 const DAY_CHANGE_CHECK_INTERVAL = 5 * 60 * 1000;
-
-// Table column definitions - single source of truth for column widths
-// Fixed widths for consistent columns, flexible for variable content (Produk)
-const TABLE_COLUMNS = [
-  {
-    key: "waktu",
-    label: "Waktu",
-    width: "80px",
-    minWidth: "80px",
-    maxWidth: "100px",
-    align: "left" as const,
-  },
-  {
-    key: "konter",
-    label: "Konter",
-    width: "100px",
-    minWidth: "100px",
-    maxWidth: "100px",
-    align: "left" as const,
-  },
-  {
-    key: "produk",
-    label: "Produk",
-    width: "150px",
-    minWidth: "150px",
-    maxWidth: "150px",
-    align: "left" as const,
-  },
-  {
-    key: "tujuan",
-    label: "Tujuan",
-    width: "80px",
-    minWidth: "80px",
-    maxWidth: "80px",
-    align: "left" as const,
-  },
-  {
-    key: "nominal",
-    label: "Nominal",
-    width: "100px",
-    minWidth: "100px",
-    maxWidth: "100px",
-    align: "center" as const,
-  },
-  {
-    key: "status",
-    label: "Status",
-    width: "50px",
-    minWidth: "50px",
-    maxWidth: "50px",
-    align: "center" as const,
-  },
-] as const;
 
 // Transaction Detail Modal Component (moved outside to avoid react-hooks/static-components error)
 function TransactionDetailModal({
@@ -578,21 +511,6 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [currentDateKey, fetchDashboardData]);
 
-  // Calculate delta percentages
-  const omzetDelta = perbandingan
-    ? hitungPerubahanPersen(
-        perbandingan.today.totalOmzet,
-        perbandingan.yesterday.totalOmzet,
-      )
-    : 0;
-
-  const transaksiDelta = perbandingan
-    ? hitungPerubahanPersen(
-        perbandingan.today.totalTransaksi,
-        perbandingan.yesterday.totalTransaksi,
-      )
-    : 0;
-
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "sukses":
@@ -607,454 +525,247 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-7">
-      {/* Header Row - Welcome + Date Picker/Filter */}
-
-      {/* Strip Saldo Alpines - Full width, small height, accent border */}
-      <div className="relative">
-        {loading ? (
-          <Skeleton className="h-20 w-full rounded-lg" />
-        ) : (
-          <div
-            className="flex items-center justify-between px-4 py-3 bg-background border border-primary/30 rounded-lg transition-colors hover:border-primary/50"
-            style={{ minHeight: "64px" }}
-          >
-            {/* Left side: Icon + Label + Value */}
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <CreditCard className="h-4.5 w-4.5 text-primary strokeWidth={2}" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-text-black uppercase tracking-wider">
-                  Saldo Alpines
-                </p>
-                <p className="text-lg font-bold text-text-primary font-data">
-                  {saldoAlpines !== null ? formatRupiah(saldoAlpines) : "—"}
-                </p>
-              </div>
-            </div>
-            {/* Right side: Last update info */}
-            <div className="flex items-center gap-1.5 text-xs text-text-tertiary">
-              <Clock className="h-3.5 w-3.5" strokeWidth={2} />
-              <span>
-                {waktuSaldoAlpines
-                  ? `Update ${new Date(waktuSaldoAlpines).toLocaleString(
-                      "id-ID",
-                      {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      },
-                    )}`
-                  : "—"}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Main Summary Cards Grid - 3 columns: Total Uang Masuk, Omzet Bersih, Total Transaksi */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-6">
+      {/* Row Card Ringkasan — 4 card sejajar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         {loading ? (
           <>
+            <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
           </>
         ) : ringkasan ? (
           <>
-            {/* Card 1: Total Uang Masuk — Emerald to Teal Gradient */}
-            <Card variant="summary-income">
-              <CardContent className="relative py-8">
-                <div className="flex items-start justify-between">
-                  <div className="pr-4">
-                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
-                      Total Uang Masuk
-                    </p>
-                    <p className="text-4xl font-bold text-white mt-4 tracking-tight leading-none font-data">
-                      {formatRupiah(ringkasan.totalOmzet)}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-5">
-                      {omzetDelta > 0 ? (
-                        <ArrowUpRight
-                          className="h-4 w-4 text-green-300"
-                          strokeWidth={2}
-                        />
-                      ) : omzetDelta < 0 ? (
-                        <ArrowDownRight
-                          className="h-4 w-4 text-red-300"
-                          strokeWidth={2}
-                        />
-                      ) : null}
-                      <span
-                        className={`text-sm font-semibold ${
-                          omzetDelta > 0
-                            ? "text-green-300"
-                            : omzetDelta < 0
-                              ? "text-red-300"
-                              : "text-white/70"
-                        }`}
-                      >
-                        {omzetDelta > 0 ? "+" : ""}
-                        {hitungPerubahanPersen(
-                          perbandingan?.today.totalOmzet ?? 0,
-                          perbandingan?.yesterday.totalOmzet ?? 0,
-                        ).toFixed(1)}
-                        %
-                      </span>
-                      <span className="text-sm font-medium text-white/70">
-                        vs kemarin
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <WalletCards
-                      className="h-8 w-8 text-white"
-                      strokeWidth={2}
-                    />
-                  </div>
+            {/* Card 1: Total Uang Masuk */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center bg-blue-100 text-blue-600">
+                  <WalletCards className="h-5 w-5" strokeWidth={2} />
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-sm text-gray-500">Total Uang Masuk</p>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 font-data">
+                {formatRupiah(ringkasan.totalOmzet)}
+              </p>
+            </div>
 
-            {/* Card 2: Omzet Bersih — Violet to Purple Gradient */}
-            <Card variant="summary-revenue">
-              <CardContent className="relative py-8">
-                <div className="flex items-start justify-between">
-                  <div className="pr-4">
-                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
-                      Omzet Bersih
-                    </p>
-                    <p className="text-4xl font-bold text-white mt-4 tracking-tight leading-none font-data">
-                      {formatRupiah(ringkasan.pendapatanBersih ?? 0)}
-                    </p>
-                    <p className="text-sm font-medium text-white/70 mt-5">
-                      Setelah potongan biaya
-                    </p>
-                  </div>
-                  <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <ChartNoAxesCombined
-                      className="h-8 w-8 text-white"
-                      strokeWidth={2}
-                    />
-                  </div>
+            {/* Card 2: Omzet Bersih */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-600">
+                  <ChartNoAxesCombined className="h-5 w-5" strokeWidth={2} />
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-sm text-gray-500">Omzet Bersih</p>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 font-data">
+                {formatRupiah(ringkasan.pendapatanBersih ?? 0)}
+              </p>
+            </div>
 
-            {/* Card 3: Total Transaksi Hari Ini — Amber to Orange Gradient */}
-            <Card variant="summary-transactions">
-              <CardContent className="relative py-8">
-                <div className="flex items-start justify-between">
-                  <div className="pr-4">
-                    <p className="text-sm font-medium text-white/80 tracking-wide uppercase">
-                      Total Transaksi Hari Ini
-                    </p>
-                    <p className="text-4xl font-bold text-white mt-4 tracking-tight leading-none font-data">
-                      {formatAngka(ringkasan.totalTransaksi)}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-5">
-                      {transaksiDelta > 0 ? (
-                        <ArrowUpRight
-                          className="h-4 w-4 text-amber-300"
-                          strokeWidth={2}
-                        />
-                      ) : transaksiDelta < 0 ? (
-                        <ArrowDownRight
-                          className="h-4 w-4 text-red-300"
-                          strokeWidth={2}
-                        />
-                      ) : null}
-                      <span
-                        className={`text-sm font-semibold ${
-                          transaksiDelta > 0
-                            ? "text-amber-300"
-                            : transaksiDelta < 0
-                              ? "text-red-300"
-                              : "text-white/70"
-                        }`}
-                      >
-                        {transaksiDelta > 0 ? "+" : ""}
-                        {hitungPerubahanPersen(
-                          perbandingan?.today.totalTransaksi ?? 0,
-                          perbandingan?.yesterday.totalTransaksi ?? 0,
-                        ).toFixed(1)}
-                        %
-                      </span>
-                      <span className="text-sm font-medium text-white/70">
-                        vs kemarin
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
-                    <ChartNoAxesColumnIncreasing
-                      className="h-8 w-8 text-white"
-                      strokeWidth={2}
-                    />
-                  </div>
+            {/* Card 3: Total Transaksi */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center bg-purple-100 text-purple-600">
+                  <ChartNoAxesColumnIncreasing
+                    className="h-5 w-5"
+                    strokeWidth={2}
+                  />
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-sm text-gray-500">Total Transaksi</p>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 font-data">
+                {formatAngka(ringkasan.totalTransaksi)}
+              </p>
+            </div>
+
+            {/* Card 4: Saldo Alpines — gradient biru menonjol */}
+            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white shadow-md">
+              <p className="text-sm text-blue-100 mb-1">Saldo Alpines</p>
+              <p className="text-2xl font-bold mb-3 font-data">
+                {saldoAlpines !== null ? formatRupiah(saldoAlpines) : "..."}
+              </p>
+              <div className="flex items-center gap-1 text-xs text-blue-100 mb-4">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                Aktif
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-blue-200">
+                <Clock className="h-3.5 w-3.5" strokeWidth={2} />
+                <span>
+                  {waktuSaldoAlpines
+                    ? `Update ${new Date(waktuSaldoAlpines).toLocaleString(
+                        "id-ID",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )}`
+                    : "—"}
+                </span>
+              </div>
+            </div>
           </>
         ) : (
-          <Card className="col-span-full">
-            <CardContent className="py-12">
+          <div className="col-span-full bg-white rounded-2xl shadow-sm border border-gray-100">
+            <div className="py-12">
               <EmptyState
                 title="Tidak ada data"
                 description="Belum ada data transaksi untuk periode ini"
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Riwayat Transaksi with Pagination */}
-      <Card variant="default">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-text-tertiary">
-              Riwayat Transaksi Hari Ini
-            </CardTitle>
-            <p className="text-xs text-text-tertiary mt-0.5">
-              {totalRiwayatItems} total transaksi
-            </p>
-          </div>
-          <Link href="/transaksi">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-lg border-border text-xs font-medium text-text-secondary hover:bg-surface-hover"
-            >
-              Lihat Semua
-              <ExternalLink className="ml-1.5 h-3.5 w-3.5" strokeWidth={2} />
-            </Button>
-          </Link>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="space-y-3 p-6">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-4 px-6 py-4 rounded-xl bg-surface-secondary/50"
-                >
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                  <Skeleton className="h-4 w-20 ml-auto" />
-                </div>
-              ))}
-            </div>
-          ) : riwayatTransactions.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <Table className="min-w-[820px]">
-                  <TableHeader>
-                    <TableRow className="bg-surface-secondary/50 border-b border-border">
-                      {TABLE_COLUMNS.map((col) => (
-                        <TableHead
-                          key={col.key}
-                          className={cn(
-                            "whitespace-nowrap",
-                            col.align === "left" && "text-left",
-                            col.align === "center" && "text-center",
-                          )}
-                          style={{
-                            minWidth: col.minWidth,
-                            maxWidth: col.maxWidth,
-                            width: col.width,
-                          }}
-                        >
-                          {col.label}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {riwayatTransactions.map((trx) => {
-                      const tampilan = getTampilanTransaksi(
-                        trx.produk.kategori,
-                        trx.nomorTujuan,
-                        trx.produk.nama,
-                      );
-                      return (
-                        <TableRow
-                          key={trx.id}
-                          onClick={() => setSelectedTransaction(trx)}
-                          className="cursor-pointer hover:bg-surface-hover/50 transition-colors border-t border-border-subtle"
-                        >
-                          {TABLE_COLUMNS.map((col) => {
-                            const alignClass = cn(
-                              col.align === "left" && "text-left",
-                              col.align === "center" && "text-center",
-                            );
-                            const widthStyle = {
-                              minWidth: col.minWidth,
-                              maxWidth: col.maxWidth,
-                              width: col.width,
-                            };
-
-                            switch (col.key) {
-                              case "waktu":
-                                return (
-                                  <TableCell
-                                    key={col.key}
-                                    className={cn(
-                                      "whitespace-nowrap py-4",
-                                      alignClass,
-                                    )}
-                                    style={widthStyle}
-                                  >
-                                    <div className="flex flex-col">
-                                      <p className="text-sm font-medium text-text-primary">
-                                        {formatTanggal(trx.waktu)}
-                                      </p>
-                                      <p className="text-xs text-text-tertiary">
-                                        {formatJam(trx.waktu)}
-                                      </p>
-                                    </div>
-                                  </TableCell>
-                                );
-                              case "konter":
-                                return (
-                                  <TableCell
-                                    key={col.key}
-                                    className={cn("py-4 truncate", alignClass)}
-                                    style={widthStyle}
-                                  >
-                                    <p className="text-sm text-text-primary truncate">
-                                      {trx.konterNama}
-                                    </p>
-                                  </TableCell>
-                                );
-                              case "produk":
-                                return (
-                                  <TableCell
-                                    key={col.key}
-                                    className={cn("py-4", alignClass)}
-                                    style={widthStyle}
-                                  >
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <LogoBrand
-                                        namaProduk={trx.produk.nama}
-                                        jenisTransaksi={trx.produk.kategori}
-                                        size={24}
-                                      />
-                                      <div className="min-w-0 flex-1 flex flex-col gap-1">
-                                        {tampilan.tampilkanNamaProduk && (
-                                          <span className="text-sm text-text-primary truncate">
-                                            {getDisplayProductName(
-                                              trx.produk.kategori,
-                                              trx.produk.nama,
-                                              trx.providerSeluler,
-                                            )}
-                                          </span>
-                                        )}
-                                        {trx.produk.kategori === "pulsa" &&
-                                          !trx.produk.nama && (
-                                            <span className="text-sm text-text-primary truncate">
-                                              Isi Ulang Pulsa
-                                            </span>
-                                          )}
-                                        <span className="text-xs text-text-tertiary">
-                                          {tampilan.labelJenisTransaksi}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </TableCell>
-                                );
-                              case "tujuan":
-                                return (
-                                  <TableCell
-                                    key={col.key}
-                                    className={cn("py-4 truncate", alignClass)}
-                                    style={widthStyle}
-                                  >
-                                    {tampilan.tampilkanNomorTujuan &&
-                                    trx.nomorTujuan ? (
-                                      <span className="text-sm text-text-primary font-mono truncate block">
-                                        {trx.nomorTujuan}
-                                      </span>
-                                    ) : (
-                                      <span className="text-sm text-text-tertiary">
-                                        —
-                                      </span>
-                                    )}
-                                  </TableCell>
-                                );
-                              case "nominal":
-                                return (
-                                  <TableCell
-                                    key={col.key}
-                                    className={cn(
-                                      "whitespace-nowrap py-4 font-data",
-                                      alignClass,
-                                    )}
-                                    style={widthStyle}
-                                  >
-                                    <p className="text-sm font-medium text-text-primary">
-                                      {formatRupiah(trx.nominal)}
-                                    </p>
-                                  </TableCell>
-                                );
-                              case "status":
-                                return (
-                                  <TableCell
-                                    key={col.key}
-                                    className={cn("py-4", alignClass)}
-                                    style={widthStyle}
-                                  >
-                                    <Badge
-                                      variant={
-                                        getStatusBadgeVariant(trx.status) as
-                                          | "success"
-                                          | "warning"
-                                          | "error"
-                                          | "default"
-                                      }
-                                      size="sm"
-                                      className="w-full justify-center"
-                                    >
-                                      {trx.status.charAt(0).toUpperCase() +
-                                        trx.status.slice(1)}
-                                    </Badge>
-                                  </TableCell>
-                                );
-                              default:
-                                return null;
-                            }
-                          })}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              <div className="px-6 py-4 border-t border-border-subtle">
-                <Pagination
-                  currentPage={riwayatPage}
-                  totalPages={totalRiwayatPages}
-                  onPageChange={setRiwayatPage}
-                  totalItems={totalRiwayatItems}
-                  itemsPerPage={ITEMS_PER_PAGE}
-                />
-              </div>
-            </>
-          ) : (
-            <EmptyState
-              icon={
-                <Clock className="h-6 w-6 text-text-tertiary" strokeWidth={2} />
-              }
-              title="Belum ada transaksi"
-              description="Transaksi akan muncul di sini saat ada aktivitas"
+      {/* Riwayat Transaksi Terakhir */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <CreditCard
+              className="h-[18px] w-[18px] text-blue-600"
+              strokeWidth={2}
             />
-          )}
-        </CardContent>
-      </Card>
+            <h2 className="font-semibold text-gray-900">
+              Riwayat Transaksi Terakhir
+            </h2>
+          </div>
+          <Link
+            href="/transaksi"
+            className="text-sm border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-50 flex items-center gap-1 text-gray-600 transition-colors"
+          >
+            Lihat Semua Transaksi
+            <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="space-y-3 p-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-6 py-4 rounded-xl bg-gray-50/50"
+              >
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-4 w-20 ml-auto" />
+              </div>
+            ))}
+          </div>
+        ) : riwayatTransactions.length > 0 ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px]">
+                <thead>
+                  <tr className="text-left text-xs text-gray-400 uppercase tracking-wide">
+                    <th className="px-6 py-3 font-medium">Waktu</th>
+                    <th className="px-6 py-3 font-medium">Konter</th>
+                    <th className="px-6 py-3 font-medium">Produk</th>
+                    <th className="px-6 py-3 font-medium">Tujuan</th>
+                    <th className="px-6 py-3 font-medium text-right">
+                      Nominal
+                    </th>
+                    <th className="px-6 py-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {riwayatTransactions.map((trx) => {
+                    const tampilan = getTampilanTransaksi(
+                      trx.produk.kategori,
+                      trx.nomorTujuan,
+                      trx.produk.nama,
+                    );
+                    return (
+                      <tr
+                        key={trx.id}
+                        onClick={() => setSelectedTransaction(trx)}
+                        className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                      >
+                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-gray-900">
+                              {formatTanggal(trx.waktu)}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatJam(trx.waktu)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <span className="w-6 h-6 rounded bg-blue-50 flex items-center justify-center text-xs">
+                              🏪
+                            </span>
+                            {trx.konterNama}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center gap-2 text-sm text-gray-900 font-medium">
+                            <LogoBrand
+                              namaProduk={trx.produk.nama}
+                              jenisTransaksi={trx.produk.kategori}
+                              providerSeluler={trx.providerSeluler}
+                              size={24}
+                            />
+                            {tampilan.tampilkanNamaProduk
+                              ? getDisplayProductName(
+                                  trx.produk.kategori,
+                                  trx.produk.nama,
+                                  trx.providerSeluler,
+                                )
+                              : tampilan.labelJenisTransaksi}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {tampilan.tampilkanNomorTujuan && trx.nomorTujuan
+                            ? trx.nomorTujuan
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap font-data">
+                          {formatRupiah(trx.nominal)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge
+                            variant={
+                              getStatusBadgeVariant(trx.status) as
+                                "success" | "warning" | "error" | "default"
+                            }
+                            size="sm"
+                            dot
+                          >
+                            {trx.status.charAt(0).toUpperCase() +
+                              trx.status.slice(1)}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="px-6 py-4 border-t border-gray-100">
+              <Pagination
+                currentPage={riwayatPage}
+                totalPages={totalRiwayatPages}
+                onPageChange={setRiwayatPage}
+                totalItems={totalRiwayatItems}
+                itemsPerPage={ITEMS_PER_PAGE}
+              />
+            </div>
+          </>
+        ) : (
+          <EmptyState
+            icon={<Clock className="h-6 w-6 text-gray-400" strokeWidth={2} />}
+            title="Belum ada transaksi"
+            description="Transaksi akan muncul di sini saat ada aktivitas"
+          />
+        )}
+      </div>
 
       {/* Transaction Detail Modal */}
       {selectedTransaction && (

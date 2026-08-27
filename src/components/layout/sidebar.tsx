@@ -2,122 +2,82 @@
 
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Monitor,
-  ReceiptText,
-  Plus,
-  Minimize2,
-  Maximize2,
-  AlertTriangle,
-  Terminal,
-  ChartNoAxesColumn,
+  HomeIcon,
+  PlusCircleIcon,
+  HistoryIcon,
+  AlertTriangleIcon,
+  BarChartIcon,
+  SmartphoneIcon,
+  ShieldCheckIcon,
 } from "lucide-react";
-import { NavItem } from "./nav-item";
-import { useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-const NAV_ITEMS = [
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/transaksi-baru", icon: Plus, label: "Tambah Transaksi Manual" },
-  { href: "/transaksi", icon: ReceiptText, label: "Riwayat Transaksi" },
-  { href: "/transaksi-pending", icon: AlertTriangle, label: "Pending & Gagal" },
-  { href: "/laporan", icon: ChartNoAxesColumn, label: "Laporan" },
-  { href: "/perangkat", icon: Monitor, label: "Perangkat" },
-  { href: "/simulator", icon: Terminal, label: "Transaction Simulator" },
+const MENU_ITEMS = [
+  { label: "Dashboard", icon: HomeIcon, href: "/" },
+  {
+    label: "Tambah Transaksi Manual",
+    icon: PlusCircleIcon,
+    href: "/transaksi-baru",
+  },
+  { label: "Riwayat Transaksi", icon: HistoryIcon, href: "/transaksi" },
+  {
+    label: "Pending & Gagal",
+    icon: AlertTriangleIcon,
+    href: "/transaksi-pending",
+  },
+  { label: "Laporan", icon: BarChartIcon, href: "/laporan" },
+  { label: "Perangkat", icon: SmartphoneIcon, href: "/perangkat" },
 ];
 
-export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+export default function Sidebar() {
+  const pathname = usePathname();
 
   return (
-    <aside
-      className={cn(
-        "hidden lg:flex flex-col transition-all duration-300",
-        "fixed top-0 left-0 h-full z-30",
-        "bg-white",
-        "border-r border-border-subtle",
-        collapsed ? "w-40" : "w-57.5",
-      )}
-    >
-      {/* Logo / Brand */}
-      <div
-        className={cn(
-          "flex items-center border-b px-5 py-4.5",
-          "border-border-subtle",
-          collapsed ? "justify-center" : "justify-between",
-        )}
-      >
-        {!collapsed && (
-          <div className="flex items-center gap-3">
-            <div className="flex h-25 w-35 shrink-0 items-center justify-center overflow-hidden">
-              <Image
-                src="/logo_kbf.png"
-                alt="KBF Cell Logo"
-                width={90}
-                height={80}
-                className="h-full w-full object-contain"
-              />
-            </div>
-          </div>
-        )}
-        {collapsed && (
-          <div className="flex h-16 w-18 items-center justify-center">
-            <Image
-              src="/logo_kbf.png"
-              alt="KBF Cell Logo"
-              width={90}
-              height={68}
-              className="h-full w-full object-contain"
-            />
-          </div>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto hidden rounded-lg p-1.5 text-text-tertiary hover:bg-surface-hover hover:text-text-secondary lg:block transition-colors duration-150"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <Maximize2 className="h-4 w-4" strokeWidth={2} />
-          ) : (
-            <Minimize2 className="h-4 w-4" strokeWidth={2} />
-          )}
-        </button>
+    <aside className="w-[270px] bg-slate-900 text-white min-h-screen flex flex-col fixed left-0 top-0 z-30">
+      {/* Brand */}
+      <div className="p-6 flex items-center gap-3">
+        <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-lg">
+          K
+        </div>
+        <div>
+          <p className="font-bold leading-tight">KBF CELL</p>
+          <p className="text-xs text-slate-400">Dashboard Monitoring</p>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-        {NAV_ITEMS.map((item) => (
-          <NavItem
-            key={item.href}
-            href={item.href}
-            icon={item.icon}
-            label={item.label}
-            isCollapsed={collapsed}
-          />
-        ))}
+      <nav className="flex-1 px-4 space-y-1 mt-4">
+        {MENU_ITEMS.map((item) => {
+          const aktif =
+            pathname === item.href ||
+            (item.href !== "/" && pathname?.startsWith(item.href));
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors",
+                aktif
+                  ? "bg-blue-600 text-white font-medium"
+                  : "text-slate-300 hover:bg-slate-800",
+              )}
+            >
+              <Icon size={18} />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
-      {/* Bottom Section - User/Version Info */}
-      <div className="border-t border-border-subtle p-3">
-        {!collapsed && (
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-secondary border border-border-subtle">
-            <div className="h-8 w-8 rounded-lg bg-white border border-border-subtle overflow-hidden flex items-center justify-center">
-              <Image
-                src="/logo_kbf.png"
-                alt="KBF Cell Logo"
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary truncate">
-                Dashboard Admin
-              </p>
-              <p className="text-[10px] text-text-tertiary">v1.1.0</p>
-            </div>
-          </div>
-        )}
+      {/* Security footer */}
+      <div className="p-4 m-4 bg-slate-800 rounded-xl flex items-center gap-3">
+        <ShieldCheckIcon className="text-emerald-400 shrink-0" size={20} />
+        <div>
+          <p className="text-sm font-medium">Sistem Aman</p>
+          <p className="text-xs text-slate-400">Data terenkripsi & aman</p>
+        </div>
       </div>
     </aside>
   );

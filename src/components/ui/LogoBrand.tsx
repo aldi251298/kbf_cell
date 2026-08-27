@@ -8,6 +8,7 @@ import Image from "next/image";
 interface LogoBrandProps {
   namaProduk: string | null | undefined;
   jenisTransaksi: string;
+  providerSeluler?: string | null;
   className?: string;
   size?: number; // default 32px
 }
@@ -21,10 +22,11 @@ interface LogoBrandProps {
 export function LogoBrand({
   namaProduk,
   jenisTransaksi,
+  providerSeluler,
   className,
   size = 30,
 }: LogoBrandProps) {
-  const logoPath = getBrandLogo(namaProduk, jenisTransaksi);
+  const logoPath = getBrandLogo(namaProduk, jenisTransaksi, providerSeluler);
 
   if (logoPath) {
     return (
