@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Sidebar from "./sidebar";
 import { BottomNav } from "./bottom-nav";
 import { Header } from "./header";
@@ -7,15 +10,17 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
-      <Sidebar />
+      {/* Sidebar - now controlled by state */}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content Area */}
       <div className="lg:pl-[270px] flex flex-col min-h-screen">
         {/* Header */}
-        <Header />
+        <Header onMenuClick={() => setSidebarOpen(true)} />
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto">

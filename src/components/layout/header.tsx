@@ -1,11 +1,15 @@
 "use client";
 
 import { getTodayWIBDateString } from "@/lib/utils";
-import { Bell, Calendar, ChevronDown } from "lucide-react";
+import { Bell, Calendar, ChevronDown, Menu } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const todayString = getTodayWIBDateString();
@@ -18,8 +22,19 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-100 bg-white px-4 lg:px-8">
-      {/* Left: Page title + greeting */}
+      {/* Left: Hamburger menu (mobile) + Page title + greeting */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Hamburger menu - only visible on mobile */}
+        <button
+          type="button"
+          className="lg:hidden h-10 w-10 inline-flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+          onClick={onMenuClick}
+          aria-label="Buka menu"
+          aria-expanded="false"
+        >
+          <Menu className="h-6 w-6" strokeWidth={2} />
+        </button>
+
         <div>
           <h1 className="text-lg font-semibold text-gray-900 tracking-tight">
             Dashboard
