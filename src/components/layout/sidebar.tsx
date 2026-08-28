@@ -13,22 +13,35 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUserProfile } from "@/lib/useUserProfile";
 
 const MENU_ITEMS = [
-  { label: "Dashboard", icon: HomeIcon, href: "/" },
+  { label: "Dashboard", icon: HomeIcon, href: "/", adminOnly: false },
   {
     label: "Tambah Transaksi Manual",
     icon: PlusCircleIcon,
     href: "/transaksi-baru",
+    adminOnly: true,
   },
-  { label: "Riwayat Transaksi", icon: HistoryIcon, href: "/transaksi" },
+  {
+    label: "Riwayat Transaksi",
+    icon: HistoryIcon,
+    href: "/transaksi",
+    adminOnly: false,
+  },
   {
     label: "Pending & Gagal",
     icon: AlertTriangleIcon,
     href: "/transaksi-pending",
+    adminOnly: false,
   },
-  { label: "Laporan", icon: BarChartIcon, href: "/laporan" },
-  { label: "Perangkat", icon: SmartphoneIcon, href: "/perangkat" },
+  { label: "Laporan", icon: BarChartIcon, href: "/laporan", adminOnly: true },
+  {
+    label: "Perangkat",
+    icon: SmartphoneIcon,
+    href: "/perangkat",
+    adminOnly: true,
+  },
 ];
 
 interface SidebarProps {
@@ -38,6 +51,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { profile, loading } = useUserProfile();
 
   return (
     <>
@@ -70,28 +84,34 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 px-4 space-y-1 mt-4">
-          {MENU_ITEMS.map((item) => {
-            const aktif =
-              pathname === item.href ||
-              (item.href !== "/" && pathname?.startsWith(item.href));
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors",
-                  aktif
-                    ? "bg-blue-600 text-white font-medium"
-                    : "text-slate-300 hover:bg-slate-800",
-                )}
-                onClick={onClose}
-              >
-                <Icon size={18} />
-                {item.label}
-              </Link>
-            );
-          })}
+          {!loading &&
+            profile &&
+            MENU_ITEMS.map((item) => {
+              // Hide admin-only items for operators
+              if (item.adminOnly && profile.role === "operator") {
+                return null;
+              }
+              const aktif =
+                pathname === item.href ||
+                (item.href !== "/" && pathname?.startsWith(item.href));
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors",
+                    aktif
+                      ? "bg-blue-600 text-white font-medium"
+                      : "text-slate-300 hover:bg-slate-800",
+                  )}
+                  onClick={onClose}
+                >
+                  <Icon size={18} />
+                  {item.label}
+                </Link>
+              );
+            })}
         </nav>
 
         {/* Security footer */}

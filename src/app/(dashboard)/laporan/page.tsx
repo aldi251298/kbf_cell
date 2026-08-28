@@ -22,20 +22,33 @@ import { BreakdownJenisTable } from "@/components/laporan/BreakdownJenisTable";
 import { PerbandinganKonterChart } from "@/components/laporan/PerbandinganKonterChart";
 import { TopProdukTable } from "@/components/laporan/TopProdukTable";
 import { DistribusiJamChart } from "@/components/laporan/DistribusiJamChart";
+import { useUserProfile } from "@/lib/useUserProfile";
 
 const DEFAULT_FILTER: FilterLaporan = {
-  periode: "hari_ini",
+  periode: "bulan_ini",
   konterId: "semua",
   provider: "semua",
 };
 
 export default function LaporanPage() {
-  const [filter, setFilter] = useState<FilterLaporan>(DEFAULT_FILTER);
+  const { profile, loading: profileLoading } = useUserProfile();
+
+  // Initialize filter with user's konter if operator
+  const initialFilter: FilterLaporan = {
+    ...DEFAULT_FILTER,
+    konterId:
+      profile?.role === "operator" && profile.konterId
+        ? profile.konterId
+        : "semua",
+  };
+
+  const [filter, setFilter] = useState<FilterLaporan>(initialFilter);
   const [data, setData] = useState<LaporanAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
   const fetchData = useCallback(async () => {
+    if (profileLoading) return;
     setLoading(true);
     try {
       const result = await getLaporanAnalytics(filter);
@@ -45,7 +58,7 @@ export default function LaporanPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, profileLoading]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -80,6 +93,25 @@ export default function LaporanPage() {
   const totalOmzet = data?.ringkasan.totalOmzet ?? 0;
   const totalAdmin = data?.ringkasan.totalPendapatanBersih ?? 0;
   const totalTransaksi = data?.ringkasan.totalTransaksi ?? 0;
+
+  if (profileLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-text-primary tracking-tight">
+              Laporan
+            </h1>
+            <p className="text-text-secondary mt-1 text-sm">
+              Analisis transaksi mendalam dengan grafik & breakdown
+            </p>
+          </div>
+        </div>
+        <div className="h-16 bg-white border-b rounded-2xl animate-pulse" />
+        <div className="h-24 bg-white rounded-2xl animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -161,11 +193,13 @@ export default function LaporanPage() {
             />
           </div>
 
-          {/* Perbandingan Konter (conditional) */}
-          <PerbandinganKonterChart
-            data={data.perbandinganKonter}
-            show={filter.konterId === "semua"}
-          />
+          {/* Perbandingan Konter (conditional) - only show for admin when viewing all konters */}
+          {profile?.role === "admin" && filter.konterId === "semua" && (
+            <PerbandinganKonterChart
+              data={data.perbandinganKonter}
+              show={true}
+            />
+          )}
 
           {/* Top Produk + Distribusi Jam */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

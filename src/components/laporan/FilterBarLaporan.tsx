@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Calendar, CalendarDays } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import type { FilterLaporan, PeriodeFilter } from "@/types/laporanAnalytics";
+import { useUserProfile } from "@/lib/useUserProfile";
 
 interface SelectOption {
   value: string;
@@ -40,11 +41,22 @@ const PROVIDER_OPTIONS: SelectOption[] = [
   { value: "manual", label: "Manual" },
 ];
 
+function namaKonter(id: string | null | undefined): string {
+  if (!id) return "—";
+  const map: Record<string, string> = {
+    "KONTER-001": "KBF Cell Pasar Baru",
+    "KONTER-002": "Konter 2",
+    "KONTER-003": "Konter 3",
+  };
+  return map[id] ?? id;
+}
+
 export function FilterBarLaporan({
   filter,
   onChange,
   disabled = false,
 }: FilterBarLaporanProps) {
+  const { profile, loading: profileLoading } = useUserProfile();
   const [tanggalMulaiStr, setTanggalMulaiStr] = useState("");
   const [tanggalSelesaiStr, setTanggalSelesaiStr] = useState("");
 
@@ -58,6 +70,10 @@ export function FilterBarLaporan({
       setTanggalSelesaiStr(filter.tanggalSelesai.toISOString().split("T")[0]);
     }
   }, [filter.tanggalMulai, filter.tanggalSelesai]);
+
+  // For operator, lock konterId to their konter
+  const konterEfektif =
+    profile?.role === "operator" ? profile.konterId! : filter.konterId;
 
   const handlePeriodeChange = (value: string) => {
     const newFilter = { ...filter, periode: value as PeriodeFilter };
@@ -89,6 +105,22 @@ export function FilterBarLaporan({
   };
 
   const showCustomDates = filter.periode === "custom";
+
+  if (profileLoading) {
+    return (
+      <div
+        className={cn(
+          "bg-white border-b px-6 py-4 flex flex-col sm:flex-row items-center gap-4 sticky top-0 z-10",
+          disabled && "opacity-50",
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-text-tertiary" />
+          <div className="w-40 h-10 bg-gray-100 rounded animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -139,16 +171,25 @@ export function FilterBarLaporan({
         </div>
       )}
 
-      {/* Konter Select */}
-      <div className="flex items-center gap-2 ml-auto sm:ml-0">
-        <Select
-          options={KONTER_OPTIONS}
-          value={filter.konterId}
-          onChange={handleKonterChange}
-          placeholder="Pilih Konter"
-          className="w-44"
-        />
-      </div>
+      {/* Konter Select - Admin only, Operator sees locked konter */}
+      {profile?.role === "admin" ? (
+        <div className="flex items-center gap-2 ml-auto sm:ml-0">
+          <Select
+            options={KONTER_OPTIONS}
+            value={filter.konterId}
+            onChange={handleKonterChange}
+            placeholder="Pilih Konter"
+            className="w-44"
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 ml-auto sm:ml-0">
+          <span className="text-sm text-gray-500">Konter:</span>
+          <span className="text-sm font-medium text-gray-900">
+            {namaKonter(konterEfektif)}
+          </span>
+        </div>
+      )}
 
       {/* Provider Select */}
       <div className="flex items-center gap-2">

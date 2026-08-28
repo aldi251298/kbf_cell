@@ -4,7 +4,7 @@ import type { RingkasanHarian } from "@/types";
 import type { TransaksiRow, KonterRow } from "@/types/database";
 
 /**
- * GET /api/ringkasan?tanggal=YYYY-MM-DD&hariKembali=30&perbandingan=true
+ * GET /api/ringkasan?tanggal=YYYY-MM-DD&hariKembali=30&perbandingan=true&konterId=KONTER-001
  *
  * Computes daily summaries server-side from the transaksi table. Because the
  * data volume is small (3 devices), aggregation is done with a single query +
@@ -14,6 +14,7 @@ import type { TransaksiRow, KonterRow } from "@/types/database";
  *   - tanggal=YYYY-MM-DD  -> single-day summary
  *   - hariKembali=N       -> N daily summaries (most recent first)
  *   - perbandingan=true   -> today + yesterday + delta
+ *   - konterId=KONTER-001 -> filter by konter (for operator role)
  */
 
 // Cache control headers to prevent stale data
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
   const endDateParam = url.searchParams.get("endDate");
   const hariKembali = Number(url.searchParams.get("hariKembali") ?? "0");
   const perbandingan = url.searchParams.get("perbandingan") === "true";
+  const konterIdParam = url.searchParams.get("konterId");
 
   // Fetch konter list for name resolution
   const { data: konterRows } = await supabase
@@ -119,6 +121,17 @@ export async function GET(req: NextRequest) {
     return new Date(result.getTime() - WIB_OFFSET_MS);
   }
 
+  // Helper to add konter filter to query
+  // Generic: T represents any query builder type that has an .eq() method returning T
+  function addKonterFilter<
+    T extends { eq: (column: string, value: string) => T },
+  >(query: T): T {
+    if (konterIdParam) {
+      return query.eq("konter_id", konterIdParam);
+    }
+    return query;
+  }
+
   // --- Mode: perbandingan (today vs yesterday) ---
   if (perbandingan) {
     const now = new Date();
@@ -129,16 +142,20 @@ export async function GET(req: NextRequest) {
 
     const [{ data: todayRows }, { data: yesterdayRows }, { data: saldoData }] =
       await Promise.all([
-        supabase
-          .from("transaksi")
-          .select("*", { count: "exact" })
-          .gte("waktu", todayStart.toISOString())
-          .lt("waktu", todayEnd.toISOString()),
-        supabase
-          .from("transaksi")
-          .select("*", { count: "exact" })
-          .gte("waktu", yesterdayStart.toISOString())
-          .lt("waktu", yesterdayEnd.toISOString()),
+        addKonterFilter(
+          supabase
+            .from("transaksi")
+            .select("*", { count: "exact" })
+            .gte("waktu", todayStart.toISOString())
+            .lt("waktu", todayEnd.toISOString()),
+        ),
+        addKonterFilter(
+          supabase
+            .from("transaksi")
+            .select("*", { count: "exact" })
+            .gte("waktu", yesterdayStart.toISOString())
+            .lt("waktu", yesterdayEnd.toISOString()),
+        ),
         supabase
           .from("transaksi")
           .select("detail_tambahan, waktu")
@@ -191,11 +208,13 @@ export async function GET(req: NextRequest) {
     }
 
     const [{ data }, { data: saldoData }] = await Promise.all([
-      supabase
-        .from("transaksi")
-        .select("*", { count: "exact" })
-        .gte("waktu", dayStart.toISOString())
-        .lt("waktu", dayEnd.toISOString()),
+      addKonterFilter(
+        supabase
+          .from("transaksi")
+          .select("*", { count: "exact" })
+          .gte("waktu", dayStart.toISOString())
+          .lt("waktu", dayEnd.toISOString()),
+      ),
       supabase
         .from("transaksi")
         .select("detail_tambahan, waktu")
@@ -227,12 +246,14 @@ export async function GET(req: NextRequest) {
   const endDate = startOfDayWIB(new Date(now.getTime() + 86400000));
 
   const [{ data }, { data: saldoData }] = await Promise.all([
-    supabase
-      .from("transaksi")
-      .select("*")
-      .gte("waktu", startDate.toISOString())
-      .lt("waktu", endDate.toISOString())
-      .order("waktu", { ascending: true }),
+    addKonterFilter(
+      supabase
+        .from("transaksi")
+        .select("*")
+        .gte("waktu", startDate.toISOString())
+        .lt("waktu", endDate.toISOString())
+        .order("waktu", { ascending: true }),
+    ),
     supabase
       .from("transaksi")
       .select("detail_tambahan, waktu")

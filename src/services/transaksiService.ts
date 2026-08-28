@@ -107,8 +107,11 @@ export async function getTransaksi(
 /**
  * Get today's transactions only (WIB timezone).
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
+ * @param konterId - Optional konter ID to filter by (for operator role)
  */
-export async function getTransaksiHariIniService(): Promise<Transaksi[]> {
+export async function getTransaksiHariIniService(
+  konterId?: string,
+): Promise<Transaksi[]> {
   const todayWIB = getTodayWIBDateString();
   const { awalUTC, akhirUTC } = getRentangWaktuWIB(todayWIB, todayWIB);
 
@@ -116,6 +119,7 @@ export async function getTransaksiHariIniService(): Promise<Transaksi[]> {
   params.set("startDate", awalUTC.toISOString());
   params.set("endDate", akhirUTC.toISOString());
   params.set("limit", "1000");
+  if (konterId) params.set("konterId", konterId);
 
   const res = await fetch(`/api/transaksi?${params.toString()}`, {
     cache: "no-store",

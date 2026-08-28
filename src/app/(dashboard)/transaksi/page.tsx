@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  getTransaksiPaginated,
+  getTransaksiPaginatedByDateRange,
   exportTransaksiExcel,
   generateExportFilename,
 } from "@/services";
@@ -10,6 +10,8 @@ import type { Transaksi, StatusTransaksi } from "@/types";
 import {
   formatRupiah,
   formatWaktu,
+  formatTanggal,
+  formatJam,
   getTampilanTransaksi,
   getDisplayProductName,
 } from "@/lib/utils";
@@ -18,32 +20,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  SortableTableHead,
-} from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { EmptyState } from "@/components/ui/empty-state";
-import { TableSkeleton } from "@/components/ui/skeleton";
-import { IkonJenisTransaksi } from "@/components/ui/IkonJenisTransaksi";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LogoBrand } from "@/components/ui/LogoBrand";
-import {
-  Search,
-  X,
-  Download,
-  Receipt,
-  Filter,
-  Eye,
-  AlertTriangle,
-} from "lucide-react";
+import { Search, X, Download, Receipt, Filter } from "lucide-react";
 import { STATUS_LABELS } from "@/constants/statusTransaksi";
 import { getKonterList } from "@/services";
 import type { Konter } from "@/types";
+import { useUserProfile } from "@/lib/useUserProfile";
 
 // Constants
 const ITEMS_PER_PAGE = 20;
@@ -51,7 +36,17 @@ const ITEMS_PER_PAGE = 20;
 type SortField = "waktu" | "nominal";
 type SortDirection = "asc" | "desc";
 
-// Helper functions
+function namaKonter(id: string | null | undefined): string {
+  if (!id) return "—";
+  const map: Record<string, string> = {
+    "KONTER-001": "KBF Cell Pasar Baru",
+    "KONTER-002": "Konter 2",
+    "KONTER-003": "Konter 3",
+  };
+  return map[id] ?? id;
+}
+
+// Helper functions (shared between modal and table)
 function getStatusBadgeVariant(
   status: string,
 ): "success" | "warning" | "error" | "default" {
@@ -174,10 +169,6 @@ function TransactionDetailModal({
             <span className="text-sm text-gray-500">Produk</span>
             <div className="flex flex-col items-end gap-1">
               <div className="flex items-center gap-2">
-                <IkonJenisTransaksi
-                  jenis={transaction.produk.kategori}
-                  size={28}
-                />
                 <LogoBrand
                   namaProduk={transaction.produk.nama}
                   jenisTransaksi={transaction.produk.kategori}
@@ -247,7 +238,7 @@ function TransactionDetailModal({
 
           {/* Nominal */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Nominal</span>
+            <span className="text-sm text-black-500">Nominal</span>
             <span className="text-sm font-bold text-gray-900">
               {formatRupiah(transaction.nominal)}
             </span>
@@ -290,66 +281,27 @@ function TransactionDetailModal({
               <p className="text-sm text-red-700">{transaction.errorMessage}</p>
             </div>
           )}
-
-          {/* Alasan Review */}
-          {transaction.detailTambahan?.alasan_review && (
-            <div className="p-3 bg-yellow-50 border border-yellow-100 rounded-xl">
-              <p className="text-xs font-medium text-yellow-600 mb-1">
-                Alasan Perlu Review
-              </p>
-              <p className="text-sm text-yellow-700">
-                {transaction.detailTambahan.alasan_review as string}
-              </p>
-            </div>
-          )}
-
-          {/* Raw Text History */}
-          {transaction.detailTambahan?.raw_text_history && (
-            <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl">
-              <p className="text-xs font-medium text-gray-600 mb-1">
-                Riwayat Notifikasi (
-                {
-                  (transaction.detailTambahan.raw_text_history as string[])
-                    .length
-                }
-                )
-              </p>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {(transaction.detailTambahan.raw_text_history as string[]).map(
-                  (text, idx) => (
-                    <div
-                      key={idx}
-                      className="text-xs text-gray-700 p-2 bg-white rounded border border-gray-200"
-                    >
-                      <span className="font-medium text-gray-500">
-                        #{idx + 1}:
-                      </span>{" "}
-                      {text}
-                    </div>
-                  ),
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-export default function TransaksiPendingPage() {
+export default function TransaksiPage() {
+  const { profile, loading: profileLoading } = useUserProfile();
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKonter, setSelectedKonter] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("pending");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [selectedJenisTransaksi, setSelectedJenisTransaksi] =
     useState<string>("");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
-  // Sort states
-  const [sortField, setSortField] = useState<SortField>("waktu");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  // Sort states (kept for API compatibility — sort UI removed in redesign)
+  const [sortField] = useState<SortField>("waktu");
+  const [sortDirection] = useState<SortDirection>("desc");
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -370,6 +322,12 @@ export default function TransaksiPendingPage() {
   // Detail modal state
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaksi | null>(null);
+
+  // Effective konter filter based on role
+  const konterEfektif =
+    profile?.role === "operator"
+      ? profile.konterId!
+      : selectedKonter || undefined;
 
   // Fetch konter list
   useEffect(() => {
@@ -407,32 +365,15 @@ export default function TransaksiPendingPage() {
 
   // Fetch transactions with proper dependencies
   useEffect(() => {
+    if (profileLoading) return;
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Initial loading state before fetch is a valid pattern
     setLoading(true);
     const fetchTransactions = async () => {
       try {
-        // WIB = UTC+7 — adjust date inputs so they match Indonesia local date
-        const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-        const toWIBStart = (dateStr: string) => {
-          const d = new Date(dateStr);
-          const utcMs = d.getTime() + d.getTimezoneOffset() * 60000;
-          const wibMs = utcMs + WIB_OFFSET_MS;
-          const wibDate = new Date(wibMs);
-          const result = new Date(
-            Date.UTC(
-              wibDate.getUTCFullYear(),
-              wibDate.getUTCMonth(),
-              wibDate.getUTCDate(),
-            ),
-          );
-          return new Date(result.getTime() - WIB_OFFSET_MS);
-        };
-
+        // Use centralized getRentangWaktuWIB utility for correct date range handling
         const filters = {
-          ...(dateFrom && { startDate: toWIBStart(dateFrom) }),
-          ...(dateTo && { endDate: toWIBStart(dateTo) }),
-          ...(selectedKonter && { konterId: selectedKonter }),
+          ...(konterEfektif && { konterId: konterEfektif }),
           ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
           ...(selectedJenisTransaksi && {
             jenisTransaksi: selectedJenisTransaksi,
@@ -442,7 +383,9 @@ export default function TransaksiPendingPage() {
           sortOrder: sortDirection,
         };
 
-        const result = await getTransaksiPaginated(
+        const result = await getTransaksiPaginatedByDateRange(
+          dateFrom || "",
+          dateTo || "",
           currentPage,
           ITEMS_PER_PAGE,
           filters,
@@ -475,17 +418,9 @@ export default function TransaksiPendingPage() {
     searchTerm,
     sortField,
     sortDirection,
+    konterEfektif,
+    profileLoading,
   ]);
-
-  // Handle sort
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
 
   // Handle export
   const handleExport = async () => {
@@ -494,7 +429,7 @@ export default function TransaksiPendingPage() {
       // Use centralized getRentangWaktuWIB utility for correct date range handling
       // Export uses the active date range from the filter
       const additionalFilters = {
-        ...(selectedKonter && { konterId: selectedKonter }),
+        ...(konterEfektif && { konterId: konterEfektif }),
         ...(selectedStatus && { status: selectedStatus as StatusTransaksi }),
         ...(selectedJenisTransaksi && {
           jenisTransaksi: selectedJenisTransaksi,
@@ -532,14 +467,16 @@ export default function TransaksiPendingPage() {
     ...konterList.map((k) => ({ value: k.id, label: k.nama })),
   ];
 
-  // Status options for filter - only pending and gagal for this page
+  // Status options for filter
   const statusOptions = [
-    { value: "", label: "Semua Status (Pending & Gagal)" },
-    { value: "pending", label: "Pending" },
+    { value: "", label: "Semua Status" },
+    { value: "sukses", label: "Sukses" },
     { value: "gagal", label: "Gagal" },
+    { value: "pending", label: "Pending" },
   ];
 
-  // Jenis transaksi options for filter
+  // Jenis transaksi options for filter — must match actual jenis_transaksi values in DB
+  // Includes static known types + dynamic categories from backend
   const staticJenisTransaksiOptions = [
     { value: "", label: "Semua Jenis" },
     { value: "pulsa", label: "Pulsa" },
@@ -575,7 +512,7 @@ export default function TransaksiPendingPage() {
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedKonter("");
-    setSelectedStatus("pending");
+    setSelectedStatus("");
     setSelectedJenisTransaksi("");
     setDateFrom("");
     setDateTo("");
@@ -585,23 +522,35 @@ export default function TransaksiPendingPage() {
   const hasActiveFilters =
     searchTerm || selectedKonter || selectedStatus || dateFrom || dateTo;
 
+  if (profileLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-text-primary tracking-tight">
+              Transaksi
+            </h1>
+            <p className="text-text-secondary mt-1 text-sm">
+              Riwayat lengkap semua transaksi konter pulsa
+            </p>
+          </div>
+        </div>
+        <div className="h-16 bg-white border-b rounded-2xl animate-pulse" />
+        <div className="h-24 bg-white rounded-2xl animate-pulse" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <h1 className="text-2xl font-display font-bold text-text-primary tracking-tight">
-              Transaksi Pending & Bermasalah
-            </h1>
-            <Badge variant="warning" size="sm" dot>
-              <AlertTriangle className="h-3 w-3" />
-              Perlu Perhatian
-            </Badge>
-          </div>
+          <h1 className="text-2xl font-display font-bold text-text-primary tracking-tight">
+            Transaksi
+          </h1>
           <p className="text-text-secondary mt-1 text-sm">
-            Transaksi dengan status pending atau gagal — belum masuk laporan
-            omzet utama
+            Riwayat lengkap semua transaksi konter pulsa
           </p>
         </div>
 
@@ -642,14 +591,23 @@ export default function TransaksiPendingPage() {
                 )}
               </div>
 
-              {/* Konter Filter */}
-              <Select
-                options={konterOptions}
-                value={selectedKonter}
-                onChange={setSelectedKonter}
-                placeholder="Pilih Konter"
-                className="w-full sm:w-48"
-              />
+              {/* Konter Filter - Admin only, Operator sees locked konter */}
+              {profile?.role === "admin" ? (
+                <Select
+                  options={konterOptions}
+                  value={selectedKonter}
+                  onChange={setSelectedKonter}
+                  placeholder="Pilih Konter"
+                  className="w-full sm:w-48"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Konter:</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {namaKonter(konterEfektif)}
+                  </span>
+                </div>
+              )}
 
               {/* Status Filter */}
               <Select
@@ -741,51 +699,41 @@ export default function TransaksiPendingPage() {
       )}
 
       {/* Transaction Table */}
-      <Card>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
         {loading ? (
-          <CardContent className="pt-6">
-            <TableSkeleton rows={5} columns={7} />
-          </CardContent>
+          <div className="space-y-3 p-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 px-6 py-4 rounded-xl bg-gray-50/50"
+              >
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-4 w-20 ml-auto" />
+              </div>
+            ))}
+          </div>
         ) : transactions.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <Table className="min-w-[870px]">
-                <TableHeader>
-                  <TableRow className="bg-surface-secondary/50 border-b border-border">
-                    <SortableTableHead
-                      sortable
-                      sorted={sortField === "waktu" ? sortDirection : null}
-                      onSort={() => handleSort("waktu")}
-                      className="w-[110px] min-w-[110px] max-w-[110px]"
-                    >
+              <table className="w-full min-w-[820px]">
+                <thead>
+                  <tr className="text-left text-xs text-gray-400 uppercase tracking-wide">
+                    <th className="px-6 py-3 font-medium whitespace-nowrap">
                       Waktu
-                    </SortableTableHead>
-                    <TableHead className="w-[140px] min-w-[140px] max-w-[140px]">
-                      Konter
-                    </TableHead>
-                    <TableHead className="w-[260px] min-w-[260px] max-w-[260px]">
-                      Produk
-                    </TableHead>
-                    <TableHead className="w-[100px] min-w-[100px] max-w-[100px]">
-                      Tujuan
-                    </TableHead>
-                    <SortableTableHead
-                      sortable
-                      sorted={sortField === "nominal" ? sortDirection : null}
-                      onSort={() => handleSort("nominal")}
-                      className="w-[120px] min-w-[120px] max-w-[120px] text-right"
-                    >
+                    </th>
+                    <th className="px-6 py-3 font-medium">Konter</th>
+                    <th className="px-6 py-3 font-medium">Produk</th>
+                    <th className="px-6 py-3 font-medium">Tujuan</th>
+                    <th className="px-6 py-3 font-medium text-right">
                       Nominal
-                    </SortableTableHead>
-                    <TableHead className="w-[90px] min-w-[90px] max-w-[90px] text-center">
-                      Status
-                    </TableHead>
-                    <TableHead className="w-[50px] min-w-[50px] max-w-[50px] text-center">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                    </th>
+                    <th className="px-6 py-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {transactions.map((trx) => {
                     const tampilan = getTampilanTransaksi(
                       trx.produk.kategori,
@@ -793,78 +741,55 @@ export default function TransaksiPendingPage() {
                       trx.produk.nama,
                     );
                     return (
-                      <TableRow
+                      <tr
                         key={trx.id}
-                        className={`${trx.perluReview ? "bg-yellow-50" : ""} hover:bg-surface-hover/50 transition-colors border-t border-border-subtle`}
+                        onClick={() => setSelectedTransaction(trx)}
+                        className={`border-t border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer ${trx.perluReview ? "bg-yellow-50/50" : ""}`}
                       >
-                        <TableCell className="whitespace-nowrap py-4 min-w-[110px] max-w-[110px]">
+                        <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                           <div className="flex flex-col">
-                            <p className="text-sm font-medium text-text-primary">
-                              {formatWaktu(trx.waktu)}
-                            </p>
+                            <span className="text-sm font-medium text-gray-900">
+                              {formatTanggal(trx.waktu)}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatJam(trx.waktu)}
+                            </span>
                           </div>
-                        </TableCell>
-                        <TableCell className="py-4 min-w-[140px] max-w-[140px]">
-                          <p className="text-sm text-text-primary truncate">
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <span className="w-6 h-6 rounded bg-blue-50 flex items-center justify-center text-xs">
+                              🏪
+                            </span>
                             {trx.konterNama}
-                          </p>
-                        </TableCell>
-                        <TableCell className="py-4 min-w-[260px] max-w-[260px]">
-                          <div className="flex items-center gap-2 min-w-0">
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center gap-2 text-sm text-gray-900 font-medium">
                             <LogoBrand
                               namaProduk={trx.produk.nama}
                               jenisTransaksi={trx.produk.kategori}
                               providerSeluler={trx.providerSeluler}
                               size={24}
                             />
-                            <div className="min-w-0 flex-1 flex flex-col gap-1">
-                              <span className="text-sm text-text-primary truncate">
-                                {getDisplayProductName(
+                            {tampilan.tampilkanNamaProduk
+                              ? getDisplayProductName(
                                   trx.produk.kategori,
                                   trx.produk.nama,
                                   trx.providerSeluler,
-                                )}
-                              </span>
-                              {trx.produk.kategori === "pulsa" &&
-                                !trx.produk.nama && (
-                                  <span className="text-sm text-text-primary truncate">
-                                    Isi Ulang Pulsa
-                                  </span>
-                                )}
-                              {tampilan.tampilkanProviderSeluler &&
-                                trx.providerSeluler && (
-                                  <span className="text-xs text-text-tertiary">
-                                    {trx.providerSeluler}
-                                  </span>
-                                )}
-                              <span className="text-xs text-text-tertiary">
-                                {tampilan.labelJenisTransaksi}
-                              </span>
-                              {trx.perluReview && (
-                                <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 text-[10px] font-semibold rounded">
-                                  PERLU REVIEW
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-4 min-w-[100px] max-w-[100px]">
-                          {tampilan.tampilkanNomorTujuan && trx.nomorTujuan ? (
-                            <span className="text-sm text-text-primary font-mono truncate block">
-                              {trx.nomorTujuan}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-text-tertiary">
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-right py-4 font-data min-w-[120px] max-w-[120px]">
-                          <p className="text-sm font-medium text-text-primary">
-                            {formatRupiah(trx.nominal)}
-                          </p>
-                        </TableCell>
-                        <TableCell className="py-4 text-center min-w-[90px] max-w-[90px]">
+                                )
+                              : tampilan.labelJenisTransaksi}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {tampilan.tampilkanNomorTujuan && trx.nomorTujuan
+                            ? trx.nomorTujuan
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-900 text-right whitespace-nowrap font-data">
+                          {formatRupiah(trx.nominal)}
+                        </td>
+                        <td className="px-6 py-4">
                           <Badge
                             variant={
                               trx.status === "sukses"
@@ -875,56 +800,38 @@ export default function TransaksiPendingPage() {
                             }
                             size="sm"
                             dot
-                            className="w-full justify-center"
                           >
-                            {STATUS_LABELS[trx.status]}
+                            {trx.status.charAt(0).toUpperCase() +
+                              trx.status.slice(1)}
                           </Badge>
                           {trx.errorMessage && (
                             <p
-                              className="text-xs text-text-tertiary mt-1 truncate"
+                              className="text-xs text-gray-400 mt-1 truncate"
                               title={trx.errorMessage}
                             >
                               {trx.errorMessage}
                             </p>
                           )}
-                        </TableCell>
-                        <TableCell className="py-4 text-center min-w-[50px] max-w-[50px]">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedTransaction(trx)}
-                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                            title="Lihat Detail"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     );
                   })}
-                </TableBody>
-                {/* Total Row */}
-                <TableRow className="bg-surface-secondary/50 font-semibold border-t border-border">
-                  <TableCell colSpan={4} className="text-right py-4">
-                    <span className="text-sm font-semibold text-text-primary">
-                      Total {transactions.length} Transaksi
-                    </span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-right py-4 font-data min-w-[120px] max-w-[120px]">
-                    <p className="text-sm font-bold text-blue-600">
-                      {formatRupiah(
-                        transactions.reduce((sum, trx) => sum + trx.nominal, 0),
-                      )}
-                    </p>
-                  </TableCell>
-                  <TableCell className="py-4 min-w-[90px] max-w-[90px]"></TableCell>
-                  <TableCell className="py-4 min-w-[50px] max-w-[50px]"></TableCell>
-                </TableRow>
-              </Table>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Info Bar */}
+            <div className="flex items-center justify-between px-6 py-4 text-sm text-gray-500 border-t border-gray-100">
+              <span>Total {transactions.length} transaksi</span>
+              <span className="font-semibold text-gray-900 font-data">
+                {formatRupiah(
+                  transactions.reduce((sum, trx) => sum + trx.nominal, 0),
+                )}
+              </span>
             </div>
 
             {/* Pagination */}
-            <div className="px-6 py-4 border-t border-border-subtle">
+            <div className="px-6 py-4 border-t border-gray-100">
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -935,21 +842,21 @@ export default function TransaksiPendingPage() {
             </div>
           </>
         ) : (
-          <CardContent className="pt-6">
+          <div className="p-12">
             <EmptyState
-              icon={<Receipt className="h-6 w-6 text-text-tertiary" />}
-              title="Tidak ada transaksi pending/gagal ditemukan"
+              icon={<Receipt className="h-6 w-6 text-gray-400" />}
+              title="Tidak ada transaksi ditemukan"
               description={
                 hasActiveFilters
                   ? "Coba ubah atau hapus filter untuk melihat transaksi"
-                  : "Tidak ada transaksi dengan status pending atau gagal saat ini."
+                  : "Belum ada transaksi. Transaksi akan muncul saat ada aktivitas konter."
               }
               actionLabel={hasActiveFilters ? "Hapus Filter" : undefined}
               onAction={hasActiveFilters ? clearFilters : undefined}
             />
-          </CardContent>
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* Transaction Detail Modal */}
       {selectedTransaction && (

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, DM_Sans, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-display",
@@ -24,30 +23,11 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "KBF Cell",
-    template: "%s | KBF Cell",
-  },
-  description:
-    "Monitoring transaksi harian untuk 3 konter pulsa — omzet, jumlah transaksi, status perangkat, dan laporan lengkap.",
-  applicationName: "KBF Cell",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "KBF Cell",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  icons: {
-    icon: "/logo_kbf.png",
-    shortcut: "/logo_kbf.png",
-    apple: "/logo_kbf.png",
-  },
-  manifest: "/site.webmanifest",
+  title: "Masuk | KBF Cell",
+  description: "Login ke KBF Cell Dashboard",
 };
 
-export default function RootLayout({
+export default function LoginLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;

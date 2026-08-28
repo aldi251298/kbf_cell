@@ -27,6 +27,7 @@ import { Skeleton, CardSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { LogoBrand } from "@/components/ui/LogoBrand";
+import { useUserProfile } from "@/lib/useUserProfile";
 import {
   WalletCards,
   ChartNoAxesCombined,
@@ -36,6 +37,7 @@ import {
   ExternalLink,
   X,
   Store,
+  User,
 } from "lucide-react";
 
 // Items per page for riwayat transaksi
@@ -237,7 +239,18 @@ function TransactionDetailModal({
   );
 }
 
+function namaKonter(id: string | null | undefined): string {
+  if (!id) return "—";
+  const map: Record<string, string> = {
+    "KONTER-001": "KBF Cell Pasar Baru",
+    "KONTER-002": "Konter 2",
+    "KONTER-003": "Konter 3",
+  };
+  return map[id] ?? id;
+}
+
 export default function DashboardPage() {
+  const { profile, loading: profileLoading } = useUserProfile();
   const [ringkasan, setRingkasan] = useState<RingkasanHarianWithSaldo | null>(
     null,
   );
@@ -253,6 +266,13 @@ export default function DashboardPage() {
   const [waktuSaldoAlpines, setWaktuSaldoAlpines] = useState<string | null>(
     null,
   );
+
+  // Filter state for konter (admin only)
+  const [filterKonter, setFilterKonter] = useState<string>("semua");
+
+  // Effective konter filter based on role
+  const konterEfektif =
+    profile?.role === "operator" ? profile.konterId! : filterKonter;
 
   // Pagination state for riwayat transaksi
   const [riwayatPage, setRiwayatPage] = useState(1);
@@ -288,14 +308,21 @@ export default function DashboardPage() {
 
   // Initial fetch on mount
   useEffect(() => {
+    if (profileLoading) return;
     let mounted = true;
     const initFetch = async () => {
       try {
         const [ringkasanData, perbandinganData, riwayatData] =
           await Promise.all([
-            getRingkasanHariIni(),
-            getPerbandinganRingkasan(),
-            getTransaksiHariIniService(),
+            getRingkasanHariIni(
+              konterEfektif === "semua" ? undefined : konterEfektif,
+            ),
+            getPerbandinganRingkasan(
+              konterEfektif === "semua" ? undefined : konterEfektif,
+            ),
+            getTransaksiHariIniService(
+              konterEfektif === "semua" ? undefined : konterEfektif,
+            ),
           ]);
 
         if (mounted) {
@@ -323,19 +350,26 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [profile, profileLoading, konterEfektif]);
 
   // Also refetch Alpines balance when day changes (to catch new transactions)
   // Now handled by fetchDashboardData which calls getRingkasanHariIni() that includes saldo
 
   // Fetch dashboard summary data (for day change refetch)
   const fetchDashboardData = useCallback(async () => {
+    if (profileLoading) return;
     setLoading(true);
     try {
       const [ringkasanData, perbandinganData, riwayatData] = await Promise.all([
-        getRingkasanHariIni(),
-        getPerbandinganRingkasan(),
-        getTransaksiHariIniService(),
+        getRingkasanHariIni(
+          konterEfektif === "semua" ? undefined : konterEfektif,
+        ),
+        getPerbandinganRingkasan(
+          konterEfektif === "semua" ? undefined : konterEfektif,
+        ),
+        getTransaksiHariIniService(
+          konterEfektif === "semua" ? undefined : konterEfektif,
+        ),
       ]);
       setRingkasan(ringkasanData);
       setPerbandingan(perbandinganData);
@@ -352,10 +386,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [konterEfektif, profileLoading]);
 
   // Fetch riwayat transaksi when page changes (for today's transactions only)
   useEffect(() => {
+    if (profileLoading) return;
     let cancelled = false;
     const fetchRiwayat = async () => {
       try {
@@ -365,6 +400,7 @@ export default function DashboardPage() {
           todayWIB,
           riwayatPage,
           ITEMS_PER_PAGE,
+          { konterId: konterEfektif === "semua" ? undefined : konterEfektif },
         );
         if (!cancelled) {
           setRiwayatTransactions(result.data);
@@ -379,7 +415,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [riwayatPage]);
+  }, [riwayatPage, konterEfektif, profileLoading]);
 
   // Realtime subscription for new transactions
   useTransaksiRealtime(
@@ -392,6 +428,14 @@ export default function DashboardPage() {
 
         const trxTime = new Date(newTrx.waktu).getTime();
         if (trxTime >= awalUTC.getTime() && trxTime <= akhirUTC.getTime()) {
+          // For operator, only process if it's their konter
+          if (
+            profile?.role === "operator" &&
+            newTrx.konterId !== profile.konterId
+          ) {
+            return;
+          }
+
           // Update ringkasan (summary) - increment counts
           setRingkasan((prev) => {
             if (!prev) return prev;
@@ -482,7 +526,7 @@ export default function DashboardPage() {
           setTotalRiwayatItems((prev) => prev + 1);
         }
       },
-      [riwayatPage],
+      [riwayatPage, profile],
     ),
     true,
   );
@@ -618,6 +662,42 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Filter Konter (Admin only) */}
+      {profile?.role === "admin" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">
+              Filter Konter:
+            </span>
+            <select
+              value={filterKonter}
+              onChange={(e) => setFilterKonter(e.target.value)}
+              className="border rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="semua">Semua Konter</option>
+              <option value="KONTER-001">
+                KONTER-001 (KBF Cell Pasar Baru)
+              </option>
+              <option value="KONTER-002">KONTER-002</option>
+              <option value="KONTER-003">KONTER-003</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Operator info display */}
+      {profile?.role === "operator" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center gap-3">
+            <User className="h-5 w-5 text-gray-400" />
+            <span className="text-sm text-gray-500">Konter:</span>
+            <span className="text-sm font-medium text-gray-900">
+              {namaKonter(profile.konterId)}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Riwayat Transaksi Terakhir */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100">

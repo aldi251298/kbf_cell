@@ -39,14 +39,18 @@ function getTodayWIBDateString(): string {
 /**
  * Get today's summary (WIB timezone).
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
+ * @param konterId - Optional konter ID to filter by (for operator role)
  */
-export async function getRingkasanHariIni(): Promise<RingkasanHarianWithSaldo> {
+export async function getRingkasanHariIni(
+  konterId?: string,
+): Promise<RingkasanHarianWithSaldo> {
   const todayWIB = getTodayWIBDateString();
   const { awalUTC, akhirUTC } = getRentangWaktuWIB(todayWIB, todayWIB);
 
   const params = new URLSearchParams();
   params.set("startDate", awalUTC.toISOString());
   params.set("endDate", akhirUTC.toISOString());
+  if (konterId) params.set("konterId", konterId);
 
   const res = await fetch(`/api/ringkasan?${params.toString()}`, {
     cache: "no-store",
@@ -59,9 +63,11 @@ export async function getRingkasanHariIni(): Promise<RingkasanHarianWithSaldo> {
  * Get summary for specific date.
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
  * @param tanggal - Target date (assumed to be in WIB/local timezone)
+ * @param konterId - Optional konter ID to filter by (for operator role)
  */
 export async function getRingkasanByTanggal(
   tanggal: Date,
+  konterId?: string,
 ): Promise<RingkasanHarianWithSaldo> {
   // Use WIB date components to avoid UTC date extraction bug
   const year = tanggal.getUTCFullYear();
@@ -74,6 +80,7 @@ export async function getRingkasanByTanggal(
   const params = new URLSearchParams();
   params.set("startDate", awalUTC.toISOString());
   params.set("endDate", akhirUTC.toISOString());
+  if (konterId) params.set("konterId", konterId);
 
   const res = await fetch(`/api/ringkasan?${params.toString()}`, {
     cache: "no-store",
@@ -87,16 +94,19 @@ export async function getRingkasanByTanggal(
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
  * @param tanggalMulai - Start date in YYYY-MM-DD format (WIB)
  * @param tanggalAkhir - End date in YYYY-MM-DD format (WIB)
+ * @param konterId - Optional konter ID to filter by (for operator role)
  */
 export async function getRingkasanByDateRange(
   tanggalMulai: string,
   tanggalAkhir: string,
+  konterId?: string,
 ): Promise<RingkasanHarian[]> {
   const { awalUTC, akhirUTC } = getRentangWaktuWIB(tanggalMulai, tanggalAkhir);
 
   const params = new URLSearchParams();
   params.set("startDate", awalUTC.toISOString());
   params.set("endDate", akhirUTC.toISOString());
+  if (konterId) params.set("konterId", konterId);
 
   const res = await fetch(`/api/ringkasan?${params.toString()}`, {
     cache: "no-store",
@@ -128,8 +138,9 @@ export async function getRingkasanPeriodeService(
 /**
  * Get summary comparison (today vs yesterday).
  * Uses centralized getRentangWaktuWIB utility for correct date range handling.
+ * @param konterId - Optional konter ID to filter by (for operator role)
  */
-export async function getPerbandinganRingkasan(): Promise<{
+export async function getPerbandinganRingkasan(konterId?: string): Promise<{
   today: RingkasanHarianWithSaldo;
   yesterday: RingkasanHarianWithSaldo;
   perubahan: {
@@ -143,8 +154,8 @@ export async function getPerbandinganRingkasan(): Promise<{
   const yesterdayWIB = yesterday.toISOString().split("T")[0];
 
   const [todayData, yesterdayData] = await Promise.all([
-    getRingkasanByTanggal(new Date(todayWIB + "T00:00:00")),
-    getRingkasanByTanggal(new Date(yesterdayWIB + "T00:00:00")),
+    getRingkasanByTanggal(new Date(todayWIB + "T00:00:00"), konterId),
+    getRingkasanByTanggal(new Date(yesterdayWIB + "T00:00:00"), konterId),
   ]);
 
   return {

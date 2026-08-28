@@ -139,7 +139,8 @@ export async function ambilRingkasanLaporan(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsWithKonter = rows.map((r: any) => ({
     ...r,
-    konter_nama: konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
+    konter_nama:
+      konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
   }));
 
   const totalOmzet = rowsWithKonter.reduce((t, r) => t + (r.nominal ?? 0), 0);
@@ -177,7 +178,8 @@ export async function ambilTrenHarian(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsWithKonter = rows.map((r: any) => ({
     ...r,
-    konter_nama: konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
+    konter_nama:
+      konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
   }));
 
   const grouped = new Map<
@@ -219,7 +221,8 @@ export async function ambilBreakdownJenisTransaksi(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsWithKonter = rows.map((r: any) => ({
     ...r,
-    konter_nama: konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
+    konter_nama:
+      konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
   }));
 
   const grouped = new Map<
@@ -278,7 +281,8 @@ export async function ambilPerbandinganKonter(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsWithKonter = rows.map((r: any) => ({
     ...r,
-    konter_nama: konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
+    konter_nama:
+      konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
   }));
 
   const grouped = new Map<
@@ -341,7 +345,8 @@ export async function ambilTopProduk(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsWithKonter = rows.map((r: any) => ({
     ...r,
-    konter_nama: konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
+    konter_nama:
+      konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
   }));
 
   const grouped = new Map<
@@ -380,7 +385,8 @@ export async function ambilDistribusiJam(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsWithKonter = rows.map((r: any) => ({
     ...r,
-    konter_nama: konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
+    konter_nama:
+      konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
   }));
 
   const grouped = new Map<number, number>();
@@ -444,7 +450,8 @@ export async function ambilTransaksiUntukExport(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsWithKonter = rows.map((r: any) => ({
     ...r,
-    konter_nama: konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
+    konter_nama:
+      konterMap.get(r.konter_id ?? "") ?? r.konter_id ?? "Tidak diketahui",
   }));
 
   return rowsWithKonter.map((r) => ({
