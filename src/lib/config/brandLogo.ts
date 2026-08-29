@@ -150,10 +150,11 @@ export function deteksiOperatorSeluler(
  */
 export function getBrandLogo(
   namaProduk: string | null | undefined,
-  jenisTransaksi: string,
+  jenisTransaksi: string | null | undefined,
   providerSeluler?: string | null,
 ): string | null {
-  const jt = jenisTransaksi.toLowerCase();
+  // Defensive: handle null/undefined jenisTransaksi
+  const jt = jenisTransaksi?.toLowerCase() ?? "";
 
   // Untuk jenis yang terkait operator seluler: gunakan deteksi operator
   if (

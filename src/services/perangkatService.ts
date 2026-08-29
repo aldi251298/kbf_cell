@@ -6,12 +6,13 @@
  */
 
 import type { Perangkat, RiwayatStatusPerangkat, Konter } from "@/types";
+import { apiFetch } from "@/lib/api-client";
 
 /**
  * Get all device statuses.
  */
 export async function getPerangkat(): Promise<Perangkat[]> {
-  const res = await fetch("/api/perangkat");
+  const res = await apiFetch("/api/perangkat");
   if (!res.ok) throw new Error("Gagal mengambil data perangkat.");
   return res.json();
 }
@@ -35,7 +36,7 @@ export async function getPerangkatHistory(
   konterId: string,
   days: number = 7,
 ): Promise<RiwayatStatusPerangkat> {
-  const res = await fetch(`/api/perangkat/${konterId}/history?days=${days}`);
+  const res = await apiFetch(`/api/perangkat/${konterId}/history?days=${days}`);
   if (!res.ok) throw new Error("Gagal mengambil riwayat perangkat.");
   return res.json();
 }
@@ -106,7 +107,7 @@ export function subscribePerangkatStatus(
  * Get all counter (konter) list.
  */
 export async function getKonterList(): Promise<Konter[]> {
-  const res = await fetch("/api/konter");
+  const res = await apiFetch("/api/konter");
   if (!res.ok) throw new Error("Gagal mengambil data konter.");
   return res.json();
 }

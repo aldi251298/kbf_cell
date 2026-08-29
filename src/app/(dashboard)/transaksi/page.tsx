@@ -29,6 +29,7 @@ import { STATUS_LABELS } from "@/constants/statusTransaksi";
 import { getKonterList } from "@/services";
 import type { Konter } from "@/types";
 import { useUserProfile } from "@/lib/useUserProfile";
+import { apiFetch } from "@/lib/api-client";
 
 // Constants
 const ITEMS_PER_PAGE = 20;
@@ -340,7 +341,7 @@ export default function TransaksiPage() {
   useEffect(() => {
     const fetchDynamicCategories = async () => {
       try {
-        const res = await fetch("/api/kategori-dinamis");
+        const res = await apiFetch("/api/kategori-dinamis");
         if (res.ok) {
           const json = await res.json();
           setDynamicCategories(json.data ?? []);

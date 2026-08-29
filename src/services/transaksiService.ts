@@ -13,6 +13,7 @@ import type {
   KategoriTransaksi,
 } from "@/types";
 import { getRentangWaktuWIB } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-client";
 
 /** Input form data for manual transaction. */
 export interface TransaksiInputData {
@@ -66,7 +67,7 @@ function filtersToParams(
 export async function addTransaksiManual(
   data: TransaksiInputData,
 ): Promise<Transaksi> {
-  const res = await fetch("/api/transaksi/manual", {
+  const res = await apiFetch("/api/transaksi/manual", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -96,7 +97,7 @@ export async function getTransaksi(
     params.set("startDate", start.toISOString());
   }
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+  const res = await apiFetch(`/api/transaksi?${params.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Gagal mengambil data transaksi.");
@@ -121,7 +122,7 @@ export async function getTransaksiHariIniService(
   params.set("limit", "1000");
   if (konterId) params.set("konterId", konterId);
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+  const res = await apiFetch(`/api/transaksi?${params.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Gagal mengambil transaksi hari ini.");
@@ -157,7 +158,7 @@ export async function getTransaksiByDateRange(
   if (endDate) params.set("endDate", endDate.toISOString());
   params.set("limit", "10000");
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+  const res = await apiFetch(`/api/transaksi?${params.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok)
@@ -216,7 +217,7 @@ export async function getTransaksiPaginatedByDateRange(
   params.set("page", String(page));
   params.set("limit", String(limit));
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+  const res = await apiFetch(`/api/transaksi?${params.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Gagal mengambil data transaksi.");
@@ -263,7 +264,7 @@ export async function getTransaksiPaginated(
   params.set("page", String(page));
   params.set("limit", String(limit));
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`, {
+  const res = await apiFetch(`/api/transaksi?${params.toString()}`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error("Gagal mengambil data transaksi.");
@@ -319,7 +320,7 @@ export async function exportTransaksiExcel(
     params.set("sortOrder", "asc");
   }
 
-  const res = await fetch(`/api/transaksi?${params.toString()}`);
+  const res = await apiFetch(`/api/transaksi?${params.toString()}`);
   if (!res.ok) throw new Error("Gagal mengambil data untuk export.");
   const json = await res.json();
   const filteredData: Transaksi[] = json.data;

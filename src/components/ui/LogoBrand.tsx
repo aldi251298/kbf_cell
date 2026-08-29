@@ -7,7 +7,7 @@ import Image from "next/image";
 
 interface LogoBrandProps {
   namaProduk: string | null | undefined;
-  jenisTransaksi: string;
+  jenisTransaksi: string | null | undefined;
   providerSeluler?: string | null;
   className?: string;
   size?: number; // default 32px

@@ -30,6 +30,7 @@ import {
 } from "@/lib/notificationGenerator";
 import { Copy, Send, History, RotateCcw, Zap, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api-client";
 
 type TimestampOption = "current" | "custom" | "random";
 
@@ -208,7 +209,7 @@ export default function TransactionSimulator() {
     startTimeRef.current = Date.now();
 
     try {
-      const response = await fetch("/api/ingest/transaksi", {
+      const response = await apiFetch("/api/ingest/transaksi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(generatedNotification.payload),

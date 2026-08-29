@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
+import { apiFetch } from "@/lib/api-client";
 
 const DAFTAR_KONTER = [
   { id: "KONTER-001", nama: "KBF Cell Pasar Baru" },
@@ -114,7 +115,7 @@ export default function FormTransaksiManual() {
     setErrorMessage("");
 
     try {
-      const res = await fetch("/api/transaksi/manual", {
+      const res = await apiFetch("/api/transaksi/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
