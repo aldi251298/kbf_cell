@@ -13,6 +13,10 @@ export async function middleware(req: NextRequest) {
 
   if (isApiIngest) return res;
 
+  // API routes (other than ingest/health) should return 401 JSON, not redirect
+  // This allows client-side apiFetch()/isSessionExpired() to detect auth expiry properly
+  const isApiRoute = req.nextUrl.pathname.startsWith("/api/");
+
   const isLoginPage = req.nextUrl.pathname === "/login";
 
   const supabase = createServerClient(
@@ -39,6 +43,14 @@ export async function middleware(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user && !isLoginPage) {
+    // For API routes: return 401 JSON so client can handle it (refresh token, show expired UI, etc.)
+    if (isApiRoute) {
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Session expired" },
+        { status: 401 },
+      );
+    }
+    // For page routes: redirect to login
     return NextResponse.redirect(new URL("/login", req.url));
   }
   if (user && isLoginPage) {

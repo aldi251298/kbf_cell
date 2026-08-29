@@ -63,7 +63,10 @@ function getStatusBadgeVariant(
   }
 }
 
-function getCategoryBadgeColor(kategori: string): string {
+function getCategoryBadgeColor(kategori: string | undefined | null): string {
+  // Defensive: handle null/undefined kategori
+  if (!kategori) return "bg-gray-50 text-gray-700";
+
   switch (kategori) {
     case "pulsa":
       return "bg-blue-50 text-blue-700";

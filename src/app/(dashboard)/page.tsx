@@ -67,7 +67,10 @@ function TransactionDetailModal({
     }
   };
 
-  const getCategoryBadgeColor = (kategori: string) => {
+  const getCategoryBadgeColor = (kategori: string | undefined | null) => {
+    // Defensive: handle null/undefined kategori
+    if (!kategori) return "bg-gray-50 text-gray-700 border-gray-100";
+
     switch (kategori) {
       case "pulsa":
         return "bg-blue-50 text-blue-700 border-blue-100";

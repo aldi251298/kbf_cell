@@ -156,11 +156,12 @@ export interface TampilanTransaksi {
 }
 
 export function getTampilanTransaksi(
-  jenisTransaksi: string,
+  jenisTransaksi: string | undefined | null,
   nomorTujuan?: string | null,
   namaProduk?: string | null,
 ): TampilanTransaksi {
-  const jt = jenisTransaksi.toLowerCase();
+  // Defensive: handle null/undefined jenisTransaksi
+  const jt = jenisTransaksi?.toLowerCase() ?? "";
 
   // Default values
   let labelNomorTujuan = "Nomor Tujuan";
@@ -397,10 +398,13 @@ export function getTodayWIBDateString(): string {
 // combining provider and product name for voucher_fisik transactions.
 // ---------------------------------------------------------------------------
 export function getDisplayProductName(
-  kategori: string,
+  kategori: string | undefined | null,
   namaProduk: string | null | undefined,
   providerSeluler?: string | null,
 ): string {
+  // Defensive: handle null/undefined kategori
+  if (!kategori) return namaProduk ?? "-";
+
   // For voucher_fisik, combine provider and product name
   if (kategori === "voucher_fisik" && providerSeluler) {
     const produkPart = namaProduk?.trim() ? ` - ${namaProduk.trim()}` : "";
@@ -414,7 +418,10 @@ export function getDisplayProductName(
 // to human-readable label for display/export.
 // Single source of truth used by dashboard components and export logic.
 // ---------------------------------------------------------------------------
-export function getKategoriLabel(kategori: string): string {
+export function getKategoriLabel(kategori: string | undefined | null): string {
+  // Defensive: handle null/undefined kategori
+  if (!kategori) return "Transaksi";
+
   const labelMap: Record<string, string> = {
     pulsa: "Pulsa",
     paket_nelpon: "Paket Nelpon/SMS",

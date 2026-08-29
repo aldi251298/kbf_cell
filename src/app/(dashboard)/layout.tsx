@@ -3,6 +3,7 @@
 import { DashboardLayout } from "@/components/layout/layout";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { SessionExpired } from "@/components/auth/SessionExpired";
+import { ErrorBoundaryWrapper } from "@/components/auth/ErrorBoundary";
 import { ReactNode } from "react";
 
 function DashboardContent({ children }: { children: ReactNode }) {
@@ -30,7 +31,9 @@ export default function DashboardLayoutWrapper({
 }>) {
   return (
     <AuthProvider>
-      <DashboardContent>{children}</DashboardContent>
+      <ErrorBoundaryWrapper>
+        <DashboardContent>{children}</DashboardContent>
+      </ErrorBoundaryWrapper>
     </AuthProvider>
   );
 }

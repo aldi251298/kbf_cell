@@ -91,10 +91,13 @@ export const ICON_JENIS_TRANSAKSI: Record<
  * Ambil icon & warna untuk jenis transaksi.
  * Fallback ke HelpCircle + muted foreground kalau tidak ditemukan.
  */
-export function getIconJenisTransaksi(jenisTransaksi: string): {
+export function getIconJenisTransaksi(
+  jenisTransaksi: string | undefined | null,
+): {
   icon: LucideIcon;
   warna: string;
 } {
-  const key = jenisTransaksi.toLowerCase();
+  // Defensive: handle null/undefined jenisTransaksi
+  const key = jenisTransaksi?.toLowerCase() ?? "";
   return ICON_JENIS_TRANSAKSI[key] ?? ICON_JENIS_TRANSAKSI.belum_dikenal;
 }

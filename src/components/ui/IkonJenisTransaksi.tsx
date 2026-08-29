@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { getIconJenisTransaksi } from "@/lib/config/iconJenisTransaksi";
 
 interface IkonJenisTransaksiProps {
-  jenis: string;
+  jenis: string | undefined | null;
   className?: string;
   size?: number; // default 32px
 }

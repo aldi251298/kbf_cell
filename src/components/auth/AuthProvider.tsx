@@ -73,8 +73,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase, router]);
 
   // Function to handle session expiry - call this when API calls return 401
-  const handleSessionExpired = () => {
-    setSessionExpired(true);
+  // This will attempt to refresh the session first before showing expired UI
+  const handleSessionExpired = async () => {
+    try {
+      // Try to refresh the session first
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error || !data.session) {
+        // Refresh failed - session is truly expired
+        setSessionExpired(true);
+      }
+      // If refresh succeeded, onAuthStateChange will fire with TOKEN_REFRESHED
+      // and setSessionExpired(false) will be called automatically
+    } catch {
+      // Network error or other issue - show expired UI
+      setSessionExpired(true);
+    }
   };
 
   const value = {

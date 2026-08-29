@@ -79,7 +79,10 @@ function getStatusBadgeVariant(
   }
 }
 
-function getCategoryBadgeColor(kategori: string): string {
+function getCategoryBadgeColor(kategori: string | undefined | null): string {
+  // Defensive: handle null/undefined kategori
+  if (!kategori) return "bg-gray-50 text-gray-700";
+
   switch (kategori) {
     case "pulsa":
       return "bg-blue-50 text-blue-700";
@@ -115,6 +118,8 @@ function getCategoryBadgeColor(kategori: string): string {
       return "bg-blue-50 text-blue-700";
     case "keuangan":
       return "bg-emerald-50 text-emerald-700";
+    case "aksesoris":
+      return "bg-indigo-50 text-indigo-700";
     case "belum_dikenal":
       return "bg-yellow-50 text-yellow-700";
     default:
