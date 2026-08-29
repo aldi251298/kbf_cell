@@ -247,6 +247,12 @@ export function getTampilanTransaksi(
       labelJenisTransaksi = "Pulsa Operator";
       tampilkanProviderSeluler = true;
       break;
+    case "aksesoris":
+      labelNomorTujuan = "";
+      tampilkanNomorTujuan = false;
+      tampilkanNamaProduk = true;
+      labelJenisTransaksi = "Aksesoris";
+      break;
     case "game_topup":
     case "gametopup":
       labelNomorTujuan = "ID Game / User ID";
@@ -431,6 +437,7 @@ export function getKategoriLabel(kategori: string): string {
     p2p: "Transfer P2P",
     keuangan: "Keuangan",
     belum_dikenal: "Belum Dikenal",
+    aksesoris: "Aksesoris",
   };
 
   // Handle dynamic categories (lainnya_*)

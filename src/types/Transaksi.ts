@@ -22,6 +22,7 @@ export type KategoriTransaksi =
   | "gametopup"
   | "keuangan"
   | "belum_dikenal"
+  | "aksesoris"
   | `lainnya_${string}`;
 
 export interface TransaksiDetail {

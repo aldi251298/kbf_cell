@@ -14,6 +14,7 @@
   Waves,
   CreditCard as CreditCardIcon,
   Smartphone as SmartphoneIcon,
+  Package,
   LucideIcon,
 } from "lucide-react";
 
@@ -78,6 +79,9 @@ export const ICON_JENIS_TRANSAKSI: Record<
 
   // Data (alias paket_data) â€” Wifi, warna Accent
   data: { icon: Wifi, warna: "hsl(var(--accent))" },
+
+  // Aksesoris â€” Package, warna Card Balance (indigo)
+  aksesoris: { icon: Package, warna: "hsl(var(--card-balance))" },
 
   // Fallback untuk jenis yang belum dikenali
   belum_dikenal: { icon: HelpCircle, warna: "hsl(var(--muted-foreground))" },

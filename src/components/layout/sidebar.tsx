@@ -21,7 +21,7 @@ const MENU_ITEMS = [
     label: "Tambah Transaksi Manual",
     icon: PlusCircleIcon,
     href: "/transaksi-baru",
-    adminOnly: true,
+    adminOnly: false,
   },
   {
     label: "Riwayat Transaksi",
@@ -85,10 +85,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 px-4 space-y-1 mt-4">
           {!loading &&
-            profile &&
             MENU_ITEMS.map((item) => {
               // Hide admin-only items for operators
-              if (item.adminOnly && profile.role === "operator") {
+              if (item.adminOnly && profile?.role === "operator") {
                 return null;
               }
               const aktif =

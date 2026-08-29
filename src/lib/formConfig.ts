@@ -170,4 +170,23 @@ export const FORM_CONFIG_TRANSAKSI_MANUAL: FormConfigJenisTransaksi[] = [
       },
     ],
   },
+  {
+    jenisTransaksi: "aksesoris",
+    labelTampilan: "Aksesoris",
+    fields: [
+      {
+        key: "nama_produk",
+        label: "Nama Produk",
+        tipe: "teks_bebas",
+        placeholder: "mis. Casing HP, Kabel Data, Charger, Tempered Glass",
+        wajib: true,
+      },
+      {
+        key: "nominal",
+        label: "Harga Jual",
+        tipe: "angka_bebas",
+        wajib: true,
+      },
+    ],
+  },
 ];

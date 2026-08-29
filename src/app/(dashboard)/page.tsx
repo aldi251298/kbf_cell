@@ -85,6 +85,8 @@ function TransactionDetailModal({
         return "bg-pink-50 text-pink-700 border-pink-100";
       case "keuangan":
         return "bg-teal-50 text-teal-700 border-teal-100";
+      case "aksesoris":
+        return "bg-indigo-50 text-indigo-700 border-indigo-100";
       default:
         return "bg-gray-50 text-gray-700 border-gray-100";
     }

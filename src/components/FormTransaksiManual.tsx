@@ -49,6 +49,7 @@ const transactionIcons: Record<
   emoney: Wallet,
   voucher: CreditCard,
   qris: Package,
+  aksesoris: Package,
   default: Receipt,
 };
 

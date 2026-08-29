@@ -67,6 +67,7 @@ export function mapTransaksi(row: TransaksiRow): Transaksi {
     gametopup: "game_topup",
     keuangan: "keuangan",
     belum_dikenal: "belum_dikenal",
+    aksesoris: "aksesoris",
   };
 
   const jenis = row.jenis_transaksi;
@@ -148,6 +149,8 @@ function getDefaultProdukNama(jenis: string): string {
       return "Keuangan";
     case "belum_dikenal":
       return "Transaksi (Perlu Review)";
+    case "aksesoris":
+      return "Aksesoris";
     default:
       if (jenis.startsWith("lainnya_")) {
         // Format: "lainnya_wifi" -> "Wifi"
