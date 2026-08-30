@@ -6,6 +6,10 @@ import {
   apakahTransaksiPelanggan,
   apakahNotifikasiPendingAlpines,
 } from "@/lib/parser/universal";
+import {
+  parseTopUpWhatsAppAlpines,
+  apakahNotifikasiTopUpAlpines,
+} from "@/lib/parser/whatsappAlpines";
 import type { IngestTransaksiPayload } from "@/types/database";
 
 /**
@@ -44,8 +48,13 @@ export async function POST(req: NextRequest) {
   // 2. Validasi minimal (hanya ini, tidak lebih)
   const errors: string[] = [];
 
-  if (!body.provider || !["digipos", "alpines"].includes(body.provider)) {
-    errors.push("provider harus 'digipos' atau 'alpines'.");
+  if (
+    !body.provider ||
+    !["digipos", "alpines", "whatsapp_alpines"].includes(body.provider)
+  ) {
+    errors.push(
+      "provider harus 'digipos', 'alpines', atau 'whatsapp_alpines'.",
+    );
   }
   if (
     !body.konter_id ||
@@ -77,8 +86,48 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceRoleClient();
   const konterId = body.konter_id.trim();
   const waktuCapture = body.waktu_capture;
-  const provider = body.provider;
+  const provider = body.provider as "digipos" | "alpines" | "whatsapp_alpines";
   const rawNotificationText = body.raw_notification_text;
+
+  // === CABANG BARU & TERPISAH: WhatsApp Alpines Top-Up ===
+  // Ini SAMA SEKALI TIDAK menyentuh logic transaksi di bawahnya — return lebih awal.
+  if (provider === "whatsapp_alpines") {
+    if (!apakahNotifikasiTopUpAlpines(rawNotificationText)) {
+      // Bukan notifikasi top-up yang dikenali — simpan sebagai arsip diabaikan, jangan proses lebih lanjut
+      await supabase.from("notifikasi_diabaikan").insert({
+        provider,
+        konter_id: konterId,
+        raw_notification_text: rawNotificationText,
+        alasan: "whatsapp_bukan_topup_dikenal",
+        waktu_capture: waktuCapture,
+      });
+      return NextResponse.json({ success: true, data: { diabaikan: true } });
+    }
+
+    const hasil = parseTopUpWhatsAppAlpines(rawNotificationText);
+
+    const { error } = await supabase.from("pengisian_saldo_alpines").insert({
+      konter_id: konterId,
+      raw_notification_text: rawNotificationText,
+      nominal_penambahan: hasil.nominalPenambahan,
+      saldo_sebelum: hasil.saldoSebelum,
+      saldo_sesudah: hasil.saldoSesudah,
+      waktu_capture: waktuCapture,
+    });
+
+    if (error && error.code !== "23505") {
+      // 23505 = duplikat, sudah dicegah unique index, bukan error sungguhan
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: { tipe: "top_up_saldo", nominal: hasil.nominalPenambahan },
+    });
+  }
 
   // 3. CEK 1: Khusus Alpines pending — kalau true, STOP total, jangan proses apa pun lagi
   // Letakkan PALING AWAL, SEBELUM pisahkanSaldoAplikasi() dan SEBELUM apakahTransaksiPelanggan()

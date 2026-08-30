@@ -38,6 +38,7 @@ import {
   X,
   Store,
   User,
+  ChevronRight,
 } from "lucide-react";
 
 // Items per page for riwayat transaksi
@@ -638,7 +639,7 @@ export default function DashboardPage() {
                 <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
                 Aktif
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-blue-200">
+              <div className="flex items-center gap-1.5 text-xs text-blue-200 mb-4">
                 <Clock className="h-3.5 w-3.5" strokeWidth={2} />
                 <span>
                   {waktuSaldoAlpines
@@ -654,6 +655,12 @@ export default function DashboardPage() {
                     : "—"}
                 </span>
               </div>
+              <Link
+                href="/saldo-alpines/riwayat"
+                className="bg-white/20 text-white rounded-lg px-4 py-2 text-sm inline-flex items-center gap-1 hover:bg-white/30"
+              >
+                Lihat Detail Saldo <ChevronRight size={14} />
+              </Link>
             </div>
           </>
         ) : (

@@ -10,6 +10,7 @@ import {
   SmartphoneIcon,
   ShieldCheckIcon,
   X,
+  WalletCards,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -40,6 +41,12 @@ const MENU_ITEMS = [
     label: "Perangkat",
     icon: SmartphoneIcon,
     href: "/perangkat",
+    adminOnly: true,
+  },
+  {
+    label: "Riwayat Saldo Alpines",
+    icon: WalletCards,
+    href: "/saldo-alpines/riwayat",
     adminOnly: true,
   },
 ];

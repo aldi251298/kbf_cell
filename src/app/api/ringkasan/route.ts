@@ -4,6 +4,68 @@ import type { RingkasanHarian } from "@/types";
 import type { TransaksiRow, KonterRow } from "@/types/database";
 
 /**
+ * Ambil saldo Alpines terkini dari DUA sumber, bandingkan waktu, ambil yang paling baru.
+ * SUMBER 1 (LAMA): saldo dari transaksi Alpines terakhir (pengurangan) - detail_tambahan.saldo_konter.sesudah
+ * SUMBER 2 (BARU): saldo dari top-up WhatsApp terakhir - pengisian_saldo_alpines.saldo_sesudah
+ */
+async function ambilSaldoAlpinesTerkini(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  konterId?: string | null,
+): Promise<{ saldo: number; waktuTerakhir: string } | null> {
+  // SUMBER 1 (LAMA, TIDAK DIUBAH): saldo dari transaksi Alpines terakhir (pengurangan)
+  let queryTransaksi = supabase
+    .from("transaksi")
+    .select("detail_tambahan, waktu")
+    .eq("provider", "alpines")
+    .not("detail_tambahan->saldo_konter", "is", null)
+    .order("waktu", { ascending: false })
+    .limit(1);
+
+  if (konterId) {
+    queryTransaksi = queryTransaksi.eq("konter_id", konterId);
+  }
+
+  const { data: dataTransaksi } = await queryTransaksi.maybeSingle();
+
+  // SUMBER 2 (BARU): saldo dari top-up WhatsApp terakhir
+  let queryTopUp = supabase
+    .from("pengisian_saldo_alpines")
+    .select("saldo_sesudah, waktu_capture")
+    .order("waktu_capture", { ascending: false })
+    .limit(1);
+
+  if (konterId) {
+    queryTopUp = queryTopUp.eq("konter_id", konterId);
+  }
+
+  const { data: dataTopUp } = await queryTopUp.maybeSingle();
+
+  const kandidat: { saldo: number; waktuTerakhir: string }[] = [];
+
+  if (dataTransaksi?.detail_tambahan?.saldo_konter?.sesudah != null) {
+    kandidat.push({
+      saldo: dataTransaksi.detail_tambahan.saldo_konter.sesudah,
+      waktuTerakhir: dataTransaksi.waktu,
+    });
+  }
+  if (dataTopUp?.saldo_sesudah != null) {
+    kandidat.push({
+      saldo: dataTopUp.saldo_sesudah,
+      waktuTerakhir: dataTopUp.waktu_capture,
+    });
+  }
+
+  if (kandidat.length === 0) return null;
+
+  // Ambil yang waktunya PALING BARU di antara dua sumber
+  kandidat.sort(
+    (a, b) =>
+      new Date(b.waktuTerakhir).getTime() - new Date(a.waktuTerakhir).getTime(),
+  );
+  return kandidat[0];
+}
+
+/**
  * GET /api/ringkasan?tanggal=YYYY-MM-DD&hariKembali=30&perbandingan=true&konterId=KONTER-001
  *
  * Computes daily summaries server-side from the transaksi table. Because the
@@ -140,7 +202,7 @@ export async function GET(req: NextRequest) {
     const todayEnd = new Date(todayStart.getTime() + 86400000);
     const yesterdayEnd = new Date(yesterdayStart.getTime() + 86400000);
 
-    const [{ data: todayRows }, { data: yesterdayRows }, { data: saldoData }] =
+    const [{ data: todayRows }, { data: yesterdayRows }, saldoData] =
       await Promise.all([
         addKonterFilter(
           supabase
@@ -156,13 +218,7 @@ export async function GET(req: NextRequest) {
             .gte("waktu", yesterdayStart.toISOString())
             .lt("waktu", yesterdayEnd.toISOString()),
         ),
-        supabase
-          .from("transaksi")
-          .select("detail_tambahan, waktu")
-          .eq("provider", "alpines")
-          .order("waktu", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+        ambilSaldoAlpinesTerkini(supabase, konterIdParam),
       ]);
 
     const today = buildSummary(
@@ -182,11 +238,8 @@ export async function GET(req: NextRequest) {
           omzet: today.totalOmzet - yesterday.totalOmzet,
           transaksi: today.totalTransaksi - yesterday.totalTransaksi,
         },
-        saldoAlpinesTerkini:
-          saldoData?.detail_tambahan?.saldo_konter?.sesudah ??
-          saldoData?.detail_tambahan?.saldo_akhir ??
-          null,
-        waktuSaldoAlpinesTerkini: saldoData?.waktu ?? null,
+        saldoAlpinesTerkini: saldoData?.saldo ?? null,
+        waktuSaldoAlpinesTerkini: saldoData?.waktuTerakhir ?? null,
       },
       { headers: NO_STORE_HEADERS },
     );
@@ -207,7 +260,7 @@ export async function GET(req: NextRequest) {
       dayEnd = new Date(dayStart.getTime() + 86400000);
     }
 
-    const [{ data }, { data: saldoData }] = await Promise.all([
+    const [{ data }, saldoData] = await Promise.all([
       addKonterFilter(
         supabase
           .from("transaksi")
@@ -215,23 +268,14 @@ export async function GET(req: NextRequest) {
           .gte("waktu", dayStart.toISOString())
           .lt("waktu", dayEnd.toISOString()),
       ),
-      supabase
-        .from("transaksi")
-        .select("detail_tambahan, waktu")
-        .eq("provider", "alpines")
-        .order("waktu", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+      ambilSaldoAlpinesTerkini(supabase, konterIdParam),
     ]);
 
     return NextResponse.json(
       {
         ...buildSummary(dayStart, (data ?? []) as unknown as TransaksiRow[]),
-        saldoAlpinesTerkini:
-          saldoData?.detail_tambahan?.saldo_konter?.sesudah ??
-          saldoData?.detail_tambahan?.saldo_akhir ??
-          null,
-        waktuSaldoAlpinesTerkini: saldoData?.waktu ?? null,
+        saldoAlpinesTerkini: saldoData?.saldo ?? null,
+        waktuSaldoAlpinesTerkini: saldoData?.waktuTerakhir ?? null,
       },
       { headers: NO_STORE_HEADERS },
     );
@@ -245,7 +289,7 @@ export async function GET(req: NextRequest) {
   );
   const endDate = startOfDayWIB(new Date(now.getTime() + 86400000));
 
-  const [{ data }, { data: saldoData }] = await Promise.all([
+  const [{ data }, saldoData] = await Promise.all([
     addKonterFilter(
       supabase
         .from("transaksi")
@@ -254,13 +298,7 @@ export async function GET(req: NextRequest) {
         .lt("waktu", endDate.toISOString())
         .order("waktu", { ascending: true }),
     ),
-    supabase
-      .from("transaksi")
-      .select("detail_tambahan, waktu")
-      .eq("provider", "alpines")
-      .order("waktu", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    ambilSaldoAlpinesTerkini(supabase, konterIdParam),
   ]);
 
   const allRows = (data ?? []) as unknown as TransaksiRow[];
@@ -288,11 +326,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       summaries,
-      saldoAlpinesTerkini:
-        saldoData?.detail_tambahan?.saldo_konter?.sesudah ??
-        saldoData?.detail_tambahan?.saldo_akhir ??
-        null,
-      waktuSaldoAlpinesTerkini: saldoData?.waktu ?? null,
+      saldoAlpinesTerkini: saldoData?.saldo ?? null,
+      waktuSaldoAlpinesTerkini: saldoData?.waktuTerakhir ?? null,
     },
     { headers: NO_STORE_HEADERS },
   );
