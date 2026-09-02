@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { formatWaktu } from "@/lib/utils";
@@ -71,6 +70,13 @@ export default function HalamanRiwayatSaldoAlpines() {
         if (data) setKonterList(data as { id: string; nama: string }[]);
       });
   }, [supabase]);
+
+  // Create a Map from konter_id to konter_nama for display in table
+  const konterMap = useMemo(() => {
+    const map = new Map<string, string>();
+    konterList.forEach((k) => map.set(k.id, k.nama));
+    return map;
+  }, [konterList]);
 
   return (
     <div className="p-8">
@@ -143,7 +149,7 @@ export default function HalamanRiwayatSaldoAlpines() {
                         Rp{row.saldo_sesudah?.toLocaleString("id-ID")}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500 text-right">
-                        {row.konter_id}
+                        {konterMap.get(row.konter_id) ?? row.konter_id}
                       </td>
                     </tr>
                   ))}

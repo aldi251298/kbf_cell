@@ -248,9 +248,9 @@ function TransactionDetailModal({
 function namaKonter(id: string | null | undefined): string {
   if (!id) return "—";
   const map: Record<string, string> = {
-    "KONTER-001": "KBF Cell Pasar Baru",
-    "KONTER-002": "Konter 2",
-    "KONTER-003": "Konter 3",
+    "KONTER-001": "KBF CELL Pasar Baru",
+    "KONTER-002": "KBF CELL Jawi Jawi ",
+    "KONTER-003": "KBF CELL Cupak",
   };
   return map[id] ?? id;
 }
@@ -688,11 +688,9 @@ export default function DashboardPage() {
               className="border rounded-lg px-3 py-2 text-sm"
             >
               <option value="semua">Semua Konter</option>
-              <option value="KONTER-001">
-                KONTER-001 (KBF Cell Pasar Baru)
-              </option>
-              <option value="KONTER-002">KONTER-002</option>
-              <option value="KONTER-003">KONTER-003</option>
+              <option value="KONTER-001">KBF CELL Pasar Baru</option>
+              <option value="KONTER-002">KBF CELL Jawi Jawi</option>
+              <option value="KONTER-003">KBF CELL Cupak</option>
             </select>
           </div>
         </div>
