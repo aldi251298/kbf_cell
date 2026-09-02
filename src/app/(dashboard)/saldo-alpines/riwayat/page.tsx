@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface PengisianSaldoRow {
   id: string;
   konter_id: string;
+  konter_nama?: string;
   raw_notification_text: string;
   nominal_penambahan: number | null;
   saldo_sebelum: number | null;
@@ -32,7 +33,7 @@ export default function HalamanRiwayatSaldoAlpines() {
     try {
       let query = supabase
         .from("pengisian_saldo_alpines")
-        .select("*", { count: "exact" })
+        .select("*, konter:konter_id(id, nama)", { count: "exact" })
         .order("waktu_capture", { ascending: false })
         .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
 
@@ -44,7 +45,13 @@ export default function HalamanRiwayatSaldoAlpines() {
 
       if (error) throw error;
 
-      setRiwayat((data ?? []) as PengisianSaldoRow[]);
+      // Transform data to include konter_nama from the joined konter table
+      const transformedData = (data ?? []).map((row: any) => ({
+        ...row,
+        konter_nama: row.konter?.nama ?? row.konter_id,
+      }));
+
+      setRiwayat(transformedData as PengisianSaldoRow[]);
       setTotalPages(Math.ceil((count ?? 0) / ITEMS_PER_PAGE));
     } catch (error) {
       console.error("Gagal mengambil riwayat pengisian saldo:", error);
@@ -154,7 +161,7 @@ export default function HalamanRiwayatSaldoAlpines() {
                         Rp{row.saldo_sesudah?.toLocaleString("id-ID")}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500 text-right">
-                        {konterMap.get(row.konter_id) ?? row.konter_id}
+                        {row.konter_nama ?? row.konter_id}
                       </td>
                     </tr>
                   ))}
