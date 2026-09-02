@@ -42,13 +42,16 @@ async function ambilSaldoAlpinesTerkini(
 
   const kandidat: { saldo: number; waktuTerakhir: string }[] = [];
 
-  if (dataTransaksi?.detail_tambahan?.saldo_konter?.sesudah != null) {
+  if (
+    dataTransaksi?.detail_tambahan?.saldo_konter?.sesudah != null &&
+    dataTransaksi.waktu
+  ) {
     kandidat.push({
       saldo: dataTransaksi.detail_tambahan.saldo_konter.sesudah,
       waktuTerakhir: dataTransaksi.waktu,
     });
   }
-  if (dataTopUp?.saldo_sesudah != null) {
+  if (dataTopUp?.saldo_sesudah != null && dataTopUp.waktu_capture) {
     kandidat.push({
       saldo: dataTopUp.saldo_sesudah,
       waktuTerakhir: dataTopUp.waktu_capture,
@@ -57,12 +60,15 @@ async function ambilSaldoAlpinesTerkini(
 
   if (kandidat.length === 0) return null;
 
-  // Ambil yang waktunya PALING BARU di antara dua sumber
-  kandidat.sort(
+  // Tambahan penting: validasi tanggal sebelum sort, cegah Invalid Date lolos lagi di masa depan
+  const valid = kandidat.filter(
+    (k) => !isNaN(new Date(k.waktuTerakhir).getTime()),
+  );
+  valid.sort(
     (a, b) =>
       new Date(b.waktuTerakhir).getTime() - new Date(a.waktuTerakhir).getTime(),
   );
-  return kandidat[0];
+  return valid[0] ?? null;
 }
 
 /**

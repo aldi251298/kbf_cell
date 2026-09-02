@@ -22,6 +22,7 @@ export default function HalamanRiwayatSaldoAlpines() {
   const [konterId, setKonterId] = useState<string>("semua");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [konterLoading, setKonterLoading] = useState(true);
   const ITEMS_PER_PAGE = 20;
 
   const supabase = createClientComponentClient();
@@ -62,12 +63,14 @@ export default function HalamanRiwayatSaldoAlpines() {
   );
 
   useEffect(() => {
+    setKonterLoading(true);
     supabase
       .from("konter")
       .select("id, nama")
       .order("id")
       .then(({ data }) => {
         if (data) setKonterList(data as { id: string; nama: string }[]);
+        setKonterLoading(false);
       });
   }, [supabase]);
 
@@ -106,10 +109,12 @@ export default function HalamanRiwayatSaldoAlpines() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-        {loading ? (
+        {loading || konterLoading ? (
           <div className="p-12 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
-            <p className="mt-4 text-gray-500">Memuat riwayat...</p>
+            <p className="mt-4 text-gray-500">
+              {konterLoading ? "Memuat data konter..." : "Memuat riwayat..."}
+            </p>
           </div>
         ) : riwayat.length === 0 ? (
           <div className="p-12 text-center">

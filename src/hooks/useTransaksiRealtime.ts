@@ -37,6 +37,17 @@ export function useTransaksiRealtime(
         (payload) => {
           // Map the raw row to the domain Transaksi type inline (lightweight).
           const row = payload.new as Record<string, unknown>;
+          const detailTambahan = row.detail_tambahan as Record<
+            string,
+            unknown
+          > | null;
+          const saldoAkhir =
+            row.provider === "alpines" && detailTambahan?.saldo_konter != null
+              ? Number(
+                  (detailTambahan.saldo_konter as Record<string, unknown>)
+                    ?.sesudah,
+                )
+              : undefined;
           const trx: Transaksi = {
             id: row.id as string,
             waktu: new Date(row.waktu as string),
@@ -53,7 +64,10 @@ export function useTransaksiRealtime(
             sn: (row.sn as string) ?? "",
             errorMessage: (row.error_message as string) ?? undefined,
             provider: row.provider as string,
-            detail: row.detail_tambahan as Transaksi["detail"],
+            detail: {
+              ...(row.detail_tambahan as Transaksi["detail"]),
+              saldo_akhir: saldoAkhir,
+            },
           };
           callbackRef.current(trx);
         },

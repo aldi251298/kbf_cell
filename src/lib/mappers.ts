@@ -97,6 +97,14 @@ export function mapTransaksi(row: TransaksiRow): Transaksi {
           nomorTujuan: row.nomor_tujuan ?? undefined,
           platform: row.provider === "alpines" ? "alpines" : undefined,
           namaProduk: row.nama_produk ?? undefined,
+          saldo_akhir:
+            row.provider === "alpines" &&
+            row.detail_tambahan?.saldo_konter != null
+              ? Number(
+                  (row.detail_tambahan.saldo_konter as Record<string, unknown>)
+                    ?.sesudah,
+                )
+              : undefined,
         }
       : undefined,
     errorMessage: row.perlu_review

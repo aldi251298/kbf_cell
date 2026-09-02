@@ -630,7 +630,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Card 4: Saldo Alpines — gradient biru menonjol */}
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white shadow-md">
+            <div className="bg-linear-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white shadow-md">
               <p className="text-sm text-blue-100 mb-1">Saldo Alpines</p>
               <p className="text-2xl font-bold mb-3 font-data">
                 {saldoAlpines !== null ? formatRupiah(saldoAlpines) : "..."}

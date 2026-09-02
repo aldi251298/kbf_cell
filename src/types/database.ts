@@ -60,7 +60,7 @@ export interface TransaksiRow {
   nomor_tujuan: string | null;
   status: StatusTransaksiDb;
   raw_notification_text: string;
-  detail_tambahan: Record<string, string> | null;
+  detail_tambahan: Record<string, unknown> | null;
   perlu_review: boolean;
   created_at: string;
   /** Optional LEFT JOIN result from `konter` table. */
