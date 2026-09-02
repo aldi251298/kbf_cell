@@ -52,9 +52,19 @@ async function ambilSaldoAlpinesTerkini(
     });
   }
   if (dataTopUp?.saldo_sesudah != null && dataTopUp.waktu_capture) {
+    // PERBAIKAN: waktu_capture di pengisian_saldo_alpines adalah TIMESTAMP without TZ
+    // Android kirim sebagai WIB (UTC+7), tapi disimpan tanpa konversi TZ.
+    // Normalisasi ke UTC agar perbandingan dengan transaksi.waktu (timestamptz/UTC) adil.
+    const waktuCapture = dataTopUp.waktu_capture;
+    // Jika format ISO tanpa Z (mis. "2024-01-15T10:30:00"), anggap WIB dan konversi ke UTC
+    const waktuTerakhirUTC =
+      waktuCapture.endsWith("Z") || waktuCapture.includes("+")
+        ? waktuCapture // sudah punya TZ info
+        : new Date(waktuCapture + "+07:00").toISOString(); // tambah offset WIB, konversi ke UTC
+
     kandidat.push({
       saldo: dataTopUp.saldo_sesudah,
-      waktuTerakhir: dataTopUp.waktu_capture,
+      waktuTerakhir: waktuTerakhirUTC,
     });
   }
 
